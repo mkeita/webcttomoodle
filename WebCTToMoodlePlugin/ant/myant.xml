@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+
+<project default="copy_to_moodle" basedir="../.">
+
+<property name="moodle_dir" value="D:/MoodleWindowsInstaller-latest-26/server/moodle"/>
+
+
+	<target name="delete_moodle_files">
+		<echo message="Delete moodle files"/>
+	  	<delete dir="${moodle_dir}/admin/tool/webcttomoodle" verbose="true"></delete>
+	</target>
+	
+	<target name="copy_to_moodle" depends="delete_moodle_files">
+		<echo message="Send source files to moodle"/>
+	  	<copy todir="${moodle_dir}/admin/tool" overwrite="true" verbose="true">
+	    	<fileset dir=".">
+	        	<include name="**/webcttomoodle/**"/>
+	    	</fileset>
+	  	</copy>
+	</target>
+  
+</project>
