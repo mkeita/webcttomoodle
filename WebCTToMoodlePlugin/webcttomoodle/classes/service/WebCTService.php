@@ -20,9 +20,9 @@ class WebCTService {
 	 */
 	public function createGlobalModel($learningContextId) {
 		
-		//$model = new WebCTModel($learningContextId);
+		$model = new WebCTModel($learningContextId);
 		
-		$model = new MockModel();
+		//$model = new MockModel();
 		
 		//var_dump($model);
 		echo 'MODEL CREATED'."\n";

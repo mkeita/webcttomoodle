@@ -9,9 +9,7 @@ class WebCTModel extends \GlobalModel {
 	private $learningContextId = "366249217001";
 	
 	private $deliveryContextId;
-	
-	
-	
+		
 	/* (non-PHPdoc)
 	 * @see GlobalModel::__construct()
 	 */
@@ -19,7 +17,10 @@ class WebCTModel extends \GlobalModel {
 		$this->learningContextId = $learningContextId;
 		parent::__construct();
 		
-		$this->retrieveGlossaries();
+		//TODO TEMPORARY DESACTIVATE GLOSSARIES EXTRACT
+		//$this->retrieveGlossaries();
+
+		$this->retrieveQuestions();
 		
 		oci_close($this->connection);
 	}
@@ -286,12 +287,18 @@ class WebCTModel extends \GlobalModel {
 	} 
 	
 	
-	/* (non-PHPdoc)
-	 * @see GlobalModel::addFileGlossaryFile()
-	 * 
+	/**
+	 *
+	 * @param unknown $fileOriginalContentId
+	 * @param unknown $mode
 	 * MODE 1 = Glossary file - attachment
 	 * MODE 2 = GLossary file - entry
-	 * 
+	 * MODE 3 = Question file - question text
+	 * MODE 4 = Question file - General feedback text
+	 * MODE 5 = Question file - Answer text
+	 * MODE 6 = Question file - Answer feedback text
+	 * @param unknown $item
+	 * @param unknown $parent
 	 */
 	public function addFile($fileOriginalContentId, $mode, $item, &$parent){
 		
@@ -305,6 +312,23 @@ class WebCTModel extends \GlobalModel {
 			case 2:
 				$component = "mod_glossary";
 				$fileArea = "entry";
+				break;
+				
+			case 3:
+				$component = "question";
+				$fileArea = "questiontext";
+				break;
+			case 4:
+				$component = "question";
+				$fileArea = "generalfeedback";
+				break;
+			case 5:
+				$component = "question";
+				$fileArea = "answer";
+				break;
+			case 6:
+				$component = "question";
+				$fileArea = "answerfeedback";
 				break;
 		}
 				
@@ -337,6 +361,11 @@ class WebCTModel extends \GlobalModel {
 		oci_execute($stid);
 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 				
+		if(empty($row)){
+			//No element found!!
+			return;
+		}
+		
 		$file = new FileBackup();
 		$file->id=$this->filesCount++;
 		$file->contextid=0;// 		<contextid>54</contextid>
@@ -364,7 +393,8 @@ class WebCTModel extends \GlobalModel {
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
-	
+		
+		echo 'FILE='.$file->filename . "///".$fileOriginalContentId."\n";
 		$file->content = $row["CONTENT"]->load();
 
 		$file->contenthash=md5($file->content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
@@ -382,14 +412,539 @@ class WebCTModel extends \GlobalModel {
 		//$file->content = file_get_contents($filename);
 		
 		//REFERENCE IN THE GLOSSARY
-		$parent->filesIds[] = $repository->id;		
-		$parent->filesIds[] = $file->id;
-	
+		switch ($mode){
+			case 1:
+			case 2:
+				$parent->filesIds[] = $repository->id;		
+				$parent->filesIds[] = $file->id;
+			break;
+		}
 		//REFERENCE IN THE COURSE FILES
 		$this->files->files[]=$repository;
 		$this->files->files[]=$file;
 		
 				
 	}
+	
+	
+	/*******************************************************************************************************************
+	 * QUESTIONS BANK
+	 */
+	
+	
+	public function retrieveQuestions(){
+	
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='QuestionDatabaseCategory' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+		
+			$questionCategory = new QuestionCategory();
+			
+			$questionCategory->id = $row['ORIGINAL_CONTENT_ID'];
+			$questionCategory->name = $row['NAME'];
+			$questionCategory->contextid = 0;
+			$questionCategory->contextlevel = 50; //COURSE LEVEL
+			$questionCategory->contextinstanceid = 0;
+			$questionCategory->info = ""; //NO DESCRIPTION IN WEBCT
+			$questionCategory->infoformat = 1;
+			$questionCategory->stamp = time(); // localhost+140131155733+469Glc
+			$questionCategory->parent = 0;
+			$questionCategory->sortorder = 999;
+			
+			//ADD ALL QUESTIONS IN THIS CATEGORY
+			$request1 = "SELECT * FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='Question' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' AND PARENT_ID='".$questionCategory->id."'";
+			$stid1 = oci_parse($this->connection,$request1);
+			oci_execute($stid1);
+			while ($row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)){
+				$question=null;
+				/*
+				if($row1['CE_SUBTYPE_NAME']=='MultipleChoice'){ //MULTICHOICE
+					$question = new MultiChoiceQuestion();
+					$question->id = $row1['ORIGINAL_CONTENT_ID'];
+					$question->parent= 0;//$questionCategory->id;
+					$question->name=$row1['NAME'];
+					
+					$this->fillMutipleChoiceQuestion($question, $row1['FILE_CONTENT_ID']);
+					$questionCategory->questions[]=$question;
+				}else 
+				*/
+				if($row1['CE_SUBTYPE_NAME']=='ShortAnswer'){ //
+					$question = new ShortAnswerQuestion();
+					$question->category = $questionCategory;
+				}
+				if(empty($question)){
+					continue;					
+				}
+				$question->id = $row1['ORIGINAL_CONTENT_ID'];
+				$question->parent= 0;//$questionCategory->id;
+				$question->name=$row1['NAME'];
+					
+				$this->fillQuestion($question, $row1['FILE_CONTENT_ID']);
+				$questionCategory->questions[]=$question;
+				
+				
+				//break;
+			}
+			
+			$this->questions->question_categories[] = $questionCategory;
+			$this->course->inforef->questioncategoryids[]=$questionCategory->id;
+				
+		}
+			
+	}
+	
+	
+	/**
+	 * @param Question $question
+	 * @param string $fileContentId
+	 */
+	public function fillQuestion(&$question, $fileContentId){
+	
+		global $USER;
+	
+		//GET THE QUESTION FILE
+		//GET THE CONTENT
+		$request = "SELECT * FROM CMS_FILE_CONTENT WHERE ID='".$fileContentId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+	
+		$content = $row["CONTENT"]->load();
+	
+		//PARSE THE XML FILE AND RETREIVE THE NEEDED INFORMATION
+		$xmlContent = new SimpleXMLElement($content);
+		$xmlContent->registerXPathNamespace("ims", "http://www.imsglobal.org/xsd/ims_qtiasiv1p2");
+	
+		//QUESTION TEXT
+		$generalFeedbackText = $xmlContent->presentation->flow->material->mattext;
+		$filesName = array();
+		$convertedDescription = $this->convertHTMLContentLinks($generalFeedbackText,$filesName);
+		foreach ($filesName as $fileName){
+			$request1 = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+			$stid1 = oci_parse($this->connection,$request1);
+			oci_execute($stid1);
+			$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
+			if(!empty($row1)){
+				error_log($fileName,0);
+				$this->addFile($row1["ORIGINAL_CONTENT_ID"], 3, $question, $parent);
+			}
+		}
+	
+		//Get the file attached if any and past it to the description
+		$imageName = $xmlContent->presentation->flow->material->matimage;
+		$imageURI = $xmlContent->presentation->flow->material->matimage['uri'];
+		$findContentId   = '?contentID=';
+		$pos = strpos($imageURI, $findContentId);
+		if($pos>0){
+			// 			echo 'IMAGE NAME = '.$imageName."\n";
+			// 			echo 'IMAGE URI = '.$imageURI."\n";
+			$fileContentId = substr($imageURI, $pos+11);
+			$this->addFile($fileContentId, 3, $question, $parent);
+	
+			$convertedDescription = $convertedDescription."<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
+		}
+		$question->questiontext=$convertedDescription;
+	
+		$question->questiontextformat="1";// 		<questiontextformat>1</questiontextformat>
+	
+		//GENERAL FEEDBACK TEXT
+		if(!empty($xmlContent->itemfeedback->flow_mat)){
+			$generalFeedbackText = $xmlContent->itemfeedback->flow_mat->material->mattext;
+			$filesName = array();
+			$convertedDescription = $this->convertHTMLContentLinks($generalFeedbackText,$filesName);
+			foreach ($filesName as $fileName){
+				$request1 = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+				$stid1 = oci_parse($this->connection,$request1);
+				oci_execute($stid1);
+				$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
+				if(!empty($row1)){
+					error_log($fileName,0);
+					$this->addFile($row1["ORIGINAL_CONTENT_ID"], 4, $question, $parent);
+				}
+			}
+			$question->generalfeedback=$convertedDescription;// 		<generalfeedback>&lt;p&gt;&amp;lt;P&amp;gt;&amp;lt;FONT COLOR="#000000"&amp;gt;1 mole de HNO&amp;lt;sub&amp;gt;3&amp;lt;/sub&amp;gt; &lt;/p&gt;</generalfeedback>
+		}else {
+			$question->generalfeedback="";
+		}
+		$question->generalfeedbackformat="1";// 		<generalfeedbackformat>1</generalfeedbackformat>
+		$question->defaultmark="1.0000000";// 		<defaultmark>1.0000000</defaultmark>
+		$question->penalty="0.3333333";// 		<penalty>0.3333333</penalty>
+		$question->length="1";// 		<length>1</length>
+		$question->stamp=time();// 		<stamp>localhost+140131160414+7AXnY7</stamp>
+		$question->version=time();// 		<version>localhost+140131160414+HfBHPl</version>
+		$question->hidden="0";// 		<hidden>0</hidden>
+		$question->timecreated=time();// 		<timecreated>1391184254</timecreated>
+		$question->timemodified=time();// 		<timemodified>1391184254</timemodified>
+		$question->createdby=$USER->id;// 		<createdby>2</createdby>
+		$question->modifiedby=$USER->id;// 		<modifiedby>2</modifiedby>
+	
+	
+		if($question instanceof MultiChoiceQuestion) {
+			$this->fillMutipleChoiceQuestion($question, $xmlContent);
+		}else if($question instanceof ShortAnswerQuestion){
+			$this->fillShortAnswerQuestion($question, $xmlContent);
+		}
+	
+	}
+	
+	/**
+	 * @param MultiChoiceQuestion $question
+	 * @param SimpleXMLElement $xmlContent
+	 */
+	public function fillMutipleChoiceQuestion(&$question, $xmlContent){		
+		
+		$multichoice = new MultiChoice();
+		$multichoice->id=$question->id;
+
+		$multichoice->layout=0;// 			<layout>0</layout>
+		if((string)$xmlContent->presentation->flow->response_lid['rcardinality']=="Single"){
+			$multichoice->single=1;//             <single>1</single>					
+		}else {
+			$multichoice->single=0;
+		}
+		
+		if((string)$xmlContent->presentation->flow->response_lid->render_choice['shuffle']=="Yes"){
+			$multichoice->shuffleanswers=1;//             <single>1</single>
+		}else {
+			$multichoice->shuffleanswers=0;
+		}
+
+		
+		foreach ($xmlContent->itemmetadata->qtimetadata as $qtimetadata){
+			$break = false;
+			foreach ($qtimetadata as $qtimetadatafield){
+				//echo 'TEST '.$qtimetadatafield->fieldlabel;
+				if((string)$qtimetadatafield->fieldlabel=="wct_question_labelledletter"){
+					if((string)$qtimetadatafield->fieldentry=="Yes"){
+						$multichoice->answernumbering="abc";//             <answernumbering>abc</answernumbering>								
+					}else {
+						$multichoice->answernumbering="123";//             <answernumbering>abc</answernumbering>
+					}
+					$break = true;
+					break;
+				}
+			}
+			if($break){
+				break;
+			}
+		}
+		
+		//COMBINED FEEDBACK
+		$multichoice->correctfeedback=utf8_encode('Votre réponse est correcte.');//             <correctfeedback>&lt;p&gt;Your answer is correct.&lt;/p&gt;</correctfeedback>
+		$multichoice->correctfeedbackformat="1";//             <correctfeedbackformat>1</correctfeedbackformat>
+		$multichoice->partiallycorrectfeedback=utf8_encode('Votre réponse est partiellement correcte.');//             <partiallycorrectfeedback>&lt;p&gt;Your answer is partially correct.&lt;/p&gt;</partiallycorrectfeedback>
+		$multichoice->partiallycorrectfeedbackformat="1";//             <partiallycorrectfeedbackformat>1</partiallycorrectfeedbackformat>
+		$multichoice->incorrectfeedback=utf8_encode('Votre réponse est incorrecte.');//             <incorrectfeedback>&lt;p&gt;Your answer is incorrect.&lt;/p&gt;</incorrectfeedback>
+		$multichoice->incorrectfeedbackformat="1";//             <incorrectfeedbackformat>1</incorrectfeedbackformat>
+		$multichoice->shownumcorrect="1";//             <shownumcorrect>1</shownumcorrect>
+
+		$question->multiChoice = $multichoice;
+		
+		
+		$count = 0;
+		foreach ($xmlContent->presentation->flow->response_lid->render_choice->flow_label->response_label as $response_label){
+
+			$webctAnswerId = $response_label['ident'];
+			
+			$answer = new Answer();
+			$answer->id=$count++;// 		id="4">
+			$answerText = $response_label->material->mattext;
+			$filesName = array();
+			$convertedDescription = $this->convertHTMLContentLinks($answerText,$filesName);
+			foreach ($filesName as $fileName){
+				$request1 = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+				$stid1 = oci_parse($this->connection,$request1);
+				oci_execute($stid1);
+				$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
+				if(!empty($row1)){
+					error_log($fileName,0);
+					$this->addFile($row1["ORIGINAL_CONTENT_ID"], 5, $answer, $parent);
+				}
+			}
+			
+			$answer->answertext=$convertedDescription;// 		<answertext>&lt;p&gt;1,05 10&amp;lt;SUP&amp;gt;-22&amp;lt;/SUP&amp;gt; g&lt;/p&gt;</answertext>
+			$answer->answerformat="1";// 		<answerformat>1</answerformat>
+			
+			
+			$webctFeedbackId="";
+			foreach ($xmlContent->resprocessing->respcondition as $respcondition){
+				if((string)$respcondition->conditionvar->varequal==$webctAnswerId){
+					if((string)$respcondition->setvar['varname']== "SCORE"){
+						$score = $respcondition->setvar/100;
+						if((string)$respcondition->setvar['action']=="Subtract"){
+							$score=-$score;
+						}
+						$answer->fraction=$score;// 		<fraction>1.0000000</fraction>
+					}
+					
+					$webctFeedbackId = $respcondition->displayfeedback['linkrefid'];
+					break;
+				}
+			}
+			
+			foreach ($xmlContent->itemfeedback as $itemfeedback){
+				if($itemfeedback['ident']==$webctFeedbackId){
+					foreach ($itemfeedback->material->mattext as $mattext){
+						if(!empty($mattext[label])){
+							$answerFeedbackText = $mattext;
+							$filesName = array();
+							$convertedDescription = $this->convertHTMLContentLinks($answerFeedbackText,$filesName);
+							foreach ($filesName as $fileName){
+								$request1 = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+								$stid1 = oci_parse($this->connection,$request1);
+								oci_execute($stid1);
+								$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
+								if(!empty($row1)){
+									error_log($fileName,0);
+									$this->addFile($row1["ORIGINAL_CONTENT_ID"], 6, $answer, $parent);
+								}
+							}
+							$answer->feedback=$convertedDescription;// 		<feedback>&lt;p&gt;C'est exact.&lt;/p&gt;</feedback>
+							$answer->feedbackformat="1";// 		<feedbackformat>1</feedbackformat>	
+							break;										
+						}
+					}
+					break;			
+				}				
+			}
+				
+	
+			$question->answers[] = $answer;			
+		}		
+		
+	}
+	
+	
+	
+	/**
+	 * @param ShortAnswerQuestion $question
+	 * @param SimpleXMLElement $xmlContent
+	 */
+	public function fillShortAnswerQuestion(&$question, $xmlContent){	
+	
+		$shortanswer = new ShortAnswer();
+		$shortanswer->id=$question->id;
+	
+		$isShortAnswer = true;
+		
+		foreach ($xmlContent->itemmetadata->qtimetadata as $qtimetadata){
+			$break = false;
+			foreach ($qtimetadata as $qtimetadatafield){
+				//echo 'TEST '.$qtimetadatafield->fieldlabel;
+				if((string)$qtimetadatafield->fieldlabel=="wct_sa_caseSensitive"){
+					if((string)$qtimetadatafield->fieldentry=="Yes"){
+						$shortanswer->usecase=1;
+					}else {
+						$shortanswer->usecase=0;
+					}
+				}else if((string)$qtimetadatafield->fieldlabel=="wct_sa_answerBoxNumber"){
+					//echo 'ANSWER BOX NUMBER = '.$qtimetadatafield->fieldentry ."<br/>";
+					if((int)$qtimetadatafield->fieldentry>1){
+						$isShortAnswer = false;
+					}
+				}
+			}
+		}		
+		$question->shorAnswer = $shortanswer;
+		
+		
+		if($isShortAnswer){ //On crée vraiment une short Answer
+			//UNIQUEMENT AVEC REPONSE UNIQUE...
+		
+			$count = 0;
+			
+			//$xmlContent->registerXPathNamespace("n", "http://www.imsglobal.org/xsd/ims_qtiasiv1p2");
+			//$xmlContent->registerXPathNamespace("webct", "http://www.webct.com/vista/assessment");
+			//var_dump($xmlContent->xpath('/n:item'));
+			
+			foreach ($xmlContent->xpath('//ims:respcondition') as $respcondition){
+					
+				$varEqual = $respcondition->conditionvar->varequal;
+				$varExt = $respcondition->conditionvar->var_extension;
+				$varSubset = $respcondition->conditionvar->varsubset;
+				$answerText = "";
+				if(!empty($varEqual)){
+					$answerText = $varEqual;
+				}else if(!empty($varExt)){
+					$answerText = $varExt->children('http://www.webct.com/vista/assessment');
+					echo "EXTENSION = ".$answerText."<br/>";
+				}else if(!empty($varSubset)){
+					$answerText = "*".$varSubset."*";
+					echo "CONTAIN = ".$answerText."<br/>";
+				}
+				
+				if(empty($answerText)){
+					continue;
+				}
+				
+				$answer = new Answer();
+				$answer->id=$count++;// 		id="4"				
+				$answer->answertext=$answerText;// 		<answertext>&lt;p&gt;1,05 10&amp;lt;SUP&amp;gt;-22&amp;lt;/SUP&amp;gt; g&lt;/p&gt;</answertext>
+				$answer->answerformat="1";// 		<answerformat>1</answerformat>
+			
+				if((string)$respcondition->setvar['varname']== "SCORE"){
+					$score = $respcondition->setvar/100;
+					if((string)$respcondition->setvar['action']=="Subtract"){
+						$score=-$score;
+					}
+					$answer->fraction=$score;// 		<fraction>1.0000000</fraction>
+				}
+								
+				$answer->feedback="";		
+				$answer->feedbackformat="1";
+
+				$question->answers[] = $answer;
+			}
+			
+		}else {
+			echo "MULTI ANSWERS";
+			$newQuestion = new MultiAnswerQuestion();
+			$newQuestion->fillWith($question);
+			
+			$question = $newQuestion;
+			
+			$multiAnswer = new MultiAnswer();
+			$multiAnswer->question = $question->id;
+			
+			
+			$finalText = $question->questiontext."<br/><ol>";
+			
+			$count = 0;
+			//We're going to find all the questions part
+			$responseStrList =$xmlContent->xpath('//ims:response_str');
+			$responseCount = count($responseStrList);
+			foreach ($responseStrList as $response_str){
+				$responseId = $response_str['ident'];				
+				$count++;
+				
+				$finalText = $finalText."<li>{#".$count."}</li>";
+
+				
+				//Add a short answer question..
+				$shortAnswerQuestion = new ShortAnswerQuestion();
+				$shortAnswerQuestion->id = $question->id+$count;
+				$shortAnswerQuestion->parent = $question->id;
+				$shortAnswerQuestion->name = $question->name;				
+				$shortAnswerQuestion->questiontextformat=1;
+				$shortAnswerQuestion->generalfeedback="";
+				$shortAnswerQuestion->generalfeedbackformat=1;
+				$shortAnswerQuestion->defaultmark="1.0000000";
+				$shortAnswerQuestion->penalty="0.0000000";
+				$shortAnswerQuestion->length="1";
+				$shortAnswerQuestion->stamp=time();
+				$shortAnswerQuestion->version=time();
+				$shortAnswerQuestion->hidden=0;
+				$shortAnswerQuestion->timecreated=time();
+				$shortAnswerQuestion->timemodified=time();
+				$shortAnswerQuestion->createdby=$question->createdby;
+				$shortAnswerQuestion->modifiedby=$question->modifiedby;
+				
+				
+				$shortAnswer = new ShortAnswer();
+				$shortAnswer->id=$shortAnswerQuestion->id;
+				$shortAnswer->usecase = $shortanswer->usecase;
+				
+				$shortAnswerQuestion->shorAnswer = $shortAnswer;
+				
+				//Answers
+				$count2 = 0;
+					
+				//$xmlContent->registerXPathNamespace("n", "http://www.imsglobal.org/xsd/ims_qtiasiv1p2");
+				//$xmlContent->registerXPathNamespace("webct", "http://www.webct.com/vista/assessment");
+				//var_dump($xmlContent->xpath('/n:item'));
+				$shortAnswerQuestionText ="";
+				
+				$maxScore = 0;
+				foreach ($xmlContent->xpath('//ims:respcondition') as $respcondition){
+						
+					$varEqual = $respcondition->conditionvar->varequal;
+					$varExt = $respcondition->conditionvar->var_extension;
+					$varSubset = $respcondition->conditionvar->varsubset;
+					$answerText = "";
+					if(!empty($varEqual)){
+						if((string)$varEqual['respident']==(string)$responseId){							
+							$answerText = $varEqual;
+						}
+					}else if(!empty($varExt)){
+						$varExtChild = $varExt->children('http://www.webct.com/vista/assessment');
+						if((string)$varExtChild['respident']==(string)$responseId){
+							$answerText = $varExtChild;
+							echo "EXTENSION = ".$answerText."<br/>";
+						}						
+						
+					}else if(!empty($varSubset)){
+						if((string)$varSubset['respident']==(string)$responseId){
+							$answerText = "*".$varSubset."*";
+							echo "CONTAIN = ".$answerText."<br/>";
+						}						
+
+					}
+				
+					if(empty($answerText)){
+						continue;
+					}
+				
+					$answer = new Answer();
+					$answer->id=$count2++;// 		id="4"
+					$answer->answertext=$answerText;// 		<answertext>&lt;p&gt;1,05 10&amp;lt;SUP&amp;gt;-22&amp;lt;/SUP&amp;gt; g&lt;/p&gt;</answertext>
+					$answer->answerformat="0";// 		<answerformat>1</answerformat>
+						
+					if((string)$respcondition->setvar['varname']== "SCORE"){
+						$score = $respcondition->setvar/100;
+						if((string)$respcondition->setvar['action']=="Subtract"){
+							$score=-$score;
+						}
+						$answer->fraction=$score;// 		<fraction>1.0000000</fraction>
+					}
+				
+					if($maxScore < $answer->fraction){
+						$maxScore = $answer->fraction;
+					} 
+					
+					$answer->feedback="";
+					$answer->feedbackformat="1";
+				
+					$shortAnswerQuestion->answers[] = $answer;
+					
+				}
+				
+				//We have to adapt all the scores to match
+				$ponderation = $maxScore *100;
+				if($ponderation<1){
+					$ponderation = 1;
+					echo 'PROBLEME AVEC PONDERATION DE '.$shortAnswerQuestion->name." -- ".$responseId."<br/>";
+				}
+
+				$shortAnswerQuestionText="{".$ponderation.":SHORTANSWER";
+				if($shortAnswer->usecase==1){
+					$shortAnswerQuestionText =$shortAnswerQuestionText."_C";
+				}
+				$shortAnswerQuestionText =$shortAnswerQuestionText.":";
+				
+				foreach ($shortAnswerQuestion->answers as $answer){
+					if($maxScore!=0){
+						$answer->fraction = $answer->fraction/$maxScore;
+					}
+					$shortAnswerQuestionText=$shortAnswerQuestionText."%".($answer->fraction*100)."%".$answer->answertext."#~";						
+				}
+								
+				$shortAnswerQuestionText = substr($shortAnswerQuestionText,0,-1)."}";
+				$shortAnswerQuestion->questiontext =$shortAnswerQuestionText;
+				
+				//Add the short question to the current category..
+				$question->category->questions[] = $shortAnswerQuestion; 
+				$multiAnswer->sequence[]=$shortAnswerQuestion->id;
+				
+			}
+			$finalText = $finalText."</ol>";
+			$question->questiontext =$finalText;
+			
+			$question->multiAnswer = $multiAnswer;
+		}
+		
+	
+	}
+	
 	
 }
