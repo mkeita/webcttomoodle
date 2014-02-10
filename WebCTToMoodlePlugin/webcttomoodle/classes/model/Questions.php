@@ -359,3 +359,153 @@ class MultiAnswer {
 		$writer->endElement();
 	}
 }
+
+class FillInBlankQuestion extends MultiAnswerQuestion {
+	
+}
+
+class MatchingQuestion extends Question {
+	
+	
+	/**
+	 * @var Matches
+	 */
+	public $matches;
+	
+	public function __construct(){
+		$this->qtype = "match";
+	}
+	
+
+	/* (non-PHPdoc)
+	 * @see Question::toXMLFile()
+	*/
+	public function toXMLFile(&$writer) {
+		$writer->startElement('question');
+		parent::toXMLFile($writer);
+	
+			$writer->startElement('plugin_qtype_match_question');
+				$this->matches->toXMLFile($writer);
+			$writer->endElement();
+	
+		$writer->endElement();
+	}
+	
+}
+
+
+class Matches {
+	
+	/**
+	 * @var MatchOptions
+	 */
+	public $matchOptions;
+	
+	
+	/**
+	 * @var Match|Array
+	 */
+	public $matches = array();
+	
+
+	public function toXMLFile(&$writer){
+		$writer->startElement('matchoptions');
+			$writer->writeAttribute('id',$this->matchOptions->id);
+		
+			$writer->writeElement('shuffleanswers',$this->matchOptions->shuffleanswers);
+			$writer->writeElement('correctfeedback',$this->matchOptions->correctfeedback);
+			$writer->writeElement('correctfeedbackformat',$this->matchOptions->correctfeedbackformat);
+			$writer->writeElement('partiallycorrectfeedback',$this->matchOptions->partiallycorrectfeedback);
+			$writer->writeElement('partiallycorrectfeedbackformat',$this->matchOptions->partiallycorrectfeedbackformat);
+			$writer->writeElement('incorrectfeedback',$this->matchOptions->incorrectfeedback);				
+			$writer->writeElement('incorrectfeedbackformat',$this->matchOptions->incorrectfeedbackformat);
+			$writer->writeElement('shownumcorrect',$this->matchOptions->shownumcorrect);				
+		$writer->endElement();
+		
+		$writer->startElement('matches');
+		foreach ($this->matches as $match){
+			$writer->startElement('match');
+				$writer->writeAttribute('id',$match->id);
+				
+				$writer->writeElement('questiontext',$match->questiontext);
+				$writer->writeElement('questiontextformat',$match->questiontextformat);
+				$writer->writeElement('answertext',$match->answertext);
+			$writer->endElement();
+		}
+		$writer->endElement();
+			
+	}
+	
+}
+
+
+class MatchOptions {
+	public $id;
+	public $shuffleanswers;
+	public $correctfeedback;
+	public $correctfeedbackformat;
+	public $partiallycorrectfeedback;
+	public $partiallycorrectfeedbackformat;
+	public $incorrectfeedback;
+	public $incorrectfeedbackformat;
+	public $shownumcorrect;
+}
+
+class Match {
+	public $id;
+	public $questiontext;
+	public $questiontextformat;
+	public $answertext;
+}
+
+
+class ParagraphQuestion extends Question {
+
+
+	/**
+	 * @var Essay
+	 */
+	public $essay;
+
+	public function __construct(){
+		$this->qtype = "essay";
+	}
+
+
+	/* (non-PHPdoc)
+	 * @see Question::toXMLFile()
+	*/
+	public function toXMLFile(&$writer) {
+		$writer->startElement('question');
+		parent::toXMLFile($writer);
+
+			$writer->startElement('plugin_qtype_essay_question');
+				$writer->startElement('essay');
+					$writer->writeAttribute('id',$this->essay->id);
+					
+					$writer->writeElement('responseformat',$this->essay->responseformat);
+					$writer->writeElement('responsefieldlines',$this->essay->responsefieldlines);
+					$writer->writeElement('attachments',$this->essay->attachments);
+					$writer->writeElement('graderinfo',$this->essay->graderinfo);
+					$writer->writeElement('graderinfoformat',$this->essay->graderinfoformat);
+					$writer->writeElement('responsetemplate',$this->essay->responsetemplate);
+					$writer->writeElement('responsetemplateformat',$this->essay->responsetemplateformat);
+					
+				$writer->endElement();
+			$writer->endElement();
+
+		$writer->endElement();
+	}
+
+}
+
+class Essay {
+	public $id;
+	public $responseformat;
+	public $responsefieldlines;
+	public $attachments;
+	public $graderinfo;
+	public $graderinfoformat;
+	public $responsetemplate;
+	public $responsetemplateformat;
+}

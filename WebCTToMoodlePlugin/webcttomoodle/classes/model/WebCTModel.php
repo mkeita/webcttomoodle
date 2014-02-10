@@ -186,18 +186,7 @@ class WebCTModel extends \GlobalModel {
 			$completeDescription = $description->load();
 			
 			$filesName = array();
-			$convertedDescription = $this->convertHTMLContentLinks($completeDescription,$filesName);
-			
-			foreach ($filesName as $fileName){
-				$request1 = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
-				$stid1 = oci_parse($this->connection,$request1);
-				oci_execute($stid1);
-				$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
-				if(!empty($row1)){
-					error_log($fileName,0);
-					$this->addFile($row1["ORIGINAL_CONTENT_ID"], 2, $entry, $glossary);					
-				}
-			}
+			$convertedDescription =$this->convertTextAndCreateAssociedFiles($completeDescription,2, $entry, $glossary); 
 						
 			$entry->definition =$convertedDescription;// 		<definition>&lt;p&gt;Entry 1 of glossary&lt;/p&gt;</definition>
 			
@@ -287,6 +276,41 @@ class WebCTModel extends \GlobalModel {
 	} 
 	
 	
+	
+	/**
+	 * @param unknown $text
+	 * @param unknown $item
+	 * @param unknown $parent
+	 * @param unknown $mode
+	 * 
+	 * MODE 1 = Glossary file - attachment
+	 * MODE 2 = GLossary file - entry
+	 * MODE 3 = Question file - question text
+	 * MODE 4 = Question file - General feedback text
+	 * MODE 5 = Question file - Answer text
+	 * MODE 6 = Question file - Answer feedback text
+	 * MODE 7 = Question file - Match subquestion
+	 * MODE 8 = Question file - Essay grader info
+	 * 
+	 * @return mixed
+	 */
+	public function convertTextAndCreateAssociedFiles($text,$mode,$item,$parent=NULL){
+		$filesName = array();
+		$convertedText = $this->convertHTMLContentLinks($text,$filesName);
+		foreach ($filesName as $fileName){
+			$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+			$stid = oci_parse($this->connection,$request);
+			oci_execute($stid);
+			$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+			if(!empty($row)){
+				error_log($fileName,0);
+				$this->addFile($row["ORIGINAL_CONTENT_ID"], $mode, $item, $parent);
+			}
+		}
+		
+		return $convertedText;
+	}
+	
 	/**
 	 *
 	 * @param unknown $fileOriginalContentId
@@ -297,10 +321,12 @@ class WebCTModel extends \GlobalModel {
 	 * MODE 4 = Question file - General feedback text
 	 * MODE 5 = Question file - Answer text
 	 * MODE 6 = Question file - Answer feedback text
+	 * MODE 7 = Question file - Match subquestion
+	 * MODE 8 = Question file - Essay grader info
 	 * @param unknown $item
 	 * @param unknown $parent
 	 */
-	public function addFile($fileOriginalContentId, $mode, $item, &$parent){
+	public function addFile($fileOriginalContentId, $mode, $item, &$parent=NULL){
 		
 		$fileArea = "";
 		$component ="";
@@ -330,6 +356,17 @@ class WebCTModel extends \GlobalModel {
 				$component = "question";
 				$fileArea = "answerfeedback";
 				break;
+			case 7:
+				$component = "qtype_match";
+				$fileArea = "subquestion";
+				break;				
+			case 8:
+				$component = "qtype_essay";
+				$fileArea = "graderinfo";
+				break;
+				
+				
+				
 		}
 				
 		$repository = new FileBackup();
@@ -467,12 +504,21 @@ class WebCTModel extends \GlobalModel {
 					
 					$this->fillMutipleChoiceQuestion($question, $row1['FILE_CONTENT_ID']);
 					$questionCategory->questions[]=$question;
-				}else 
-				*/
-				if($row1['CE_SUBTYPE_NAME']=='ShortAnswer'){ //
+				}else if($row1['CE_SUBTYPE_NAME']=='ShortAnswer'){ //
 					$question = new ShortAnswerQuestion();
 					$question->category = $questionCategory;
+				} else if($row1['CE_SUBTYPE_NAME']=='FillInTheBlank'){ //
+					$question = new FillInBlankQuestion();
+					$question->category = $questionCategory;
+				}else if($row1['CE_SUBTYPE_NAME']=='Matching'){ //
+					$question = new MatchingQuestion();
+					$question->category = $questionCategory;
+				}else */
+				if($row1['CE_SUBTYPE_NAME']=='Paragraph'){ //
+					$question = new ParagraphQuestion();
+					$question->category = $questionCategory;
 				}
+				
 				if(empty($question)){
 					continue;					
 				}
@@ -516,53 +562,49 @@ class WebCTModel extends \GlobalModel {
 		$xmlContent = new SimpleXMLElement($content);
 		$xmlContent->registerXPathNamespace("ims", "http://www.imsglobal.org/xsd/ims_qtiasiv1p2");
 	
-		//QUESTION TEXT
-		$generalFeedbackText = $xmlContent->presentation->flow->material->mattext;
-		$filesName = array();
-		$convertedDescription = $this->convertHTMLContentLinks($generalFeedbackText,$filesName);
-		foreach ($filesName as $fileName){
-			$request1 = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
-			$stid1 = oci_parse($this->connection,$request1);
-			oci_execute($stid1);
-			$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
-			if(!empty($row1)){
-				error_log($fileName,0);
-				$this->addFile($row1["ORIGINAL_CONTENT_ID"], 3, $question, $parent);
+		if($question instanceof MultiChoiceQuestion || $question instanceof ShortAnswerQuestion
+			|| $question instanceof MatchingQuestion || $question instanceof ParagraphQuestion){
+			//QUESTION TEXT
+			$questionText ="";
+			
+			if(strlen($question->name)>255){
+				echo 'QUESTION NAME TOO LONG - '.$question->name;
+				$questionText .= $question->name."<br/>";
+
+				$question->name = substr($question->name, 252)."...";
+			}			
+			
+			$questionText .= $xmlContent->presentation->flow->material->mattext;
+			$convertedDescription = $this->convertTextAndCreateAssociedFiles($questionText,3, $question);
+		
+			//TODO
+			//CAS PARTICULIER où la question est dans le nom !!!
+			//if(empty($convertedDescription)){
+			//	$convertedDescription = $question->name;
+			//}
+			
+			//Get the file attached if any and past it to the description
+			$imageName = $xmlContent->presentation->flow->material->matimage;
+			$imageURI = $xmlContent->presentation->flow->material->matimage['uri'];
+			$findContentId   = '?contentID=';
+			$pos = strpos($imageURI, $findContentId);
+			if($pos>0){
+				// 			echo 'IMAGE NAME = '.$imageName."\n";
+				// 			echo 'IMAGE URI = '.$imageURI."\n";
+				$fileContentId = substr($imageURI, $pos+11);
+				$this->addFile($fileContentId, 3, $question);
+		
+				$convertedDescription .= "<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
 			}
+			$question->questiontext=$convertedDescription;
 		}
-	
-		//Get the file attached if any and past it to the description
-		$imageName = $xmlContent->presentation->flow->material->matimage;
-		$imageURI = $xmlContent->presentation->flow->material->matimage['uri'];
-		$findContentId   = '?contentID=';
-		$pos = strpos($imageURI, $findContentId);
-		if($pos>0){
-			// 			echo 'IMAGE NAME = '.$imageName."\n";
-			// 			echo 'IMAGE URI = '.$imageURI."\n";
-			$fileContentId = substr($imageURI, $pos+11);
-			$this->addFile($fileContentId, 3, $question, $parent);
-	
-			$convertedDescription = $convertedDescription."<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
-		}
-		$question->questiontext=$convertedDescription;
-	
+			
 		$question->questiontextformat="1";// 		<questiontextformat>1</questiontextformat>
 	
 		//GENERAL FEEDBACK TEXT
 		if(!empty($xmlContent->itemfeedback->flow_mat)){
 			$generalFeedbackText = $xmlContent->itemfeedback->flow_mat->material->mattext;
-			$filesName = array();
-			$convertedDescription = $this->convertHTMLContentLinks($generalFeedbackText,$filesName);
-			foreach ($filesName as $fileName){
-				$request1 = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
-				$stid1 = oci_parse($this->connection,$request1);
-				oci_execute($stid1);
-				$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
-				if(!empty($row1)){
-					error_log($fileName,0);
-					$this->addFile($row1["ORIGINAL_CONTENT_ID"], 4, $question, $parent);
-				}
-			}
+			$convertedDescription = $this->convertTextAndCreateAssociedFiles($generalFeedbackText,4, $question);
 			$question->generalfeedback=$convertedDescription;// 		<generalfeedback>&lt;p&gt;&amp;lt;P&amp;gt;&amp;lt;FONT COLOR="#000000"&amp;gt;1 mole de HNO&amp;lt;sub&amp;gt;3&amp;lt;/sub&amp;gt; &lt;/p&gt;</generalfeedback>
 		}else {
 			$question->generalfeedback="";
@@ -584,7 +626,14 @@ class WebCTModel extends \GlobalModel {
 			$this->fillMutipleChoiceQuestion($question, $xmlContent);
 		}else if($question instanceof ShortAnswerQuestion){
 			$this->fillShortAnswerQuestion($question, $xmlContent);
+		}else if($question instanceof FillInBlankQuestion){
+			$this->fillFillInBlankQuestion($question, $xmlContent);
+		}else if($question instanceof MatchingQuestion){
+			$this->fillMatchingQuestion($question, $xmlContent);
+		}else if($question instanceof ParagraphQuestion){
+			$this->fillParagraphQuestion($question, $xmlContent);
 		}
+		
 	
 	}
 	
@@ -650,19 +699,7 @@ class WebCTModel extends \GlobalModel {
 			$answer = new Answer();
 			$answer->id=$count++;// 		id="4">
 			$answerText = $response_label->material->mattext;
-			$filesName = array();
-			$convertedDescription = $this->convertHTMLContentLinks($answerText,$filesName);
-			foreach ($filesName as $fileName){
-				$request1 = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
-				$stid1 = oci_parse($this->connection,$request1);
-				oci_execute($stid1);
-				$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
-				if(!empty($row1)){
-					error_log($fileName,0);
-					$this->addFile($row1["ORIGINAL_CONTENT_ID"], 5, $answer, $parent);
-				}
-			}
-			
+			$convertedDescription =  $this->convertTextAndCreateAssociedFiles($answerText,5, $answer);
 			$answer->answertext=$convertedDescription;// 		<answertext>&lt;p&gt;1,05 10&amp;lt;SUP&amp;gt;-22&amp;lt;/SUP&amp;gt; g&lt;/p&gt;</answertext>
 			$answer->answerformat="1";// 		<answerformat>1</answerformat>
 			
@@ -688,18 +725,7 @@ class WebCTModel extends \GlobalModel {
 					foreach ($itemfeedback->material->mattext as $mattext){
 						if(!empty($mattext[label])){
 							$answerFeedbackText = $mattext;
-							$filesName = array();
-							$convertedDescription = $this->convertHTMLContentLinks($answerFeedbackText,$filesName);
-							foreach ($filesName as $fileName){
-								$request1 = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
-								$stid1 = oci_parse($this->connection,$request1);
-								oci_execute($stid1);
-								$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
-								if(!empty($row1)){
-									error_log($fileName,0);
-									$this->addFile($row1["ORIGINAL_CONTENT_ID"], 6, $answer, $parent);
-								}
-							}
+							$convertedDescription =  $this->convertTextAndCreateAssociedFiles($answerFeedbackText,6, $answer);
 							$answer->feedback=$convertedDescription;// 		<feedback>&lt;p&gt;C'est exact.&lt;/p&gt;</feedback>
 							$answer->feedbackformat="1";// 		<feedbackformat>1</feedbackformat>	
 							break;										
@@ -926,7 +952,7 @@ class WebCTModel extends \GlobalModel {
 					if($maxScore!=0){
 						$answer->fraction = $answer->fraction/$maxScore;
 					}
-					$shortAnswerQuestionText=$shortAnswerQuestionText."%".($answer->fraction*100)."%".$answer->answertext."#~";						
+					$shortAnswerQuestionText=$shortAnswerQuestionText."%".round($answer->fraction*100,0)."%".$answer->answertext."#~";						
 				}
 								
 				$shortAnswerQuestionText = substr($shortAnswerQuestionText,0,-1)."}";
@@ -947,4 +973,308 @@ class WebCTModel extends \GlobalModel {
 	}
 	
 	
+	/**
+	 * @param FillInBlankQuestion $question
+	 * @param SimpleXMLElement $xmlContent
+	 */
+	public function fillFillInBlankQuestion(&$question, $xmlContent){
+			
+		$usercase = 0;
+		foreach ($xmlContent->xpath('//ims:qtimetadatafield') as $qtimetadatafield){
+			if((string)$qtimetadatafield->fieldlabel=="wct_sa_caseSensitive"){
+				if((string)$qtimetadatafield->fieldentry=="Yes"){
+					$usercase=1;
+				}else {
+					$usercase=0;
+				}
+				break;
+			}
+		}
+		
+		$multiAnswer = new MultiAnswer();
+		$multiAnswer->question = $question->id;
+			
+
+		//On boucle sur le flow
+		$xmlFlow = $xmlContent->presentation->flow;
+
+		$questionFinalText="";		
+			
+		if(strlen($question->name)>255){
+			echo 'QUESTION NAME TOO LONG - '.$question->name, PHP_EOL;
+			$questionFinalText .= $question->name."<br/>";
+			
+			$question->name = substr($question->name, 252)."...";
+		}
+		
+		
+		$count = 0;
+		foreach ($xmlFlow->children() as $child){
+			
+			if($child->getName()=="material"){
+				
+				if(!empty($child->mattext)){
+					$filesName = array();
+					$convertedDescription = $this->convertTextAndCreateAssociedFiles((string)$child->mattext,3, $question);
+					$questionFinalText.=$convertedDescription;
+				}else if(!empty($child->matimage)){
+					$imageName = $child->matimage;
+					$imageURI = $child->matimage['uri'];
+					$findContentId   = '?contentID=';
+					$pos = strpos($imageURI, $findContentId);
+					if($pos>0){
+						$fileContentId = substr($imageURI, $pos+11);
+						$this->addFile($fileContentId, 3, $question);
+					
+						$questionFinalText .="<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
+					}
+				}
+				
+			}else if($child->getName()=="response_str"){
+				
+				$response_str = $child;
+				
+				$responseId = $response_str['ident'];
+				$count++;
+				
+				$questionFinalText.="{#".$count."}";								
+				
+				//Add a short answer question..
+				$shortAnswerQuestion = new ShortAnswerQuestion();
+				$shortAnswerQuestion->id = $question->id+$count;
+				$shortAnswerQuestion->parent = $question->id;
+				$shortAnswerQuestion->name = $question->name;
+				$shortAnswerQuestion->questiontextformat=1;
+				$shortAnswerQuestion->generalfeedback="";
+				$shortAnswerQuestion->generalfeedbackformat=1;
+				$shortAnswerQuestion->defaultmark="1.0000000";
+				$shortAnswerQuestion->penalty="0.0000000";
+				$shortAnswerQuestion->length="1";
+				$shortAnswerQuestion->stamp=time();
+				$shortAnswerQuestion->version=time();
+				$shortAnswerQuestion->hidden=0;
+				$shortAnswerQuestion->timecreated=time();
+				$shortAnswerQuestion->timemodified=time();
+				$shortAnswerQuestion->createdby=$question->createdby;
+				$shortAnswerQuestion->modifiedby=$question->modifiedby;
+				
+				
+				$shortAnswer = new ShortAnswer();
+				$shortAnswer->id=$shortAnswerQuestion->id;
+				$shortAnswer->usecase = $usercase;
+				
+				$shortAnswerQuestion->shorAnswer = $shortAnswer;
+				
+				//Answers
+				$count2 = 0;
+				
+				$shortAnswerQuestionText ="";
+				
+				$maxScore = 0;
+				foreach ($xmlContent->xpath('//ims:respcondition') as $respcondition){
+				
+					$varEqual = $respcondition->conditionvar->varequal;
+					$varExt = $respcondition->conditionvar->var_extension;
+					$varSubset = $respcondition->conditionvar->varsubset;
+					$answerText = "";
+					if(!empty($varEqual)){
+						if((string)$varEqual['respident']==(string)$responseId){
+							$answerText = $varEqual;
+						}
+					}else if(!empty($varExt)){
+						$varExtChild = $varExt->children('http://www.webct.com/vista/assessment');
+						if((string)$varExtChild['respident']==(string)$responseId){
+							$answerText = $varExtChild;
+							echo "EXTENSION = ".$answerText."<br/>";
+						}
+				
+					}else if(!empty($varSubset)){
+						if((string)$varSubset['respident']==(string)$responseId){
+							$answerText = "*".$varSubset."*";
+							echo "CONTAIN = ".$answerText."<br/>";
+						}
+				
+					}
+				
+					if(empty($answerText)){
+						continue;
+					}
+				
+					$answer = new Answer();
+					$answer->id=$count2++;// 		id="4"
+					$answer->answertext=$answerText;// 		<answertext>&lt;p&gt;1,05 10&amp;lt;SUP&amp;gt;-22&amp;lt;/SUP&amp;gt; g&lt;/p&gt;</answertext>
+					$answer->answerformat="0";// 		<answerformat>1</answerformat>
+				
+					if((string)$respcondition->setvar['varname']== "SCORE"){
+						$score = $respcondition->setvar/100;
+						if((string)$respcondition->setvar['action']=="Subtract"){
+							$score=-$score;
+						}
+						$answer->fraction=$score;// 		<fraction>1.0000000</fraction>
+					}
+				
+					if($maxScore < $answer->fraction){
+						$maxScore = $answer->fraction;
+					}
+						
+					$answer->feedback="";
+					$answer->feedbackformat="1";
+				
+					$shortAnswerQuestion->answers[] = $answer;
+						
+				}
+				
+				//We have to adapt all the scores to match
+				$ponderation = $maxScore *100;
+				if($ponderation<1){
+					$ponderation = 1;
+					echo 'PROBLEME AVEC PONDERATION DE '.$shortAnswerQuestion->name." -- ".$responseId."<br/>";
+				}
+				
+				$shortAnswerQuestionText="{".$ponderation.":SHORTANSWER";
+				if($shortAnswer->usecase==1){
+					$shortAnswerQuestionText =$shortAnswerQuestionText."_C";
+				}
+				$shortAnswerQuestionText =$shortAnswerQuestionText.":";
+				
+				foreach ($shortAnswerQuestion->answers as $answer){
+					if($maxScore!=0){
+						$answer->fraction = $answer->fraction/$maxScore;
+					}
+					$shortAnswerQuestionText=$shortAnswerQuestionText."%".round($answer->fraction*100,0)."%".$answer->answertext."#~";
+				}
+				
+				$shortAnswerQuestionText = substr($shortAnswerQuestionText,0,-1)."}";
+				$shortAnswerQuestion->questiontext =$shortAnswerQuestionText;
+				
+				//Add the short question to the current category..
+				$question->category->questions[] = $shortAnswerQuestion;
+				$multiAnswer->sequence[]=$shortAnswerQuestion->id;
+				
+				
+			}
+		}
+		
+		$question->questiontext =$questionFinalText;
+		$question->multiAnswer = $multiAnswer;
+
+	}
+	
+	
+	
+	/**
+	 * @param MatchingQuestion $question
+	 * @param SimpleXMLElement $xmlContent
+	 */
+	public function fillMatchingQuestion(&$question, $xmlContent){
+	
+		foreach ($xmlContent->xpath('//ims:qtimetadatafield') as $qtimetadatafield){
+			if((string)$qtimetadatafield->fieldlabel=="wct_m_grading_scheme"){
+				if((string)$qtimetadatafield->fieldentry!="EQUALLY_WEIGHTED"){
+					echo "PROBLEME DE GRADE -> ICI  = ". $qtimetadatafield->fieldentry ." - Question = ".$question->name. "<br/>" ;
+				}
+				break;
+			}
+		}
+		
+		$matches = new Matches();
+		
+		//IDEM MULTICHOICE
+		$matchOptions = new MatchOptions();
+		$matchOptions->id=1;
+		$matchOptions->shuffleanswers=1;// 		<shuffleanswers>1</shuffleanswers>
+		$matchOptions->correctfeedback=utf8_encode('Votre réponse est correcte.');// 		<correctfeedback>&lt;p&gt;Your answer is correct.&lt;/p&gt;</correctfeedback>
+		$matchOptions->correctfeedbackformat=1;// 		<correctfeedbackformat>1</correctfeedbackformat>
+		$matchOptions->partiallycorrectfeedback=utf8_encode('Votre réponse est partiellement correcte.');;// 		<partiallycorrectfeedback>&lt;p&gt;Your answer is partially correct.&lt;/p&gt;</partiallycorrectfeedback>
+		$matchOptions->partiallycorrectfeedbackformat=1;// 		<partiallycorrectfeedbackformat>1</partiallycorrectfeedbackformat>
+		$matchOptions->incorrectfeedback=utf8_encode('Votre réponse est incorrecte.');// 		<incorrectfeedback>&lt;p&gt;Your answer is incorrect.&lt;/p&gt;</incorrectfeedback>
+		$matchOptions->incorrectfeedbackformat=1;// 		<incorrectfeedbackformat>1</incorrectfeedbackformat>
+		$matchOptions->shownumcorrect=1;// 		<shownumcorrect>1</shownumcorrect>		
+		
+		$matches->matchOptions = $matchOptions;		
+		
+		$count=0;
+		$lastAnswerText ="";
+		foreach ($xmlContent->xpath('//ims:response_grp') as $response_grp){
+			
+			$match = new Match();
+			$match->id = $count++;
+			
+			$filesName = array();
+			$convertedText = $this->convertTextAndCreateAssociedFiles((string)$response_grp->material->mattext,7, $match); 
+			$match->questiontext = $convertedText;
+			
+			$match->questiontextformat =1 ;
+
+			$machtText = "";
+			foreach ($response_grp->render_choice->flow_label->response_label as $response_label){
+				if(substr($response_label['ident'],0,2)!="NO"){
+					$machtText = $response_label->material->mattext;
+					break;
+				}
+			}
+					
+			$filesName = array();
+			$convertedText = $this->convertTextAndCreateAssociedFiles($machtText,7, $match);				
+			$lastAnswerText = $convertedText;
+			$match->answertext = $convertedText;
+			
+			$matches->matches[]=$match;
+		}
+		//ADD the last answer, one more time but without the question..
+		$lastMatch = new Match();
+		$lastMatch->id = $count++;
+		$lastMatch->questiontext = "";
+		$lastMatch->questiontextformat = 1;
+		$lastMatch->answertext = $lastAnswerText;		
+		$matches->matches[]=$lastMatch;
+		
+		
+		$question->matches = $matches;
+		
+	}
+	
+	
+	/**
+	 * @param ParagraphQuestion $question
+	 * @param SimpleXMLElement $xmlContent
+	 */
+	public function fillParagraphQuestion(&$question, $xmlContent){
+	
+		$essay = new Essay();
+		
+		$essay->id=1;
+		$essay->responseformat="editor";
+		$essay->attachments=0;
+		
+		$lineNumber=0;
+	
+		foreach ($xmlContent->xpath('//ims:qtimetadatafield') as $qtimetadatafield){
+			if((string)$qtimetadatafield->fieldlabel=="answerBoxHeight"){
+				$lineNumber = $qtimetadatafield->fieldentry;
+				break;
+			}
+		}
+		$essay->responsefieldlines = $lineNumber;
+		
+		$preText = $xmlContent->presentation->flow->response_str->render_fib->response_label->material->mattext;
+		$convertedText = $this->convertTextAndCreateAssociedFiles($preText,8, $question);
+		$essay->responsetemplate=$convertedText;
+		$essay->responsetemplateformat=1;
+		
+		$convertedText="";
+		foreach ($xmlContent->xpath('//ims:itemfeedback') as $itemfeedback){
+			if((string)$itemfeedback['ident']=="CORRECT_ANSWER"){
+				$solutionText = $itemfeedback->solution->solutionmaterial->material->mattext;
+				$convertedText = $this->convertTextAndCreateAssociedFiles($solutionText,8, $question);
+				break;
+			}
+		}
+		$essay->graderinfo=$convertedText;
+		$essay->graderinfoformat=1;
+		
+
+		
+		$question->essay = $essay;
+	}
 }
