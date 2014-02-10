@@ -509,3 +509,60 @@ class Essay {
 	public $responsetemplate;
 	public $responsetemplateformat;
 }
+
+
+class TrueFalseQuestion extends Question {
+
+	/**
+	 * @var Answer|Array
+	 */
+	public $answers = array();
+
+
+	/**
+	 * @var TrueFalseAnswer
+	*/
+	public $trueFalseAnswer;
+
+	public function __construct(){
+		$this->qtype = "truefalse";
+	}
+
+	/* (non-PHPdoc)
+	 * @see Question::toXMLFile()
+	*/
+	public function toXMLFile(&$writer) {
+		$writer->startElement('question');
+			parent::toXMLFile($writer);
+	
+			$writer->startElement('plugin_qtype_truefalse_question');
+				$this->trueFalseAnswer->toXMLFile($writer);
+				$writer->startElement('answers');
+					foreach ($this->answers as $answer){
+						$answer->toXMLFile($writer);
+					}
+				$writer->endElement();
+			$writer->endElement();
+
+		$writer->endElement();
+	}
+
+}
+
+class TrueFalseAnswer {
+	public $id;//
+
+	public $trueanswer;//
+	public $falseanswer;//
+
+	public function toXMLFile(&$writer){
+		$writer->startElement('truefalse');
+			$writer->writeAttribute('id',$this->id);
+
+			$writer->writeElement('trueanswer',$this->trueanswer);
+			$writer->writeElement('falseanswer',$this->falseanswer);
+			
+		$writer->endElement();
+	}
+}
+

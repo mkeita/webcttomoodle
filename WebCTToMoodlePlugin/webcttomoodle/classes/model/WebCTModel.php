@@ -513,12 +513,14 @@ class WebCTModel extends \GlobalModel {
 				}else if($row1['CE_SUBTYPE_NAME']=='Matching'){ //
 					$question = new MatchingQuestion();
 					$question->category = $questionCategory;
-				}else */
-				if($row1['CE_SUBTYPE_NAME']=='Paragraph'){ //
+				}else if($row1['CE_SUBTYPE_NAME']=='Paragraph'){ //
 					$question = new ParagraphQuestion();
 					$question->category = $questionCategory;
+				}else */
+				if($row1['CE_SUBTYPE_NAME']=='TrueFalse'){ //
+					$question = new TrueFalseQuestion();
+					$question->category = $questionCategory;
 				}
-				
 				if(empty($question)){
 					continue;					
 				}
@@ -563,7 +565,8 @@ class WebCTModel extends \GlobalModel {
 		$xmlContent->registerXPathNamespace("ims", "http://www.imsglobal.org/xsd/ims_qtiasiv1p2");
 	
 		if($question instanceof MultiChoiceQuestion || $question instanceof ShortAnswerQuestion
-			|| $question instanceof MatchingQuestion || $question instanceof ParagraphQuestion){
+			|| $question instanceof MatchingQuestion || $question instanceof ParagraphQuestion
+			|| $question instanceof TrueFalseQuestion){
 			//QUESTION TEXT
 			$questionText ="";
 			
@@ -632,6 +635,8 @@ class WebCTModel extends \GlobalModel {
 			$this->fillMatchingQuestion($question, $xmlContent);
 		}else if($question instanceof ParagraphQuestion){
 			$this->fillParagraphQuestion($question, $xmlContent);
+		}else if($question instanceof TrueFalseQuestion){
+			$this->fillTrueFalseQuestion($question, $xmlContent);
 		}
 		
 	
@@ -1275,6 +1280,50 @@ class WebCTModel extends \GlobalModel {
 		
 
 		
+		$question->essay = $essay;
+	}
+	
+	
+	/**
+	 * @param TrueFalseQuestion $question
+	 * @param SimpleXMLElement $xmlContent
+	 */
+	public function fillTrueFalseQuestion(&$question, $xmlContent){
+	
+		$essay = new Essay();
+	
+		$essay->id=1;
+		$essay->responseformat="editor";
+		$essay->attachments=0;
+	
+		$lineNumber=0;
+	
+		foreach ($xmlContent->xpath('//ims:qtimetadatafield') as $qtimetadatafield){
+			if((string)$qtimetadatafield->fieldlabel=="answerBoxHeight"){
+				$lineNumber = $qtimetadatafield->fieldentry;
+				break;
+			}
+		}
+		$essay->responsefieldlines = $lineNumber;
+	
+		$preText = $xmlContent->presentation->flow->response_str->render_fib->response_label->material->mattext;
+		$convertedText = $this->convertTextAndCreateAssociedFiles($preText,8, $question);
+		$essay->responsetemplate=$convertedText;
+		$essay->responsetemplateformat=1;
+	
+		$convertedText="";
+		foreach ($xmlContent->xpath('//ims:itemfeedback') as $itemfeedback){
+			if((string)$itemfeedback['ident']=="CORRECT_ANSWER"){
+				$solutionText = $itemfeedback->solution->solutionmaterial->material->mattext;
+				$convertedText = $this->convertTextAndCreateAssociedFiles($solutionText,8, $question);
+				break;
+			}
+		}
+		$essay->graderinfo=$convertedText;
+		$essay->graderinfoformat=1;
+	
+	
+	
 		$question->essay = $essay;
 	}
 }
