@@ -516,9 +516,16 @@ class WebCTModel extends \GlobalModel {
 				}else if($row1['CE_SUBTYPE_NAME']=='Paragraph'){ //
 					$question = new ParagraphQuestion();
 					$question->category = $questionCategory;
-				}else */
+				}else 
 				if($row1['CE_SUBTYPE_NAME']=='TrueFalse'){ //
 					$question = new TrueFalseQuestion();
+					$question->category = $questionCategory;
+				}else if($row1['CE_SUBTYPE_NAME']=='Calculated'){ //
+					$question = new CalculatedQuestion();
+					$question->category = $questionCategory;
+				}else */
+				if($row1['CE_SUBTYPE_NAME']=='CombinationMultipleChoice'){ //
+					$question = new CombinaisonMultiChoiceQuestion();
 					$question->category = $questionCategory;
 				}
 				if(empty($question)){
@@ -566,7 +573,7 @@ class WebCTModel extends \GlobalModel {
 	
 		if($question instanceof MultiChoiceQuestion || $question instanceof ShortAnswerQuestion
 			|| $question instanceof MatchingQuestion || $question instanceof ParagraphQuestion
-			|| $question instanceof TrueFalseQuestion){
+			|| $question instanceof TrueFalseQuestion || $question instanceof CombinaisonMultiChoiceQuestion){
 			//QUESTION TEXT
 			$questionText ="";
 			
@@ -624,8 +631,10 @@ class WebCTModel extends \GlobalModel {
 		$question->createdby=$USER->id;// 		<createdby>2</createdby>
 		$question->modifiedby=$USER->id;// 		<modifiedby>2</modifiedby>
 	
-	
-		if($question instanceof MultiChoiceQuestion) {
+		//attention aux classes qui héritent !!
+		if($question instanceof CombinaisonMultiChoiceQuestion){
+			$this->fillCombinaisonMutipleChoiceQuestion($question, $xmlContent);
+		}else if($question instanceof MultiChoiceQuestion) {
 			$this->fillMutipleChoiceQuestion($question, $xmlContent);
 		}else if($question instanceof ShortAnswerQuestion){
 			$this->fillShortAnswerQuestion($question, $xmlContent);
@@ -637,7 +646,10 @@ class WebCTModel extends \GlobalModel {
 			$this->fillParagraphQuestion($question, $xmlContent);
 		}else if($question instanceof TrueFalseQuestion){
 			$this->fillTrueFalseQuestion($question, $xmlContent);
+		}else if($question instanceof CalculatedQuestion){
+			$this->fillCalculatedQuestion($question, $xmlContent);
 		}
+		
 		
 	
 	}
@@ -1290,40 +1302,367 @@ class WebCTModel extends \GlobalModel {
 	 */
 	public function fillTrueFalseQuestion(&$question, $xmlContent){
 	
-		$essay = new Essay();
-	
-		$essay->id=1;
-		$essay->responseformat="editor";
-		$essay->attachments=0;
-	
-		$lineNumber=0;
-	
-		foreach ($xmlContent->xpath('//ims:qtimetadatafield') as $qtimetadatafield){
-			if((string)$qtimetadatafield->fieldlabel=="answerBoxHeight"){
-				$lineNumber = $qtimetadatafield->fieldentry;
-				break;
-			}
+		$trueFalseAnswer = new TrueFalseAnswer();
+		$trueFalseAnswer->id = 1;
+		
+		$trueAnswer = new Answer();
+		$trueAnswer->id="1";
+		$trueAnswer->answertext="True";
+		$trueAnswer->answerformat="0";
+		$trueAnswer->feedback="";
+		$trueAnswer->feedbackformat="1";
+
+		$falseAnswer = new Answer();
+		$falseAnswer->id="2";
+		$falseAnswer->answertext="False";
+		$falseAnswer->answerformat="0";
+		$falseAnswer->feedback="";
+		$falseAnswer->feedbackformat="1";
+		
+		
+		//NORMALLY ONLY ONE VAREQUAL
+		foreach ($xmlContent->xpath('//ims:varequal') as $varEqual){
+			
+			if((string)$varEqual=="true"){
+				$trueAnswer->fraction="1.0000000";
+				$falseAnswer->fraction="0.0000000";
+			}else {
+				$trueAnswer->fraction="0.0000000";
+				$falseAnswer->fraction="1.0000000";
+			}			
 		}
-		$essay->responsefieldlines = $lineNumber;
+		
+		$question->answers[] = $trueAnswer;
+		$question->answers[] = $falseAnswer;
+		
+		$trueFalseAnswer->trueanswer=$trueAnswer->id;
+		$trueFalseAnswer->falseanswer=$falseAnswer->id;
 	
-		$preText = $xmlContent->presentation->flow->response_str->render_fib->response_label->material->mattext;
-		$convertedText = $this->convertTextAndCreateAssociedFiles($preText,8, $question);
-		$essay->responsetemplate=$convertedText;
-		$essay->responsetemplateformat=1;
-	
-		$convertedText="";
-		foreach ($xmlContent->xpath('//ims:itemfeedback') as $itemfeedback){
-			if((string)$itemfeedback['ident']=="CORRECT_ANSWER"){
-				$solutionText = $itemfeedback->solution->solutionmaterial->material->mattext;
-				$convertedText = $this->convertTextAndCreateAssociedFiles($solutionText,8, $question);
-				break;
-			}
-		}
-		$essay->graderinfo=$convertedText;
-		$essay->graderinfoformat=1;
-	
-	
-	
-		$question->essay = $essay;
+		$question->trueFalseAnswer = $trueFalseAnswer;
 	}
+	
+	
+	/**
+	 * @param CalculatedQuestion $question
+	 * @param SimpleXMLElement $xmlContent
+	 */
+	public function fillCalculatedQuestion(&$question, $xmlContent){
+	
+		$convertedDescription="";
+		foreach ($xmlContent->xpath('//ims:qtimetadatafield') as $qtimetadatafield){
+			if((string)$qtimetadatafield->fieldlabel=="wct_calc_questionText"){
+				$webCtText = (string)$qtimetadatafield->fieldentry;
+				
+				$webctCaract = array("[", "]");
+				$moodleCaract   = array("{", "}");
+				
+				$convertedText = str_replace($webctCaract, $moodleCaract, $webCtText);				
+				$convertedDescription = $this->convertTextAndCreateAssociedFiles($convertedText, 3, $question);				
+				
+				break;
+			}
+		}
+		
+		$imageNames = $xmlContent->xpath('//ims:matimage');
+		if(!empty($imageNames)){
+			$imageName = $imageNames[0];
+			
+			$imageURI = $imageName['uri'];
+			$findContentId   = '?contentID=';
+			$pos = strpos($imageURI, $findContentId);
+			if($pos>0){
+				// 			echo 'IMAGE NAME = '.$imageName."\n";
+				// 			echo 'IMAGE URI = '.$imageURI."\n";
+				$fileContentId = substr($imageURI, $pos+11);
+				$this->addFile($fileContentId, 3, $question);
+			
+				$convertedDescription .= "<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
+			}
+		}
+		$question->questiontext=$convertedDescription;
+
+		
+		$answer = new Answer();
+		$answer->id="1";
+		
+		$matExtension = $xmlContent->presentation->flow->material->mat_extension;
+
+		$calulatedChild = $matExtension->children('http://www.webct.com/vista/assessment');
+		
+		$answer->answertext=$this->convertFormula($calulatedChild->calculated->formula);
+		$answer->answerformat=0;
+		$answer->fraction="1.0000000";
+		$answer->feedback="";
+		$answer->feedbackformat=1;
+
+		$question->answers[]=$answer;
+		$countItem = 0;
+		$countDataset=0;
+		foreach ($calulatedChild->calculated->var as $var){
+			$name = $var['name'];
+			$datasetDefinition = new DatasetDefinition();
+			$datasetDefinition->id = $countDataset++;
+			$datasetDefinition->category=0;
+			$datasetDefinition->name=$name;
+			$datasetDefinition->type=1;
+			
+			$datasetDefinition->options="uniform:".$var['min'].':'.$var['max'].":1";
+			$datasetDefinition->itemcount=10;
+			
+			foreach ($calulatedChild->calculated->calculated_set as $calculatedSet){
+				$index = $calculatedSet['index'];
+				foreach ($calculatedSet->calculated_var as $calculatedVar){
+					if((string)$calculatedVar['name']==(string)$name){
+						$datasetItem = new DatasetItem($countItem++,$index+1,$calculatedVar['value']);
+						$datasetDefinition->datasetItems[]=$datasetItem;
+					}
+				}
+			}
+
+			$question->datasetDefinitions[]=$datasetDefinition;
+			
+		}		
+		
+		
+		$unitEval = $xmlContent->xpath('//ims:unit_eval');
+		
+		$numericalUnit = new NumericalUnit(1,1,(string)$unitEval[0]->conditionvar->varequal);
+		$question->numericalUnits[]=$numericalUnit;
+	
+		
+		$itemprocExtension = $xmlContent->resprocessing->itemproc_extension;
+		
+		$calculatedAnswer = $itemprocExtension->children('http://www.webct.com/vista/assessment');
+		$toleranceType = $calculatedAnswer->calculated_answer['toleranceType'];
+		$tolerance = $calculatedAnswer->calculated_answer['tolerance'];
+		
+		$precisionType = $calculatedAnswer->calculated_answer['precisionType'];
+		$precision = $calculatedAnswer->calculated_answer['precision'];
+		
+		$numericalOption = new NumericalOption();
+		$numericalOption->id=1;
+		if(empty($numericalUnit->unit)){
+			$numericalOption->showunits=3;
+			$numericalOption->unitgradingtype=0;
+		}else {
+			$numericalOption->showunits=0;
+			$numericalOption->unitgradingtype=1;
+		}
+		$numericalOption->unitsleft=0;
+		$numericalOption->unitpenalty=$unitEval[0]->setvar/100;
+		
+		$question->numericalOptions[]=$numericalOption;
+		
+		
+		$calculatedRecord = new CalculatedRecord();
+		$calculatedRecord->id=1;
+		$calculatedRecord->answer=$answer->id;
+		if((string)$toleranceType=="Unit"){
+			$calculatedRecord->tolerancetype=2;
+			$calculatedRecord->tolerance=$tolerance;
+		}else {
+			echo " - SPECIAL TOLERANCE = ".$toleranceType. "-".$tolerance; 
+			$calculatedRecord->tolerancetype=1;
+			$calculatedRecord->tolerance=$tolerance/100;
+		}
+		
+		if((string)$precisionType=="Decimal"){
+			$calculatedRecord->correctanswerformat=1;		
+			$calculatedRecord->correctanswerlength=$precision;				
+		}else {
+			echo " - SPECIAL PRECISION = ".$precisionType. "-".$precision;
+			$calculatedRecord->correctanswerformat=2;		
+			$calculatedRecord->correctanswerlength=$precision;
+		}
+		
+		$question->calculatedRecords[]=$calculatedRecord;
+		
+		$calculatedOption = new CalculatedOption();
+		$calculatedOption->id=1;
+		$calculatedOption->synchronize=0;
+		$calculatedOption->single=0;
+		$calculatedOption->shuffleanswers=1;
+		$calculatedOption->correctfeedback="";
+		$calculatedOption->correctfeedbackformat=0;
+		$calculatedOption->partiallycorrectfeedback="";
+		$calculatedOption->partiallycorrectfeedbackformat=0;
+		$calculatedOption->incorrectfeedback="";
+		$calculatedOption->incorrectfeedbackformat=0;
+		$calculatedOption->answernumbering="abc";
+		
+		$question->calculatedOptions[]=$calculatedOption;
+		
+		echo '<br/>';
+		
+	}
+	
+	public function convertFormula($webCtFormula){
+		
+		$webctCaract = array("[", "]","ln"," ");
+		$moodleCaract   = array("{", "}","log","");
+		
+		$tempFormula = str_replace($webctCaract, $moodleCaract, $webCtFormula);
+		
+		//sum
+		$webctCaract = array("sum", ",");
+		$moodleCaract   = array("", "+");
+		
+		$tempFormula = str_replace($webctCaract, $moodleCaract, $tempFormula);
+		
+		//** --> pow -- difficile à remplacer (pour gagner du temps) codée de manière dure		
+		$webctCaract = array("(1.12**7)","10**9",
+				"{x}**{b}",		"{y}**{d}" , "{x}**2",
+				"({a}**2)","({b}**2)","({c}**2)","({d}**2)","({e}**2)",
+				"(({a}-{f})**2)"   , "(({b}-{f})**2)"  ,"(({c}-{f})**2)", "(({d}-{f})**2)", "(({e}-{f})**2)",
+				"(({a}-{f})**3)"   , "(({b}-{f})**3)"  ,"(({c}-{f})**3)", "(({d}-{f})**3)", "(({e}-{f})**3)",
+				"(({f}-({g}*{a}))**2)", "(({f}-({g}*{b}))**2)" , "(({f}-({g}*{c}))**2)" , "(({f}-({g}*{d}))**2)" ,"(({f}-({g}*{e}))**2)",
+				"((0.2*({a}+{b}+{c}+{d}+{e}))**2)",
+				"({d1}/{d2})**2",
+				"{I}**2",
+				"{v}**2","{v0}**2","{v1}**2","{v2}**2");
+		$moodleCaract   = array("pow(1.12,7)", "pow(10,9)",
+				"pow({x},{b})" ,"pow({y},{d})","pow({x},2)" ,
+				"pow({a},2)","pow({b},2)","pow({c},2)","pow({d},2)","pow({e},2)", 
+				"pow({a}-{f},2)" , "pow({b}-{f},2)" , "pow({c}-{f},2)" , "pow({d}-{f},2)", "pow({e}-{f},2)",
+				"pow({a}-{f},3)" , "pow({b}-{f},3)" , "pow({c}-{f},3)" , "pow({d}-{f},3)", "pow({e}-{f},3)",
+				"pow(({f}-({g}*{a})),2)","pow(({f}-({g}*{b})),2)","pow(({f}-({g}*{c})),2)","pow(({f}-({g}*{d})),2)","pow(({f}-({g}*{e})),2)",
+				"pow((0.2*({a}+{b}+{c}+{d}+{e})),2)",
+				"pow(({d1}/{d2}),2)",
+				"pow({I},2)",
+				"pow({v},2)","pow({v0},2)","pow({v1},2)","pow({v2},2)");
+		
+		$tempFormula = str_replace($webctCaract, $moodleCaract, $tempFormula);
+				
+		
+		$moodleFormula=$tempFormula;
+		
+		//TODO Verification des formules
+		echo 'WEBCT FORMULA = '.$webCtFormula." -- MOODLE FORMULA = ".$moodleFormula."  ";
+		
+		
+		return $moodleFormula;
+	}
+	
+	
+	/**
+	 * @param CombinaisonMultiChoiceQuestion $question
+	 * @param SimpleXMLElement $xmlContent
+	 */
+	public function fillCombinaisonMutipleChoiceQuestion(&$question, $xmlContent){
+	
+		//We have to complete the question test with response proposal
+		$complementText ="<br/>";
+		foreach ($xmlContent->presentation->flow->material[1]->children() as $child){
+			if($child->getName()=="mattext"){
+				$complementText.=(string)$child;
+			}else if($child->getName()=="matbreak"){
+				$complementText.="<br/>";
+			}
+		}
+
+		$question->questiontext.=$complementText;
+		
+		$multichoice = new MultiChoice();
+		$multichoice->id=$question->id;
+	
+		$multichoice->layout=0;// 			<layout>0</layout>
+		if((string)$xmlContent->presentation->flow->response_lid['rcardinality']=="Single"){
+			$multichoice->single=1;//             <single>1</single>
+		}else {
+			$multichoice->single=0;
+		}
+	
+		if((string)$xmlContent->presentation->flow->response_lid->render_choice['shuffle']=="Yes"){
+			$multichoice->shuffleanswers=1;//             <single>1</single>
+		}else {
+			$multichoice->shuffleanswers=0;
+		}
+	
+	
+		foreach ($xmlContent->itemmetadata->qtimetadata as $qtimetadata){
+			$break = false;
+			foreach ($qtimetadata as $qtimetadatafield){
+				//echo 'TEST '.$qtimetadatafield->fieldlabel;
+				if((string)$qtimetadatafield->fieldlabel=="wct_question_labelledletter"){
+					if((string)$qtimetadatafield->fieldentry=="Yes"){
+						$multichoice->answernumbering="abc";//             <answernumbering>abc</answernumbering>
+					}else {
+						$multichoice->answernumbering="123";//             <answernumbering>abc</answernumbering>
+					}
+					$break = true;
+					break;
+				}
+			}
+			if($break){
+				break;
+			}
+		}
+	
+		//COMBINED FEEDBACK
+		$multichoice->correctfeedback=utf8_encode('Votre réponse est correcte.');//             <correctfeedback>&lt;p&gt;Your answer is correct.&lt;/p&gt;</correctfeedback>
+		$multichoice->correctfeedbackformat="1";//             <correctfeedbackformat>1</correctfeedbackformat>
+		$multichoice->partiallycorrectfeedback=utf8_encode('Votre réponse est partiellement correcte.');//             <partiallycorrectfeedback>&lt;p&gt;Your answer is partially correct.&lt;/p&gt;</partiallycorrectfeedback>
+		$multichoice->partiallycorrectfeedbackformat="1";//             <partiallycorrectfeedbackformat>1</partiallycorrectfeedbackformat>
+		$multichoice->incorrectfeedback=utf8_encode('Votre réponse est incorrecte.');//             <incorrectfeedback>&lt;p&gt;Your answer is incorrect.&lt;/p&gt;</incorrectfeedback>
+		$multichoice->incorrectfeedbackformat="1";//             <incorrectfeedbackformat>1</incorrectfeedbackformat>
+		$multichoice->shownumcorrect="1";//             <shownumcorrect>1</shownumcorrect>
+	
+		$question->multiChoice = $multichoice;
+	
+	
+		$count = 0;
+		foreach ($xmlContent->presentation->flow->response_lid->render_choice->flow_label->response_label as $response_label){
+	
+			$webctAnswerId = $response_label['ident'];
+	
+			$answer = new Answer();
+			$answer->id=$count++;// 		id="4">
+			
+			$answerText = "";
+			foreach ($response_label->material->mattext as $mattext){
+				$answerText .= (string)$mattext;
+			}
+		
+			$convertedDescription =  $this->convertTextAndCreateAssociedFiles($answerText,5, $answer);
+			$answer->answertext=$convertedDescription;// 		<answertext>&lt;p&gt;1,05 10&amp;lt;SUP&amp;gt;-22&amp;lt;/SUP&amp;gt; g&lt;/p&gt;</answertext>
+			$answer->answerformat="1";// 		<answerformat>1</answerformat>
+	
+	
+			$webctFeedbackId="";
+			foreach ($xmlContent->resprocessing->respcondition as $respcondition){
+				if((string)$respcondition->conditionvar->varequal==$webctAnswerId){
+					if((string)$respcondition->setvar['varname']== "SCORE"){
+						$score = $respcondition->setvar/100;
+						if((string)$respcondition->setvar['action']=="Subtract"){
+							$score=-$score;
+						}
+						$answer->fraction=$score;// 		<fraction>1.0000000</fraction>
+					}
+	
+					$webctFeedbackId = $respcondition->displayfeedback['linkrefid'];
+					break;
+				}
+			}
+	
+			foreach ($xmlContent->itemfeedback as $itemfeedback){
+				if($itemfeedback['ident']==$webctFeedbackId){
+					foreach ($itemfeedback->material->mattext as $mattext){
+						if(!empty($mattext[label])){
+							$answerFeedbackText = $mattext;
+							$convertedDescription =  $this->convertTextAndCreateAssociedFiles($answerFeedbackText,6, $answer);
+							$answer->feedback=$convertedDescription;// 		<feedback>&lt;p&gt;C'est exact.&lt;/p&gt;</feedback>
+							$answer->feedbackformat="1";// 		<feedbackformat>1</feedbackformat>
+							break;
+						}
+					}
+					break;
+				}
+			}
+	
+	
+			$question->answers[] = $answer;
+		}
+	
+	}
+	
 }

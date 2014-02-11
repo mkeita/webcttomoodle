@@ -536,12 +536,12 @@ class TrueFalseQuestion extends Question {
 			parent::toXMLFile($writer);
 	
 			$writer->startElement('plugin_qtype_truefalse_question');
-				$this->trueFalseAnswer->toXMLFile($writer);
 				$writer->startElement('answers');
 					foreach ($this->answers as $answer){
 						$answer->toXMLFile($writer);
 					}
 				$writer->endElement();
+				$this->trueFalseAnswer->toXMLFile($writer);
 			$writer->endElement();
 
 		$writer->endElement();
@@ -566,3 +566,259 @@ class TrueFalseAnswer {
 	}
 }
 
+
+
+class CalculatedQuestion extends Question {
+
+	/**
+	 * @var Answer|Array
+	 */
+	public $answers = array();
+
+
+	/**
+	 * @var NumericalUnit|Array
+	 */	
+	public $numericalUnits = array();
+	
+	/**
+	 * @var NumericalOption|Array
+	 */
+	public $numericalOptions = array();
+	
+
+	/**
+	 * @var DatasetDefinition|Array
+	 */
+	public $datasetDefinitions = array();
+
+	/**
+	 * @var CalculatedRecord|Array
+	 */
+	public $calculatedRecords = array();
+	
+	/**
+	 * @var CalculatedOption|Array
+	 */
+	public $calculatedOptions = array();
+	
+	
+	public function __construct(){
+		$this->qtype = "calculated";
+	}
+
+	/* (non-PHPdoc)
+	 * @see Question::toXMLFile()
+	*/
+	public function toXMLFile(&$writer) {
+		$writer->startElement('question');
+			parent::toXMLFile($writer);
+	
+			$writer->startElement('plugin_qtype_calculated_question');
+				$writer->startElement('answers');
+				foreach ($this->answers as $answer){
+					$answer->toXMLFile($writer);
+				}
+				$writer->endElement();
+				
+				$writer->startElement('numerical_units');
+				foreach ($this->numericalUnits as $numericalUnit){
+					$numericalUnit->toXMLFile($writer);
+				}
+				$writer->endElement();
+				
+				$writer->startElement('numerical_options');
+				foreach ($this->numericalOptions as $numericalOption){
+					$numericalOption->toXMLFile($writer);
+				}
+				$writer->endElement();
+				
+				$writer->startElement('dataset_definitions');
+				foreach ($this->datasetDefinitions as $datasetDefinition){
+					$datasetDefinition->toXMLFile($writer);
+				}
+				$writer->endElement();
+				
+				$writer->startElement('calculated_records');
+				foreach ($this->calculatedRecords as $calculatedRecord){
+					$calculatedRecord->toXMLFile($writer);
+				}
+				$writer->endElement();
+				
+				$writer->startElement('calculated_options');
+				foreach ($this->calculatedOptions as $calculatedOption){
+					$calculatedOption->toXMLFile($writer);
+				}
+				$writer->endElement();
+				
+			$writer->endElement();
+
+		$writer->endElement();
+	}
+
+}
+
+
+class NumericalUnit {
+	public $id;
+	
+	public $multiplier;
+	public $unit;
+	
+	public function __construct($id,$multiplier,$unit){
+		$this->id = $id;
+		$this->multiplier = $multiplier;
+		$this->unit = $unit;
+	}
+	
+	public function toXMLFile(&$writer){
+		$writer->startElement('numerical_unit');
+			$writer->writeAttribute('id',$this->id);
+				
+			$writer->writeElement('multiplier',$this->multiplier);
+			$writer->writeElement('unit',$this->unit);
+		$writer->endElement();
+	}
+}
+
+
+class NumericalOption {
+	public $id;
+
+	public $showunits;
+	public $unitsleft;
+	public $unitgradingtype;
+	public $unitpenalty;
+
+	public function toXMLFile(&$writer){
+		$writer->startElement('numerical_option');
+			$writer->writeAttribute('id',$this->id);
+	
+			$writer->writeElement('showunits',$this->showunits);
+			$writer->writeElement('unitsleft',$this->unitsleft);
+			$writer->writeElement('unitgradingtype',$this->unitgradingtype);
+			$writer->writeElement('unitpenalty',$this->unitpenalty);
+		$writer->endElement();
+	}
+}
+
+
+class DatasetDefinition {
+	public $id;
+
+	public $category;
+	public $name;
+	public $type;
+	public $options;
+	public $itemcount;
+	
+	/**
+	 * @var DatasetItem|Array
+	 */
+	public $datasetItems = array();
+
+	public function toXMLFile(&$writer){
+		$writer->startElement('dataset_definition');
+			$writer->writeAttribute('id',$this->id);
+	
+			$writer->writeElement('category',$this->category);
+			$writer->writeElement('name',$this->name);
+			$writer->writeElement('type',$this->type);
+			$writer->writeElement('options',$this->options);
+			$writer->writeElement('itemcount',$this->itemcount);
+			
+			$writer->startElement('dataset_items');
+			foreach ($this->datasetItems as $datasetItem){
+				$datasetItem->toXMLFile($writer);
+			}
+			$writer->endElement();
+			
+		$writer->endElement();
+	}
+}
+
+class DatasetItem {
+	public $id;
+
+	public $number;
+	public $value;
+	
+	public function __construct($id,$number,$value){
+		$this->id=$id;
+		$this->number=$number;
+		$this->value=$value;
+	}
+	
+
+	public function toXMLFile(&$writer){
+		$writer->startElement('dataset_item');
+			$writer->writeAttribute('id',$this->id);
+	
+			$writer->writeElement('number',$this->number);
+			$writer->writeElement('value',$this->value);
+		$writer->endElement();
+	}
+}
+
+
+class CalculatedRecord {
+	public $id;
+
+	public $answer;
+	public $tolerance;
+	public $tolerancetype;
+	public $correctanswerlength;
+	public $correctanswerformat;
+
+	public function toXMLFile(&$writer){
+		$writer->startElement('calculated_record');
+			$writer->writeAttribute('id',$this->id);
+	
+			$writer->writeElement('answer',$this->answer);
+			$writer->writeElement('tolerance',$this->tolerance);
+			$writer->writeElement('tolerancetype',$this->tolerancetype);
+			$writer->writeElement('correctanswerlength',$this->correctanswerlength);
+			$writer->writeElement('correctanswerformat',$this->correctanswerformat);
+		
+		$writer->endElement();
+	}
+}
+
+
+class CalculatedOption {
+	public $id;
+
+	public $synchronize;
+	public $single;
+	public $shuffleanswers;
+	public $correctfeedback;
+	public $correctfeedbackformat;
+	public $partiallycorrectfeedback;
+	public $partiallycorrectfeedbackformat;
+	public $incorrectfeedback;
+	public $incorrectfeedbackformat;
+	public $answernumbering;
+
+	public function toXMLFile(&$writer){
+		$writer->startElement('calculated_option');
+			$writer->writeAttribute('id',$this->id);
+	
+			$writer->writeElement('synchronize',$this->synchronize);
+			$writer->writeElement('single',$this->single);
+			$writer->writeElement('shuffleanswers',$this->shuffleanswers);
+			$writer->writeElement('correctfeedback',$this->correctfeedback);
+			$writer->writeElement('correctfeedbackformat',$this->correctfeedbackformat);
+			$writer->writeElement('partiallycorrectfeedback',$this->partiallycorrectfeedback);
+			$writer->writeElement('partiallycorrectfeedbackformat',$this->partiallycorrectfeedbackformat);
+			$writer->writeElement('incorrectfeedback',$this->incorrectfeedback);
+			$writer->writeElement('incorrectfeedbackformat',$this->incorrectfeedbackformat);
+			$writer->writeElement('answernumbering',$this->answernumbering);
+
+		$writer->endElement();
+	}
+}
+
+
+class CombinaisonMultiChoiceQuestion extends MultiChoiceQuestion {
+	
+}
