@@ -12,6 +12,8 @@ class Files implements \IBackupModel {
 		$writer = new XMLWriter();
 		$writer->openURI($repository.'/files.xml');
 		$writer->startDocument('1.0','UTF-8');
+		$writer->setIndent(true);
+		
 		$writer->startElement('files');
 		
 		foreach ($this->files as $file){

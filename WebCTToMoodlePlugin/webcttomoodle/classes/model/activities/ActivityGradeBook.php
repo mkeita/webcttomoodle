@@ -16,10 +16,15 @@ class ActivityGradeBook implements \IBackupModel {
 		$writer = new XMLWriter();
 		$writer->openURI($repository.'/grades.xml');
 		$writer->startDocument('1.0','UTF-8');
+		$writer->setIndent(true);
 		$writer->startElement('activity_gradebook');
 		
 			$writer->startElement('grade_items');
+				foreach ($this->grade_items as $item){
+					$item->toXML($writer);
+				}
 			$writer->endElement();
+			
 			$writer->startElement('grade_letters');
 			$writer->endElement();
 				

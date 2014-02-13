@@ -18,9 +18,11 @@ class WebCTModel extends \GlobalModel {
 		parent::__construct();
 		
 		//TODO TEMPORARY DESACTIVATE GLOSSARIES EXTRACT
-		//$this->retrieveGlossaries();
+		$this->retrieveGlossaries();
 
-		$this->retrieveQuestions();
+		$this->retrieveQuestions();		
+		
+		$this->retrieveQuizzes();
 		
 		oci_close($this->connection);
 	}
@@ -91,7 +93,9 @@ class WebCTModel extends \GlobalModel {
 		$this->moodle_backup->contents->course->courseid=$this->moodle_backup->original_course_id;
 	}
 	
-	
+	/***************************************************************************************************************
+	 * GLOSSARY 
+	 */
 	
 	public function retrieveGlossaries(){
 		
@@ -190,7 +194,7 @@ class WebCTModel extends \GlobalModel {
 						
 			$entry->definition =$convertedDescription;// 		<definition>&lt;p&gt;Entry 1 of glossary&lt;/p&gt;</definition>
 			
-			$entry->sourceglossaryid=$glossaryId;// 		<sourceglossaryid>0</sourceglossaryid>
+			$entry->sourceglossaryid=0;// 		<sourceglossaryid>0</sourceglossaryid>
 					
 			$entry->definitionformat=1;// 		<definitionformat>1</definitionformat>
 			$entry->definitiontrust=0;// 		<definitiontrust>0</definitiontrust>
@@ -370,7 +374,7 @@ class WebCTModel extends \GlobalModel {
 		}
 				
 		$repository = new FileBackup();
-		$repository->id=$this->filesCount++;
+		$repository->id=$this->getNextId();
 		$repository->contenthash="";// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
 		$repository->contextid=0;// 		<contextid>54</contextid> // ACTIVITY -- ICI GLOSSARY CONTEXT
 		$repository->component=$component;// 		<component>mod_glossary</component>
@@ -404,7 +408,7 @@ class WebCTModel extends \GlobalModel {
 		}
 		
 		$file = new FileBackup();
-		$file->id=$this->filesCount++;
+		$file->id=$this->getNextId();
 		$file->contextid=0;// 		<contextid>54</contextid>
 		$file->component=$component;// 		<component>mod_glossary</component>
 		$file->filearea=$fileArea;// 		<filearea>attachment</filearea>
@@ -431,7 +435,7 @@ class WebCTModel extends \GlobalModel {
 		oci_execute($stid);
 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 		
-		echo 'FILE='.$file->filename . "///".$fileOriginalContentId."\n";
+		//echo 'FILE='.$file->filename . "///".$fileOriginalContentId."\n";
 		$file->content = $row["CONTENT"]->load();
 
 		$file->contenthash=md5($file->content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
@@ -495,15 +499,16 @@ class WebCTModel extends \GlobalModel {
 			oci_execute($stid1);
 			while ($row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)){
 				$question=null;
-				/*
+	
 				if($row1['CE_SUBTYPE_NAME']=='MultipleChoice'){ //MULTICHOICE
 					$question = new MultiChoiceQuestion();
-					$question->id = $row1['ORIGINAL_CONTENT_ID'];
-					$question->parent= 0;//$questionCategory->id;
-					$question->name=$row1['NAME'];
+					$question->category = $questionCategory;
+					//$question->id = $row1['ORIGINAL_CONTENT_ID'];
+					//$question->parent= 0;//$questionCategory->id;
+					//$question->name=$row1['NAME'];
 					
-					$this->fillMutipleChoiceQuestion($question, $row1['FILE_CONTENT_ID']);
-					$questionCategory->questions[]=$question;
+					//$this->fillMutipleChoiceQuestion($question, $row1['FILE_CONTENT_ID']);
+					//$questionCategory->questions[]=$question;
 				}else if($row1['CE_SUBTYPE_NAME']=='ShortAnswer'){ //
 					$question = new ShortAnswerQuestion();
 					$question->category = $questionCategory;
@@ -516,16 +521,17 @@ class WebCTModel extends \GlobalModel {
 				}else if($row1['CE_SUBTYPE_NAME']=='Paragraph'){ //
 					$question = new ParagraphQuestion();
 					$question->category = $questionCategory;
-				}else 
-				if($row1['CE_SUBTYPE_NAME']=='TrueFalse'){ //
+				}else if($row1['CE_SUBTYPE_NAME']=='TrueFalse'){ //
 					$question = new TrueFalseQuestion();
 					$question->category = $questionCategory;
 				}else if($row1['CE_SUBTYPE_NAME']=='Calculated'){ //
 					$question = new CalculatedQuestion();
 					$question->category = $questionCategory;
-				}else */
-				if($row1['CE_SUBTYPE_NAME']=='CombinationMultipleChoice'){ //
+				}else if($row1['CE_SUBTYPE_NAME']=='CombinationMultipleChoice'){ //
 					$question = new CombinaisonMultiChoiceQuestion();
+					$question->category = $questionCategory;
+				}else if($row1['CE_SUBTYPE_NAME']=='JumbledSentence'){ //
+					$question = new JumbledSentenceQuestion();
 					$question->category = $questionCategory;
 				}
 				if(empty($question)){
@@ -538,6 +544,7 @@ class WebCTModel extends \GlobalModel {
 				$this->fillQuestion($question, $row1['FILE_CONTENT_ID']);
 				$questionCategory->questions[]=$question;
 				
+				$this->questions->allQuestions[$question->id]=$question;
 				
 				//break;
 			}
@@ -648,6 +655,8 @@ class WebCTModel extends \GlobalModel {
 			$this->fillTrueFalseQuestion($question, $xmlContent);
 		}else if($question instanceof CalculatedQuestion){
 			$this->fillCalculatedQuestion($question, $xmlContent);
+		}else if($question instanceof JumbledSentenceQuestion){
+			$this->fillJumbledSentenceQuestion($question, $xmlContent);
 		}
 		
 		
@@ -866,7 +875,7 @@ class WebCTModel extends \GlobalModel {
 				
 				//Add a short answer question..
 				$shortAnswerQuestion = new ShortAnswerQuestion();
-				$shortAnswerQuestion->id = $question->id+$count;
+				$shortAnswerQuestion->id = $this->getNextId();
 				$shortAnswerQuestion->parent = $question->id;
 				$shortAnswerQuestion->name = $question->name;				
 				$shortAnswerQuestion->questiontextformat=1;
@@ -976,8 +985,10 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswerQuestion->questiontext =$shortAnswerQuestionText;
 				
 				//Add the short question to the current category..
-				$question->category->questions[] = $shortAnswerQuestion; 
+				$question->category->questions[] = $shortAnswerQuestion;
 				$multiAnswer->sequence[]=$shortAnswerQuestion->id;
+				
+				$this->questions->allQuestions[$shortAnswerQuestion->id]=$shortAnswerQuestion;
 				
 			}
 			$finalText = $finalText."</ol>";
@@ -1058,7 +1069,7 @@ class WebCTModel extends \GlobalModel {
 				
 				//Add a short answer question..
 				$shortAnswerQuestion = new ShortAnswerQuestion();
-				$shortAnswerQuestion->id = $question->id+$count;
+				$shortAnswerQuestion->id = $this->getNextId();
 				$shortAnswerQuestion->parent = $question->id;
 				$shortAnswerQuestion->name = $question->name;
 				$shortAnswerQuestion->questiontextformat=1;
@@ -1168,6 +1179,7 @@ class WebCTModel extends \GlobalModel {
 				$question->category->questions[] = $shortAnswerQuestion;
 				$multiAnswer->sequence[]=$shortAnswerQuestion->id;
 				
+				$this->questions->allQuestions[$shortAnswerQuestion->id]=$shortAnswerQuestion;
 				
 			}
 		}
@@ -1664,5 +1676,750 @@ class WebCTModel extends \GlobalModel {
 		}
 	
 	}
+	
+	/**
+	 * @param JumbledSentenceQuestion $question
+	 * @param SimpleXMLElement $xmlContent
+	 */
+	public function fillJumbledSentenceQuestion(&$question, $xmlContent){
+				
+		$multiAnswer = new MultiAnswer();
+		$multiAnswer->question = $question->id;
+			
+	
+	
+		$questionFinalText="";
+			
+		if(strlen($question->name)>255){
+			echo 'QUESTION NAME TOO LONG - '.$question->name, PHP_EOL;
+			$questionFinalText .= $question->name."<br/>";
+				
+			$question->name = substr($question->name, 252)."...";
+		}
+
+		//On boucle sur le flow
+		$xmlImsRenderObject = $xmlContent->presentation->flow->response_lid->render_extension->ims_render_object;
+	
+		$count = 0;
+		$multiChoiceAnswers = array();
+		foreach ($xmlImsRenderObject->children() as $child){
+				
+			if($child->getName()=="material"){
+	
+				if(!empty($child->mattext)){
+					$convertedDescription = $this->convertTextAndCreateAssociedFiles((string)$child->mattext,3, $question);
+					$questionFinalText.=$convertedDescription;
+				}
+	
+			}else if($child->getName()=="response_label"){
+	
+				$count++;	
+				$questionFinalText.="{#".$count."}";
+				
+				$multiChoiceAnswers[(string)$child['ident']]=(string)$child->material->mattext;
+
+			}
+		}
+
+		$correctAnswers = array(); 
+		foreach ($xmlContent->xpath('//ims:respcondition') as $respcondition){
+			if($respcondition->setvar=="100.0"){
+				foreach ($respcondition->conditionvar->and->varequal as $varequal){
+					$correctAnswers[]=(string)$varequal;
+				}
+			}else if(!empty($respcondition->setvar)){
+				echo '<br/> REPONSE ALTERNATIVE DANS: '. $question->name. '<br/>';
+			}
+		}
+		
+		
+		//var_dump($multiChoiceAnswer);
+		$countAnswers = count($correctAnswers);
+		$count=0;
+		//On crée les questions à choix multiple
+		foreach ($correctAnswers as $correctAnswer){
+			$count++;
+			
+			$multiChoiceQuestion = new MultiChoiceQuestion();
+			$multiChoiceQuestion->id = $this->getNextId();
+			$multiChoiceQuestion->parent = $question->id;
+			$multiChoiceQuestion->name = $question->name;
+			
+			$multiChoiceQuestion->questiontextformat=1;
+			$multiChoiceQuestion->generalfeedback="";
+			$multiChoiceQuestion->generalfeedbackformat=1;
+			$multiChoiceQuestion->defaultmark="1.0000000";
+			$multiChoiceQuestion->penalty="0.0000000";
+			$multiChoiceQuestion->length="1";
+			$multiChoiceQuestion->stamp=time();
+			$multiChoiceQuestion->version=time();
+			$multiChoiceQuestion->hidden=0;
+			$multiChoiceQuestion->timecreated=time();
+			$multiChoiceQuestion->timemodified=time();
+			$multiChoiceQuestion->createdby=$question->createdby;
+			$multiChoiceQuestion->modifiedby=$question->modifiedby;
+			
+			
+			$multichoice = new MultiChoice();
+			$multichoice->id=$multiChoiceQuestion->id;
+			$multichoice->layout=0;
+			$multichoice->single=1;
+			$multichoice->shuffleanswers=1;
+			$multichoice->answernumbering=0;
+			$multichoice->shownumcorrect=0;
+			//COMBINED FEEDBACK
+			$multichoice->correctfeedback="";
+			$multichoice->correctfeedbackformat="1";
+			$multichoice->partiallycorrectfeedback="";
+			$multichoice->partiallycorrectfeedbackformat="1";
+			$multichoice->incorrectfeedback="";
+			$multichoice->incorrectfeedbackformat="1";
+			$multichoice->shownumcorrect="1";
+			
+			$multiChoiceQuestion->multiChoice = $multichoice;
+				
+			//On crée le text des multichoice
+			$multiChoiceText = "{1:MULTICHOICE:";
+			$answerCount = 0;
+			foreach ($correctAnswers as $correctAnswer2){
+				
+				$answer = new Answer();
+				$answer->id=$answerCount++;
+				$answer->answertext=$multiChoiceAnswers[$correctAnswer2];
+				$answer->answerformat="1";
+				$answer->feedback="";
+				$answer->feedbackformat=1;
+				
+				if($correctAnswer==$correctAnswer2){
+					$multiChoiceText .="~%100%".$multiChoiceAnswers[$correctAnswer2]."#";
+					$answer->fraction="1.0000000";
+				}else {
+					$multiChoiceText .="~%-".($countAnswers*100)."%".$multiChoiceAnswers[$correctAnswer2]."#";
+					$answer->fraction="-".$countAnswers.".0000000";
+				}
+				
+				$multiChoiceQuestion->answers[] = $answer;
+			}
+			
+			$multiChoiceText = substr($multiChoiceText,0,-1)."}";
+			
+			
+			$multiChoiceQuestion->questiontext=$multiChoiceText;
+			
+			
+			//Add the short question to the current category..
+			$question->category->questions[] = $multiChoiceQuestion;
+			$multiAnswer->sequence[]=$multiChoiceQuestion->id;
+			
+			$this->questions->allQuestions[$multiChoiceQuestion->id]=$multiChoiceQuestion;
+				
+		}
+				
+		//Get the file attached if any and past it to the description
+		$imageNames = $xmlContent->xpath('//ims:matimage');
+		if(!empty($imageNames)){
+			$imageName = $imageNames[0];
+			
+			$imageURI = $imageName['uri'];
+			$findContentId   = '?contentID=';
+			$pos = strpos($imageURI, $findContentId);
+			if($pos>0){
+				// 			echo 'IMAGE NAME = '.$imageName."\n";
+				// 			echo 'IMAGE URI = '.$imageURI."\n";
+				$fileContentId = substr($imageURI, $pos+11);
+				$this->addFile($fileContentId, 3, $question);
+			
+				$questionFinalText .= "<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
+			}
+		}
+		
+		$question->questiontext =$questionFinalText;
+		
+		//echo '<br/> TEXT = '.$question->questiontext."<br/>";
+		$question->multiAnswer = $multiAnswer;
+	
+	}
+	
+	
+	/***************************************************************************************************************
+	 * QUIZZ
+	*/
+	
+	public function retrieveQuizzes(){
+	
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='ASSESSMENT_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+	
+			$quizId = $row['ORIGINAL_CONTENT_ID'];
+			$this->addQuiz($quizId);
+				
+		}
+	}
+	
+	/**
+	 * Add a Quiz
+	 */
+	public function addQuiz($quizId){
+	
+		echo $quizId.' - ';
+	
+		
+		global $USER;
+	
+		//Glossary
+		$quizModel = new QuizModel();
+		$quizModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$quizModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$quizModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$quizModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+
+		
+		$quizModel->module = $this->createModule($quizId,"quiz","2013110501");	
+	
+		$quizModel->quiz = $this->createQuiz($quizId, $quizModel->module);
+	
+		
+		//Add the default category
+		//Create a new category
+		$questionCategory = new QuestionCategory();
+		
+		$questionCategory->id = $this->getNextId();
+		$questionCategory->name = utf8_encode("Catégorie par défaut pour ".$quizModel->quiz->name);
+		$questionCategory->contextid = $quizModel->quiz->contextid;
+		$questionCategory->contextlevel = 70; //CONTEXT_MODULE
+		$questionCategory->contextinstanceid = $quizModel->quiz->quizId;
+		$questionCategory->info = utf8_encode("La catégorie par défaut pour les questions partagées du contexte de ".$quizModel->quiz->name);
+		$questionCategory->infoformat = 0;
+		$questionCategory->stamp = time(); // localhost+140131155733+469Glc
+		$questionCategory->parent = 0;
+		$questionCategory->sortorder = 999;
+		
+		$this->questions->question_categories[] = $questionCategory;
+		$this->course->inforef->questioncategoryids[]=$questionCategory->id;
+		
+		//Grade
+		$gradeBook = new ActivityGradeBook();
+		
+		$gradeItem = new GradeItem();
+		$gradeItem->id=$this->getNextId();
+		$gradeItem->categoryid = $this->gradebook->grade_categories[0]->id;
+		$gradeItem->itemname =$quizModel->quiz->name;
+		$gradeItem->itemtype ="mod";
+		$gradeItem->itemmodule ="quiz";
+		$gradeItem->iteminstance = $quizModel->quiz->id;
+		$gradeItem->itemnumber =0 ;//<itemnumber>$@NULL@$</itemnumber>
+		$gradeItem->iteminfo ="$@NULL@$";//<iteminfo>$@NULL@$</iteminfo>
+		$gradeItem->idnumber ="$@NULL@$";//<idnumber>$@NULL@$</idnumber>
+		$gradeItem->calculation ="$@NULL@$";//<calculation>$@NULL@$</calculation>
+		$gradeItem->gradetype =1 ;//<gradetype>1</gradetype>
+		$gradeItem->grademax =$quizModel->quiz->grade;//<grademax>100.00000</grademax>
+		$gradeItem->grademin ="0.00000" ;//<grademin>0.00000</grademin>
+		$gradeItem->scaleid = "$@NULL@$";//scaleid>$@NULL@$</scaleid>
+		$gradeItem->outcomeid = "$@NULL@$";//<outcomeid>$@NULL@$</outcomeid>
+		$gradeItem->gradepass = "0.00000";//<gradepass>0.00000</gradepass>
+		$gradeItem->multfactor ="1.00000" ;//<multfactor>1.00000</multfactor>
+		$gradeItem->plusfactor = "0.00000";//<plusfactor>0.00000</plusfactor>
+		$gradeItem->aggregationcoef = "0.00000";//<aggregationcoef>0.00000</aggregationcoef>
+		$gradeItem->sortorder = 1;//<sortorder>1</sortorder>
+		$gradeItem->display = 0;//<display>0</display>
+		$gradeItem->decimals = "$@NULL@$";//<decimals>$@NULL@$</decimals>
+		$gradeItem->hidden = 0;//<hidden>0</hidden>
+		$gradeItem->locked = 0;//<locked>0</locked>
+		$gradeItem->locktime= 0;//<locktime>0</locktime>
+		$gradeItem->needsupdate = 1;//<needsupdate>1</needsupdate>
+		$gradeItem->timecreated = time();
+		$gradeItem->timemodified = time() ;
+		
+		$gradeBook->grade_items[]= $gradeItem;
+		$quizModel->grades = $gradeBook;
+		
+		
+		
+		//Event associé
+		$event = new Event();
+		$event->id=$this->getNextId();//
+		$event->name=$quizModel->quiz->name;//<name>Eval 2 (Quiz opens)</name>
+		$event->description=$quizModel->quiz->intro;//<description>&lt;div class="no-overflow"&gt;&lt;p&gt;Voici ma description de mon évaluation...&lt;/p&gt;&lt;/div&gt;</description>
+		$event->format=1;//<format>1</format>
+		$event->courseid=$this->course->course->id;//<courseid>6</courseid>
+		$event->groupid=0;//<groupid>0</groupid>
+		$event->userid=$USER->id;//<userid>2</userid>
+		$event->repeatid=0;//<repeatid>0</repeatid>
+		$event->modulename="quiz";//<modulename>quiz</modulename>
+		$event->instance=$quizModel->quiz->id;//<instance>40</instance>
+		$event->eventtype="open";//<eventtype>open</eventtype>
+		$event->timestart=$quizModel->quiz->timeopen;//<timestart>-152423940</timestart>
+		if($quizModel->quiz->timeopen==0 && $quizModel->quiz->timeclose==0){
+			$event->timeduration=0;
+		}else if($quizModel->quiz->timeopen==0){
+			$event->timeduration=$quizModel->quiz->timeclose  - time();				
+		}else if($quizModel->quiz->timeclose==0){	
+			$event->timeduration=0;				
+		}else {
+			$event->timeduration=$quizModel->quiz->timeclose-$quizModel->quiz->timeopen;//<timeduration>0</timeduration>
+		}
+		$event->visible=0;//<visible>0</visible>
+		$event->uuid="";//<uuid></uuid>
+		$event->sequence=1;//<sequence>1</sequence>
+		$event->timemodified=time();//<timemodified>1392650251</timemodified>
+		
+		$events = new Events();
+		$events->events[] = $event;
+		$quizModel->calendar = $events;
+		
+		
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$quizModel->module->id;
+		$activity->sectionid=1;
+		$activity->modulename=$quizModel->module->modulename;
+		$activity->title=$quizModel->quiz->name;
+		$activity->directory="activities/quiz_".$quizModel->quiz->quizId;
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+	
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","quiz_".$quizModel->quiz->quizId,"quiz_".$quizModel->quiz->quizId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","quiz_".$quizModel->quiz->quizId,"quiz_".$quizModel->quiz->quizId."_userinfo",1);
+	
+		$inforRef = new InfoRef();
+		$inforRef->userids[]=$USER->id;
+		$inforRef->fileids=$quizModel->quiz->filesIds;
+		
+		foreach ($this->questions->question_categories as $categorie){
+			
+			if($categorie->contextlevel==70){
+				if($categorie->contextinstanceid==$quizModel->quiz->quizId){
+					$inforRef->questioncategoryids[]=$categorie->id;
+				}
+			}else {
+				$inforRef->questioncategoryids[]=$categorie->id;
+			}
+		}
+		
+		$inforRef->gradeItemids[] = $gradeItem->id;
+		
+		$quizModel->inforef = $inforRef;
+	
+		$this->activities[] = $quizModel;
+		
+		$this->sections[1]->section->sequence[]= $quizModel->quiz->quizId;
+	}
+	
+	/**
+	 * @var unknown $glossaryId
+	 * @var Module $module
+	 * @return Glossary
+	 */
+	public function createQuiz($quizId, $module){
+		
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE ORIGINAL_CONTENT_ID='".$quizId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+		
+		$quiz = new ActivityQuiz();
+		$quiz->id = $quizId;
+		$quiz->moduleid =$module->id;
+		$quiz->modulename =$module->modulename;
+		$quiz->contextid=$this->getNextId();
+		$quiz->quizId = $quizId;
+		
+		
+		$quiz->name =$row['NAME'];
+		
+		$description = $row['DESCRIPTION'];
+		if(empty($description)){
+			$quiz->intro ="";
+		}else {
+			$quiz->intro =$description->load();
+		}
+		
+		$quiz->introformat =1;
+		
+		
+		
+		$request = "SELECT * FROM ASSMT_ASSESSMENT 
+						INNER JOIN ASSMT_SETTING ON ASSMT_ASSESSMENT.ID=ASSMT_SETTING.ASSESSMENT_ID 
+		  				INNER JOIN ASSMT_SECURITY_SETTING ON ASSMT_SETTING.ID=ASSMT_SECURITY_SETTING.ID
+						INNER JOIN ASSMT_SUBMISSION_SETTING ON ASSMT_SETTING.ID=ASSMT_SUBMISSION_SETTING.ID
+					  	INNER JOIN ASSMT_RESULT_SETTING ON ASSMT_SETTING.ID=ASSMT_RESULT_SETTING.ID 
+					WHERE ASSMT_ASSESSMENT.ID='".$quizId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+		
+		$timeopen = $row['STARTTIME'];
+		if(empty($timeopen)){
+			$timeopen=0;
+		}
+		$quiz->timeopen = $timeopen;
+		
+		$timeclose = $row['ENDTIME'];
+		if(empty($timeopen)){
+			$timeclose=0; 
+		}
+		$quiz->timeclose=$timeclose; 
+		
+		$durationUnlimited = $row['DURATIONUNLIMITED'];
+		$duration = $row['DURATION'];
+		$durationUnit = $row['DURATIONUNITS'];
+		
+		if($durationUnlimited==0){
+			if($durationUnit=='days'){
+				$quiz->timelimit = $duration*86400;
+			}else if($durationUnit=='hours'){
+				$quiz->timelimit = $duration*3600; 
+			}else if($durationUnit=='minutes'){
+				$quiz->timelimit = $duration*60;
+			}else if($durationUnit=='seconds'){
+				$quiz->timelimit = $duration;
+			}
+		}else {
+			$quiz->timelimit = 0;
+		}
+		 
+		$allowSubmissionAfter = $row['ALLOWSUBMISSIONAFTER'];
+		
+		if($allowSubmissionAfter==1){
+			$quiz->overduehandling ='autosubmit';
+		}else {
+			$quiz->overduehandling ='autoabandon';
+		}		
+		$quiz->graceperiod=0;
+		
+		$quiz->preferredbehaviour='deferredfeedback';
+		$quiz->attempts_number=$row['NUMBEROFATTEMPTS'];
+		$quiz->attemptonlast=0;
+		switch ($row['RESULTSSCORETYPE']){
+			case 'Highest':
+				$quiz->grademethod=1;				
+				break;
+			case 'Average':
+				$quiz->grademethod=2;				
+				break;
+			case 'First':
+				$quiz->grademethod=3;				
+				break;
+			case 'Last':
+				$quiz->grademethod=4;			
+				break;
+		}
+		
+		
+		$quiz->decimalpoints=2;		
+		$quiz->questiondecimalpoints=-1;
+		
+		
+		//REVIEW OPTIONS
+		if($row['RESULTSTEXT']==1){
+			$quiz->reviewattempt=69904;
+		}else {
+			$quiz->reviewattempt=65536;
+		}		
+		if($row['RESULTSEVALUATION']==0){
+			$quiz->reviewcorrectness=0;
+		}else {
+			$quiz->reviewcorrectness=4368;
+		}		
+		switch($row['RESULTSRELEASETYPE']){
+			case 'doNotRelease':
+				$quiz->reviewmarks=0;
+				break;
+			case 'releaseAfterSubmission':
+				$quiz->reviewmarks=4368;
+				break;
+			case 'releaseAfterAllGrading':
+				$quiz->reviewmarks=4368;
+				break;
+			case 'releaseAfterAvailableEnded':
+				$quiz->reviewmarks=16;
+				break;
+				
+			case 'releaseAfterEndedAndGraded':
+				$quiz->reviewmarks=16;
+				break;
+		}
+		if($row['RESULTSFEEDBACK']==0){
+			$quiz->reviewspecificfeedback=0;				
+		}else {
+			$quiz->reviewspecificfeedback=4368;
+		}
+		$quiz->reviewgeneralfeedback=4368;
+		
+		IF($row['RESULTSCORRECTANSWER']==1 || $row['RESULTSFULLEVALUATION']==1){
+			$quiz->reviewrightanswer=4368;				
+		}else {
+			$quiz->reviewrightanswer=0;
+		}
+		
+		$quiz->reviewoverallfeedback=4368;
+		
+		
+		
+		$quiz->questionsperpage=0;
+		
+		if($row['QUESTIONDELIVERY']='allAtOnce'){
+			$quiz->navmethod="free";
+		}else {
+			$quiz->navmethod="sequential";
+		}
+		
+		if(isset($row['RANDOMIZE_ATTEMPTS']) && $row['RANDOMIZE_ATTEMPTS']==1){
+			$quiz->shuffleanswers =1 ;				
+		}else {
+			$quiz->shuffleanswers =0;
+		}
+		$quiz->shufflequestions=0;
+		
+		//QUESTIONS
+		
+		$quiz->sumgrades="1.00000";
+		if(isset($row['MAXSCORE'])){
+			$quiz->grade = str_replace(',', '.', $row['MAXSCORE']);
+		}else {
+			$quiz->grade = "0.00000";
+		}
+
+		$quiz->timecreated=time();
+		$quiz->timemodified=time();
+		if(isset($row['SECURITYPASSWORD'])){
+			$quiz->password=$row['SECURITYPASSWORD'];
+		}else {
+			$quiz->password="";
+		}
+		
+		if(isset($row['SECURITYADDRESS'])){
+			$address = $row['SECURITYADDRESS'];
+			if($address!='0.0.0.0'){
+				$quiz->subnet= $address;
+			}
+		}
+		
+		$quiz->browsersecurity='-';
+		$quiz->delay1=0;
+		$quiz->delay2=0;
+
+		$quiz->showuserpicture=0;
+		$quiz->showblocks=0;
+		
+		$feedback = new QuizFeedback("1", "", "1", "0.00000", $quiz->grade+1);
+		$quiz->feedbacks[]=$feedback;
+		
+
+		//Find the questions
+		$this->addQuestionsToQuiz($quiz);
+		
+		return $quiz;
+	}
+	
+	
+	/**
+	 * @param ActivityQuiz $quiz
+	 */
+	public function addQuestionsToQuiz(&$quiz) {
+		
+		//Find the root section
+		//echo "------------------------------------<br/>";
+		
+		$request = "SELECT * FROM ASSMT_SECTION_ELEMENT 
+						WHERE SECTION_PARENT_ID=(SELECT ID FROM ASSMT_SECTION_ELEMENT WHERE SECTION_PARENT_ID IS NULL AND ASSESSMENT_ID='".$quiz->quizId."')
+								AND PREVIOUS_ELEMENT_ID IS NULL";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$count = 0;
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+			if(empty($row['NAME'])){
+				$this->addSimpleQuestionToQuiz($count++, $quiz, $row['ID']);
+			}else {
+				$this->addQuestionSetToQuiz($count++, $quiz, $row['ID']);
+			}
+			
+			//echo 'ROW '.$row['ID'] . ' - '. $row['PREVIOUS_ELEMENT_ID'].'<br/>';
+			
+			
+			
+			$request = "SELECT * FROM ASSMT_SECTION_ELEMENT
+						WHERE SECTION_PARENT_ID=(SELECT ID FROM ASSMT_SECTION_ELEMENT WHERE SECTION_PARENT_ID IS NULL AND ASSESSMENT_ID='".$quiz->quizId."')
+								AND PREVIOUS_ELEMENT_ID='".$row['ID']."'";
+			$stid = oci_parse($this->connection,$request);
+			oci_execute($stid);
+		}
+		
+		//echo "------------------------------------<br/>";
+
+	}
+	
+	/**
+	 * @param int $count
+	 * @param ActivityQuiz $quiz
+	 * @param unknown $sectionId
+	 */
+	public function addSimpleQuestionToQuiz($count, &$quiz,$sectionId) {
+		$request = "SELECT * FROM ASSMT_QUESTION_LINK WHERE ID='".$sectionId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+		
+		$quiz->questions[]=$row['QUESTION_ID'];
+		
+		$questionInstance = new QuestionInstance($count, $row['QUESTION_ID'], str_replace(',', '.', $row['POINTS']));
+		$quiz->questionInstances[]=$questionInstance;
+		
+		
+	}
+	
+	/**
+	 * @param int $count
+	 * @param ActivityQuiz $quiz
+	 * @param unknown $sectionId
+	 */
+	public function addQuestionSetToQuiz($count, &$quiz,$sectionId) {
+		global $USER;
+		
+		$request = "SELECT * FROM ASSMT_QUESTION_SET WHERE ID='".$sectionId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+	
+		$grade = str_replace(',', '.', $row['POINTSPERQUESTION']);
+		$numberOfQuestions = $row['NUMBEROFQUESTIONS'];
+
+		
+		//Create a new category
+		$questionCategory = new QuestionCategory();
+		
+		$questionCategory->id = $row['ID'];
+		$questionCategory->name = "Question Set ".$count;
+		$questionCategory->contextid = $quiz->contextid;
+		$questionCategory->contextlevel = 70; //CONTEXT_MODULE
+		$questionCategory->contextinstanceid = $quiz->quizId;
+		$questionCategory->info = ""; //NO DESCRIPTION IN WEBCT
+		$questionCategory->infoformat = 1;
+		$questionCategory->stamp = time(); // localhost+140131155733+469Glc
+		$questionCategory->parent = 0;
+		$questionCategory->sortorder = 999;
+			
+				
+		//Add a copy of all select course			
+		
+		//For each numberOfQuestions we have to create a random question
+		for ($i=0;$i<$numberOfQuestions;$i++){
+		
+			$randomQuestion = new RandomQuestion();
+			$randomQuestion->id=$questionCategory->id+$i;
+			$randomQuestion->parent=$questionCategory->id+$i;
+			$randomQuestion->questiontextformat=0;
+			$randomQuestion->generalfeedback="";
+			$randomQuestion->generalfeedbackformat=0;
+			$randomQuestion->defaultmark=$grade;
+			$randomQuestion->penalty="0.0000000";//<penalty>0.0000000</penalty>
+			$randomQuestion->length=1;//<length>1</length>
+			$randomQuestion->stamp=time();//<stamp>localhost+140214135230+whFpdl</stamp>
+			$randomQuestion->version=time();//<version>localhost+140214135230+dgK6HA</version>
+			$randomQuestion->hidden=0;//<hidden>0</hidden>
+			$randomQuestion->timecreated=time();//<timecreated>1392385950</timecreated>
+			$randomQuestion->timemodified=time();//<timemodified>1392385950</timemodified>
+			$randomQuestion->createdby=$USER->id;//<createdby>2</createdby>
+			$randomQuestion->modifiedby=$USER->id;//<modifiedby>2</modifiedby>
+
+			$questionCategory->questions[]=$randomQuestion;
+			
+			
+			//Add the random to the quiz
+			$quiz->questions[]=$randomQuestion->id;
+			
+			$questionInstance = new QuestionInstance($count, $randomQuestion->id, $grade);
+			$quiz->questionInstances[]=$questionInstance;			
+		}
+		
+		//Add all the questions for this category
+		$request = "SELECT * FROM ASSMT_SECTION_ELEMENT
+						WHERE SECTION_PARENT_ID='".$sectionId."' AND PREVIOUS_ELEMENT_ID IS NULL";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+
+			//echo 'ROW '.$row['ID'] . ' - '. $row['PREVIOUS_ELEMENT_ID'].'<br/>';
+
+			$request1 = "SELECT * FROM ASSMT_QUESTION_LINK WHERE ID='".$row['ID']."'";
+			$stid1 = oci_parse($this->connection,$request1);
+			oci_execute($stid1);
+			$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
+						
+			$this->addCloneQuestionToCategory($this->questions->allQuestions[$row1['QUESTION_ID']], $questionCategory);				
+				
+			$request = "SELECT * FROM ASSMT_SECTION_ELEMENT
+						WHERE SECTION_PARENT_ID='".$sectionId."' AND PREVIOUS_ELEMENT_ID='".$row['ID']."'";
+			$stid = oci_parse($this->connection,$request);
+			oci_execute($stid);
+		}
+					
+		$this->questions->question_categories[] = $questionCategory;
+		$this->course->inforef->questioncategoryids[]=$questionCategory->id;
+	
+	}
+	
+	
+	/**
+	 * @param Question $question
+	 * @param QuestionCategory $questionCategory
+	 * @return Question
+	 */
+	public function addCloneQuestionToCategory($question,&$questionCategory){
+		$cloneQuestion = clone $question;
+		
+		$cloneQuestion->id= $this->getNextId();
+		
+		//Also Clone the files
+		foreach ($this->files->files as $file){
+			if ($file->itemid == $question->id) {
+				$cloneFile = clone $file;
+				$cloneFile->id = $this->getNextId();
+				$cloneFile->itemid = $cloneQuestion->id;
+				$cloneFile->contextid=$questionCategory->contextid;
+				
+				$this->files->files[]=$cloneFile;
+			}
+		}
+		
+		if ($cloneQuestion instanceof MultiAnswerQuestion) {
+			$cloneQuestion->multiAnswer->question=$cloneQuestion->id;
+
+			$sequence = array();
+			
+			foreach ($cloneQuestion->multiAnswer->sequence as $questionId){
+				
+				$originalSubQuestion = $this->questions->allQuestions[''.$questionId];
+				$subQuestion = clone $originalSubQuestion;
+				$subQuestion->id = $this->getNextId();
+				$subQuestion->parent = $cloneQuestion->id;
+				
+				foreach ($this->files->files as $file){
+					if ($file->itemid == $originalSubQuestion->id) {
+						$cloneFile = clone $file;
+						$cloneFile->id = $this->getNextId();
+						$cloneFile->itemid = $subQuestion->id;
+						$cloneFile->contextid=$questionCategory->contextid;
+						
+						$this->files->files[]=$cloneFile;
+					}
+				}
+				
+				$questionCategory->questions[]=$subQuestion;
+				
+				$sequence[]= $subQuestion->id;
+			}
+			
+			$cloneQuestion->multiAnswer->sequence = $sequence;
+		}
+		
+		$questionCategory->questions[]=$cloneQuestion;
+		
+		return $cloneQuestion;
+	}
+	
 	
 }

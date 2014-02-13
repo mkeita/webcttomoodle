@@ -4,31 +4,38 @@ require_once 'classes/model/IBackupModel.php';
 class InfoRef implements \IBackupModel {
 
 	/**
-	 * @var int | Array
+	 * @var int|Array
 	 */
 	public $userids = array();
 	
 	/**
-	 * @var int | Array
+	 * @var int|Array
 	 */
 	public $roleids = array();
 
 	/**
-	 * @var int | Array
+	 * @var int|Array
 	 */
 	public $fileids = array();
 	
 	
 	/**
-	 * @var int | Array
+	 * @var int|Array
 	 */
 	public $questioncategoryids = array();
+	
+	
+	/**
+	 * @var int|Array
+	 */
+	public $gradeItemids = array();
 	
 	
 	public function toXMLFile($repository) {
 		$writer = new XMLWriter();
 		$writer->openURI($repository.'/inforef.xml');
 		$writer->startDocument('1.0','UTF-8');
+		$writer->setIndent(true);
 		$writer->startElement('inforef');
 		if(!empty($this->userids)){		
 			$writer->startElement('userref');
@@ -66,6 +73,17 @@ class InfoRef implements \IBackupModel {
 			}
 			$writer->endElement();
 		}
+
+		if(!empty($this->gradeItemids)){
+			$writer->startElement('grade_itemref');
+			foreach ($this->gradeItemids as $id){
+				$writer->startElement('grade_item');
+				$writer->writeElement('id',$id);
+				$writer->endElement();
+			}
+			$writer->endElement();
+		}
+		
 		$writer->endElement();
 		$writer->endDocument();
 	}

@@ -32,6 +32,7 @@ require_once 'classes/model/activities/ActivityGradeBook.php';
 require_once 'classes/model/activities/Glossary.php';
 require_once 'classes/model/activities/ActivityCompletion.php';
 require_once 'classes/model/activities/Module.php';
+require_once 'classes/model/activities/Quiz.php';
 
 
 defined('MOODLE_INTERNAL') || die();
@@ -106,19 +107,19 @@ abstract class GlobalModel implements \IBackupModel {
 	public $course;
 
 	/**
-	 * @var SectionModel | Array
+	 * @var SectionModel|Array
 	 */
 	public $sections = array();
 	
 	
 	/**
-	 * @var ActivityModel | Array
+	 * @var ActivityModel|Array
 	 */
 	public $activities = array();
 	
 	
 
-	public $filesCount = 0;
+	protected $idCount = 1;
 	
 	/**
 	 * @return GlobalModel
@@ -132,7 +133,6 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->initializeQuestionsModel();  //EMPTY CURRENTLY NOT NEEDED
 		$this->initializeBadgesModel();  //EMPTY CURRENTLY NOT NEEDED
 		$this->initializeCompletionModel();//EMPTY CURRENTLY NOT NEEDED
-		$this->initializeGradeBookModel();//EMPTY CURRENTLY NOT NEEDED
 		$this->initializeGroupsModel();//EMPTY CURRENTLY NOT NEEDED
 		$this->initializeOutcomesModel();//EMPTY CURRENTLY NOT NEEDED
 		$this->initializeScalesModel();//EMPTY CURRENTLY NOT NEEDED
@@ -141,8 +141,15 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->initializeSectionsModels();
 
 		$this->initializeCourseModel();
+		
+		$this->initializeGradeBookModel();
+		
 	}
 	
+	
+	public function getNextId(){
+		return $this->idCount++;
+	}
 	public abstract function preInitialization();
 	
 	/**
@@ -341,6 +348,55 @@ abstract class GlobalModel implements \IBackupModel {
 	 */
 	public function initializeGradeBookModel(){
 		$gradebook = new GradeBook();
+		
+		$gradeCategory = new GradeCategory();
+		$gradeCategory->id=$this->getNextId();
+		$gradeCategory->parent ="$@NULL@$";//<parent>$@NULL@$</parent>
+		$gradeCategory->depth =1;//<depth>1</depth>
+		$gradeCategory->path ="/".$gradeCategory->id."/";//<path>/148/</path>
+		$gradeCategory->fullname ="?";//<fullname>?</fullname>
+		$gradeCategory->aggregation ="11";//<aggregation>11</aggregation>
+		$gradeCategory->keephigh =0;//<keephigh>0</keephigh>
+		$gradeCategory->droplow =0;//<droplow>0</droplow>
+		$gradeCategory->aggregateonlygraded =1;//<aggregateonlygraded>1</aggregateonlygraded>
+		$gradeCategory->aggregateoutcomes =0;//<aggregateoutcomes>0</aggregateoutcomes>
+		$gradeCategory->aggregatesubcats =0;//<aggregatesubcats>0</aggregatesubcats>
+		$gradeCategory->timecreated =time();//<timecreated>1392640698</timecreated>
+		$gradeCategory->timemodified =time();//<timemodified>1392640698</timemodified>
+		$gradeCategory->hidden=0;//<hidden>0</hidden>
+		
+		$gradebook->grade_categories[] = $gradeCategory;
+		
+		$gradeItem = new GradeItem();
+		$gradeItem->categoryid = "$@NULL@$";//<categoryid>$@NULL@$</categoryid>
+		$gradeItem->itemname ="$@NULL@$" ;//<itemname>$@NULL@$</itemname>
+		$gradeItem->itemtype ="course" ;//<itemtype>course</itemtype>
+		$gradeItem->itemmodule ="$@NULL@$" ;//<itemmodule>$@NULL@$</itemmodule>
+		$gradeItem->iteminstance = $gradeCategory->id;//<iteminstance>148</iteminstance>
+		$gradeItem->itemnumber ="$@NULL@$" ;//<itemnumber>$@NULL@$</itemnumber>
+		$gradeItem->iteminfo ="$@NULL@$" ;//<iteminfo>$@NULL@$</iteminfo>
+		$gradeItem->idnumber ="$@NULL@$" ;//<idnumber>$@NULL@$</idnumber>
+		$gradeItem->calculation ="$@NULL@$";//<calculation>$@NULL@$</calculation>
+		$gradeItem->gradetype =1 ;//<gradetype>1</gradetype>
+		$gradeItem->grademax ="100.00000" ;//<grademax>100.00000</grademax>
+		$gradeItem->grademin ="0.00000" ;//<grademin>0.00000</grademin>
+		$gradeItem->scaleid = "$@NULL@$";//scaleid>$@NULL@$</scaleid>
+		$gradeItem->outcomeid = "$@NULL@$";//<outcomeid>$@NULL@$</outcomeid>
+		$gradeItem->gradepass = "0.00000";//<gradepass>0.00000</gradepass>
+		$gradeItem->multfactor ="1.00000" ;//<multfactor>1.00000</multfactor>
+		$gradeItem->plusfactor = "0.00000";//<plusfactor>0.00000</plusfactor>
+		$gradeItem->aggregationcoef = "0.00000";//<aggregationcoef>0.00000</aggregationcoef>
+		$gradeItem->sortorder = 1;//<sortorder>1</sortorder>
+		$gradeItem->display = 0;//<display>0</display>
+		$gradeItem->decimals = "$@NULL@$";//<decimals>$@NULL@$</decimals>
+		$gradeItem->hidden = 0;//<hidden>0</hidden>
+		$gradeItem->locked = 0;//<locked>0</locked>
+		$gradeItem->locktime= 0;//<locktime>0</locktime>
+		$gradeItem->needsupdate = 1;//<needsupdate>1</needsupdate>
+		$gradeItem->timecreated = time();//<timecreated>1392640698</timecreated>
+		$gradeItem->timemodified = time() ;//<timemodified>1392640698</timemodified>
+		
+		$gradebook->grade_items[]=$gradeItem;
 	
 		$this->gradebook = $gradebook;
 	}
@@ -393,7 +449,8 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		$course->summary = "";
 		$course->summaryformat = 1;
-		$course->format = "weeks";
+		//$course->format = "weeks";
+		$course->format = "topics";
 		$course->newsitems = 5;
 		$course->startdate = time();
 		$course->marker = 0;
@@ -411,7 +468,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$course->requested = 0;
 		$course->enablecompletion = 0;
 		$course->completionnotify = 0;
-		$course->numsections = 10;
+		$course->numsections = 2;
 		$course->hiddensections = 0;
 		$course->coursedisplay = 0;
 	
@@ -578,6 +635,7 @@ abstract class GlobalModel implements \IBackupModel {
 	
 		$sectionModels = array();
 	
+		//DEFAULT SECTION
 		$sectionModel = new SectionModel();
 	
 		//Default section used to put all the activities (for now)
@@ -587,7 +645,6 @@ abstract class GlobalModel implements \IBackupModel {
 		$section->name="$@NULL@$";
 		$section->summary="";
 		$section->summaryformat=1;
-		$section->sequence="11";
 		$section->visible=1;
 		$section->availablefrom=0;
 		$section->availableuntil=0;
@@ -599,6 +656,8 @@ abstract class GlobalModel implements \IBackupModel {
 		$infoRef = new InfoRef();		
 		$sectionModel->inforef = $infoRef;
 		
+		$sectionModels[]=$sectionModel;
+		
 		
 		//Reference dans moodle_backup
 		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
@@ -607,14 +666,40 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
 		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
 	
-		$sectionModels[]=$sectionModel;
-	
-	
-	
 		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
 	
+
+		//SECTION DES EVALUATIONS
+		$sectionModel = new SectionModel();
+		
+		//Default section used to put all the activities (for now)
+		$section = new Section();
+		$section->id=1;
+		$section->number=1;
+		$section->name="Evaluations";
+		$section->summary="Liste de tous les quiz";
+		$section->summaryformat=1;
+		$section->visible=0;
+		$section->availablefrom=0;
+		$section->availableuntil=0;
+		$section->showavailability=0;
+		$section->groupingid=0;
+		
+		$sectionModel->section = $section;
+		
+		$infoRef = new InfoRef();
+		$sectionModel->inforef = $infoRef;
 	
-	
+		$sectionModels[]=$sectionModel;
+		
+		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
+		
+		//moodle_backup settings
+		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
+		
+		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
+		
 		$this->sections = $sectionModels;
 	}
 	
@@ -658,6 +743,8 @@ abstract class GlobalModel implements \IBackupModel {
 		$glossaryModel->inforef = $inforRef;
 		
 		$this->activities[] = $glossaryModel;
+		
+		$this->sections[0]->section->sequence[]= $glossaryModel->glossary->id;
 	}
 	
 	/**
@@ -783,17 +870,25 @@ abstract class GlobalModel implements \IBackupModel {
 		$module->id=$id;// 		<module id="11" version="2013110500">
 		$module->version= $version; //"2013110500";
 		$module->modulename=$name;// 		<modulename>glossary</modulename>
-		$module->sectionid=0;// 		<sectionid>36</sectionid>
-		$module->sectionnumber=0;// 		<sectionnumber>0</sectionnumber>
+		
+		if($name=="quiz"){
+			$module->sectionid=$this->sections[1]->section->id;
+			$module->sectionnumber=$this->sections[1]->section->number;
+			$module->visible=$this->sections[1]->section->visible;
+		}else {
+			$module->sectionid=0;// 		<sectionid>36</sectionid>
+			$module->sectionnumber=0;// 		<sectionnumber>0</sectionnumber>
+			$module->visible=1;// 		<visible>1</visible>
+		}
+				
 		$module->idnumber="";// 		<idnumber></idnumber>
 		$module->added=time();// 		<added>1390818670</added>
 		$module->score=0;// 		<score>0</score>
 		$module->indent=0;// 		<indent>0</indent>
-		$module->visible=1;// 		<visible>1</visible>
-		$module->visibleold=1;// 		<visibleold>1</visibleold>
 		$module->groupmode=0;// 		<groupmode>0</groupmode>
 		$module->groupingid=0;// 		<groupingid>0</groupingid>
 		$module->groupmembersonly=0;// 		<groupmembersonly>0</groupmembersonly>
+		$module->visibleold=$module->visible;// 		<visibleold>1</visibleold>
 		$module->completion=0;// 		<completion>0</completion>
 		$module->completiongradeitemnumber="$@NULL@$";// 		<completiongradeitemnumber>$@NULL@$</completiongradeitemnumber>
 		$module->completionview=0;// 		<completionview>0</completionview>
@@ -807,6 +902,11 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		return $module;
 	}
+	
+	/*****************************************************************************************************************
+	 * GLOSSARY
+	 * 
+	 */
 	
 	
 	/**
@@ -868,6 +968,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->files->files[]=$repository;
 		$this->files->files[]=$file;
 	}
+	
 	
 	
 	public function toXMLFile($repository){
@@ -940,6 +1041,16 @@ abstract class GlobalModel implements \IBackupModel {
 				mkdir($activityDir);
 				
 				$activityModel->glossary->toXMLFile($activityDir);
+				
+			}else if ($activityModel instanceof QuizModel) {
+				$activityDir = $dir.'/quiz_'.$activityModel->module->id;
+			
+				if(is_dir($activityDir)){
+					rrmdir($activityDir);
+				}
+				mkdir($activityDir);
+			
+				$activityModel->quiz->toXMLFile($activityDir);
 			}
 			
 			$activityModel->calendar->toXMLFile($activityDir);
@@ -1078,6 +1189,14 @@ class GlossaryModel extends ActivityModel {
 	 */
 	public $glossary;
 	
+}
+
+class QuizModel extends ActivityModel {
+	/**
+	 * @var ActivityQuiz
+	 */
+	public $quiz;
+
 }
 
 class ForumModel extends ActivityModel {

@@ -8,6 +8,13 @@ class Questions implements \IBackupModel {
 	 */
 	public $question_categories = array() ;
 	
+	
+	/**
+	 * @var Question|Array
+	 */
+	public $allQuestions = array() ;
+	
+	
 	public function toXMLFile($repository) {
 		$writer = new XMLWriter();
 		$writer->openURI($repository.'/questions.xml');
@@ -362,6 +369,10 @@ class MultiAnswer {
 
 class FillInBlankQuestion extends MultiAnswerQuestion {
 	
+}
+
+class JumbledSentenceQuestion extends MultiAnswerQuestion {
+
 }
 
 class MatchingQuestion extends Question {
@@ -821,4 +832,21 @@ class CalculatedOption {
 
 class CombinaisonMultiChoiceQuestion extends MultiChoiceQuestion {
 	
+}
+
+class RandomQuestion extends Question {
+	
+	public function __construct(){
+		$this->qtype = "random";
+	}
+	
+	/* (non-PHPdoc)
+	 * @see Question::toXMLFile()
+	*/
+	public function toXMLFile(&$writer) {
+		$writer->startElement('question');
+		parent::toXMLFile($writer);
+		
+		$writer->endElement();
+	}
 }
