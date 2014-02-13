@@ -41,6 +41,7 @@ class MoodleBackup implements \IBackupModel {
 		$writer = new XMLWriter();
 		$writer->openURI($repository.'/moodle_backup.xml');
 		$writer->startDocument('1.0','UTF-8');
+		$writer->setIndent(true);
 		$writer->startElement('moodle_backup');
 			$writer->startElement('information');
 				$writer->writeElement('name',$this->name);

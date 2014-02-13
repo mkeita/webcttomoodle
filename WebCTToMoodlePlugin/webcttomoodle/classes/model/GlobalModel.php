@@ -32,6 +32,7 @@ require_once 'classes/model/activities/ActivityGradeBook.php';
 require_once 'classes/model/activities/Glossary.php';
 require_once 'classes/model/activities/ActivityCompletion.php';
 require_once 'classes/model/activities/Module.php';
+require_once 'classes/model/activities/Quiz.php';
 
 
 defined('MOODLE_INTERNAL') || die();
@@ -808,6 +809,11 @@ abstract class GlobalModel implements \IBackupModel {
 		return $module;
 	}
 	
+	/*****************************************************************************************************************
+	 * GLOSSARY
+	 * 
+	 */
+	
 	
 	/**
 	 * @param Entry $entry
@@ -868,6 +874,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->files->files[]=$repository;
 		$this->files->files[]=$file;
 	}
+	
 	
 	
 	public function toXMLFile($repository){
@@ -940,6 +947,16 @@ abstract class GlobalModel implements \IBackupModel {
 				mkdir($activityDir);
 				
 				$activityModel->glossary->toXMLFile($activityDir);
+				
+			}else if ($activityModel instanceof QuizModel) {
+				$activityDir = $dir.'/quiz_'.$activityModel->module->id;
+			
+				if(is_dir($activityDir)){
+					rrmdir($activityDir);
+				}
+				mkdir($activityDir);
+			
+				$activityModel->quiz->toXMLFile($activityDir);
 			}
 			
 			$activityModel->calendar->toXMLFile($activityDir);
@@ -1078,6 +1095,14 @@ class GlossaryModel extends ActivityModel {
 	 */
 	public $glossary;
 	
+}
+
+class QuizModel extends ActivityModel {
+	/**
+	 * @var Quiz
+	 */
+	public $quiz;
+
 }
 
 class ForumModel extends ActivityModel {

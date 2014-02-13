@@ -364,6 +364,10 @@ class FillInBlankQuestion extends MultiAnswerQuestion {
 	
 }
 
+class JumbledSentenceQuestion extends MultiAnswerQuestion {
+
+}
+
 class MatchingQuestion extends Question {
 	
 	

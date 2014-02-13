@@ -20,7 +20,10 @@ class WebCTModel extends \GlobalModel {
 		//TODO TEMPORARY DESACTIVATE GLOSSARIES EXTRACT
 		//$this->retrieveGlossaries();
 
-		$this->retrieveQuestions();
+		//$this->retrieveQuestions();
+		
+		
+		$this->retrieveQuizzes();
 		
 		oci_close($this->connection);
 	}
@@ -91,7 +94,9 @@ class WebCTModel extends \GlobalModel {
 		$this->moodle_backup->contents->course->courseid=$this->moodle_backup->original_course_id;
 	}
 	
-	
+	/***************************************************************************************************************
+	 * GLOSSARY 
+	 */
 	
 	public function retrieveGlossaries(){
 		
@@ -190,7 +195,7 @@ class WebCTModel extends \GlobalModel {
 						
 			$entry->definition =$convertedDescription;// 		<definition>&lt;p&gt;Entry 1 of glossary&lt;/p&gt;</definition>
 			
-			$entry->sourceglossaryid=$glossaryId;// 		<sourceglossaryid>0</sourceglossaryid>
+			$entry->sourceglossaryid=0;// 		<sourceglossaryid>0</sourceglossaryid>
 					
 			$entry->definitionformat=1;// 		<definitionformat>1</definitionformat>
 			$entry->definitiontrust=0;// 		<definitiontrust>0</definitiontrust>
@@ -495,7 +500,7 @@ class WebCTModel extends \GlobalModel {
 			oci_execute($stid1);
 			while ($row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)){
 				$question=null;
-				/*
+	
 				if($row1['CE_SUBTYPE_NAME']=='MultipleChoice'){ //MULTICHOICE
 					$question = new MultiChoiceQuestion();
 					$question->id = $row1['ORIGINAL_CONTENT_ID'];
@@ -516,16 +521,17 @@ class WebCTModel extends \GlobalModel {
 				}else if($row1['CE_SUBTYPE_NAME']=='Paragraph'){ //
 					$question = new ParagraphQuestion();
 					$question->category = $questionCategory;
-				}else 
-				if($row1['CE_SUBTYPE_NAME']=='TrueFalse'){ //
+				}else if($row1['CE_SUBTYPE_NAME']=='TrueFalse'){ //
 					$question = new TrueFalseQuestion();
 					$question->category = $questionCategory;
 				}else if($row1['CE_SUBTYPE_NAME']=='Calculated'){ //
 					$question = new CalculatedQuestion();
 					$question->category = $questionCategory;
-				}else */
-				if($row1['CE_SUBTYPE_NAME']=='CombinationMultipleChoice'){ //
+				}else if($row1['CE_SUBTYPE_NAME']=='CombinationMultipleChoice'){ //
 					$question = new CombinaisonMultiChoiceQuestion();
+					$question->category = $questionCategory;
+				}else if($row1['CE_SUBTYPE_NAME']=='JumbledSentence'){ //
+					$question = new JumbledSentenceQuestion();
 					$question->category = $questionCategory;
 				}
 				if(empty($question)){
@@ -648,6 +654,8 @@ class WebCTModel extends \GlobalModel {
 			$this->fillTrueFalseQuestion($question, $xmlContent);
 		}else if($question instanceof CalculatedQuestion){
 			$this->fillCalculatedQuestion($question, $xmlContent);
+		}else if($question instanceof JumbledSentenceQuestion){
+			$this->fillJumbledSentenceQuestion($question, $xmlContent);
 		}
 		
 		
@@ -1663,6 +1671,390 @@ class WebCTModel extends \GlobalModel {
 			$question->answers[] = $answer;
 		}
 	
+	}
+	
+	/**
+	 * @param JumbledSentenceQuestion $question
+	 * @param SimpleXMLElement $xmlContent
+	 */
+	public function fillJumbledSentenceQuestion(&$question, $xmlContent){
+				
+		$multiAnswer = new MultiAnswer();
+		$multiAnswer->question = $question->id;
+			
+	
+	
+		$questionFinalText="";
+			
+		if(strlen($question->name)>255){
+			echo 'QUESTION NAME TOO LONG - '.$question->name, PHP_EOL;
+			$questionFinalText .= $question->name."<br/>";
+				
+			$question->name = substr($question->name, 252)."...";
+		}
+
+		//On boucle sur le flow
+		$xmlImsRenderObject = $xmlContent->presentation->flow->response_lid->render_extension->ims_render_object;
+	
+		$count = 0;
+		$multiChoiceAnswers = array();
+		foreach ($xmlImsRenderObject->children() as $child){
+				
+			if($child->getName()=="material"){
+	
+				if(!empty($child->mattext)){
+					$convertedDescription = $this->convertTextAndCreateAssociedFiles((string)$child->mattext,3, $question);
+					$questionFinalText.=$convertedDescription;
+				}
+	
+			}else if($child->getName()=="response_label"){
+	
+				$count++;	
+				$questionFinalText.="{#".$count."}";
+				
+				$multiChoiceAnswers[(string)$child['ident']]=(string)$child->material->mattext;
+
+			}
+		}
+
+		$correctAnswers = array(); 
+		foreach ($xmlContent->xpath('//ims:respcondition') as $respcondition){
+			if($respcondition->setvar=="100.0"){
+				foreach ($respcondition->conditionvar->and->varequal as $varequal){
+					$correctAnswers[]=(string)$varequal;
+				}
+			}else if(!empty($respcondition->setvar)){
+				echo '<br/> REPONSE ALTERNATIVE DANS: '. $question->name. '<br/>';
+			}
+		}
+		
+		
+		//var_dump($multiChoiceAnswer);
+		$countAnswers = count($correctAnswers);
+		$count=0;
+		//On crée les questions à choix multiple
+		foreach ($correctAnswers as $correctAnswer){
+			$count++;
+			
+			$multiChoiceQuestion = new MultiChoiceQuestion();
+			$multiChoiceQuestion->id = $question->id+$count;
+			$multiChoiceQuestion->parent = $question->id;
+			$multiChoiceQuestion->name = $question->name;
+			
+			$multiChoiceQuestion->questiontextformat=1;
+			$multiChoiceQuestion->generalfeedback="";
+			$multiChoiceQuestion->generalfeedbackformat=1;
+			$multiChoiceQuestion->defaultmark="1.0000000";
+			$multiChoiceQuestion->penalty="0.0000000";
+			$multiChoiceQuestion->length="1";
+			$multiChoiceQuestion->stamp=time();
+			$multiChoiceQuestion->version=time();
+			$multiChoiceQuestion->hidden=0;
+			$multiChoiceQuestion->timecreated=time();
+			$multiChoiceQuestion->timemodified=time();
+			$multiChoiceQuestion->createdby=$question->createdby;
+			$multiChoiceQuestion->modifiedby=$question->modifiedby;
+			
+			
+			$multichoice = new MultiChoice();
+			$multichoice->id=$multiChoiceQuestion->id;
+			$multichoice->layout=0;
+			$multichoice->single=1;
+			$multichoice->shuffleanswers=1;
+			$multichoice->answernumbering=0;
+			$multichoice->shownumcorrect=0;
+			//COMBINED FEEDBACK
+			$multichoice->correctfeedback="";
+			$multichoice->correctfeedbackformat="1";
+			$multichoice->partiallycorrectfeedback="";
+			$multichoice->partiallycorrectfeedbackformat="1";
+			$multichoice->incorrectfeedback="";
+			$multichoice->incorrectfeedbackformat="1";
+			$multichoice->shownumcorrect="1";
+			
+			$multiChoiceQuestion->multiChoice = $multichoice;
+				
+			//On crée le text des multichoice
+			$multiChoiceText = "{1:MULTICHOICE:";
+			$answerCount = 0;
+			foreach ($correctAnswers as $correctAnswer2){
+				
+				$answer = new Answer();
+				$answer->id=$answerCount++;
+				$answer->answertext=$multiChoiceAnswers[$correctAnswer2];
+				$answer->answerformat="1";
+				$answer->feedback="";
+				$answer->feedbackformat=1;
+				
+				if($correctAnswer==$correctAnswer2){
+					$multiChoiceText .="~%100%".$multiChoiceAnswers[$correctAnswer2]."#";
+					$answer->fraction="1.0000000";
+				}else {
+					$multiChoiceText .="~%-".($countAnswers*100)."%".$multiChoiceAnswers[$correctAnswer2]."#";
+					$answer->fraction="-".$countAnswers.".0000000";
+				}
+				
+				$multiChoiceQuestion->answers[] = $answer;
+			}
+			
+			$multiChoiceText = substr($multiChoiceText,0,-1)."}";
+			
+			
+			$multiChoiceQuestion->questiontext=$multiChoiceText;
+			
+			
+			//Add the short question to the current category..
+			$question->category->questions[] = $multiChoiceQuestion;
+			$multiAnswer->sequence[]=$multiChoiceQuestion->id;
+		}
+				
+		//Get the file attached if any and past it to the description
+		$imageNames = $xmlContent->xpath('//ims:matimage');
+		if(!empty($imageNames)){
+			$imageName = $imageNames[0];
+			
+			$imageURI = $imageName['uri'];
+			$findContentId   = '?contentID=';
+			$pos = strpos($imageURI, $findContentId);
+			if($pos>0){
+				// 			echo 'IMAGE NAME = '.$imageName."\n";
+				// 			echo 'IMAGE URI = '.$imageURI."\n";
+				$fileContentId = substr($imageURI, $pos+11);
+				$this->addFile($fileContentId, 3, $question);
+			
+				$questionFinalText .= "<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
+			}
+		}
+		
+		$question->questiontext =$questionFinalText;
+		
+		//echo '<br/> TEXT = '.$question->questiontext."<br/>";
+		$question->multiAnswer = $multiAnswer;
+	
+	}
+	
+	
+	/***************************************************************************************************************
+	 * QUIZZ
+	*/
+	
+	public function retrieveQuizzes(){
+	
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='ASSESSMENT_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+	
+			$quizId = $row['ORIGINAL_CONTENT_ID'];
+			$this->addQuiz($quizId);
+				
+		}
+	}
+	
+	/**
+	 * Add a Quiz
+	 */
+	public function addQuiz($quizId){
+	
+		echo $quizId.' - ';
+	
+		
+		global $USER;
+	
+		//Glossary
+		$quizModel = new QuizModel();
+		$quizModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$quizModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$quizModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$quizModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+
+
+		
+		$event = new Event();
+		$gradeBook = new ActivityGradeBook();
+		
+		//Event associé
+		$events = new Events();
+		$events->events[] = $event; 
+		$quizModel->calendar = $events;
+		
+		//Grade
+		$quizModel->grades = $gradeBook; 
+
+		$quizModel->module = $this->createModule($quizId,"quiz","2013110501");
+	
+	
+		$quizModel->quiz = $this->createQuiz($quizId, $quizModel->module);
+	
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$quizModel->module->id;
+		$activity->sectionid=0;
+		$activity->modulename=$quizModel->module->modulename;
+		$activity->title=$quizModel->quiz->name;
+		$activity->directory="activities/glossary_".$quizModel->quiz->quizId;
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+	
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","quiz_".$quizModel->quiz->quizId,"quiz_".$quizModel->quiz->quizId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","quiz_".$quizModel->quiz->quizId,"quiz_".$quizModel->quiz->quizId."_userinfo",1);
+	
+		$inforRef = new InfoRef();
+		$inforRef->userids[]=$USER->id;
+		$inforRef->fileids=$quizModel->quiz->filesIds;
+		$quizModel->inforef = $inforRef;
+	
+		$this->activities[] = $quizModel;
+	}
+	
+	/**
+	 * @var unknown $glossaryId
+	 * @var Module $module
+	 * @return Glossary
+	 */
+	public function createQuiz($quizId, $module){
+		
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE ORIGINAL_CONTENT_ID='".$quizId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+		
+		$quiz = new ActivityQuiz();
+		$quiz->id = $quizId;
+		$quiz->moduleid =$module->id;
+		$quiz->modulename =$module->modulename;
+		$quiz->contextid=0;
+		$quiz->quizId = $quizId;
+		
+		
+		$quiz->name =$row['NAME'];
+		
+		$description = $row['DESCRIPTION'];
+		if(empty($description)){
+			$glossary->intro ="";
+		}else {
+			$quiz->intro =$description->load();
+		}
+		
+		$quiz->introformat =1;
+		
+		
+		
+		$request = "SELECT * FROM ASSMT_ASSESSMENT 
+						INNER JOIN ASSMT_SETTING ON ASSMT_ASSESSMENT.ID=ASSMT_SETTING.ASSESSMENT_ID 
+		  				INNER JOIN ASSMT_SECURITY_SETTING ON ASSMT_SETTING.ID=ASSMT_SECURITY_SETTING.ID
+						INNER JOIN ASSMT_SUBMISSION_SETTING ON ASSMT_SETTING.ID=ASSMT_SUBMISSION_SETTING.ID
+					  	INNER JOIN ASSMT_RESULT_SETTING ON ASSMT_SETTING.ID=ASSMT_RESULT_SETTING.ID 
+					WHERE ASSMT_ASSESSMENT.ID='".$quizId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+		
+		$timeopen = $row['STARTTIME'];
+		if(empty($timeopen)){
+			$timeopen=0;
+		}
+		$quiz->timeopen = $timeopen;
+		
+		$timeclose = $row['ENDTIME'];
+		if(empty($timeopen)){
+			$timeclose=0; 
+		}
+		$quiz->timeclose=$timeclose; 
+		
+		$durationUnlimited = $row['DURATIONUNLIMITED'];
+		$duration = $row['DURATION'];
+		$durationUnit = $row['DURATIONLIMITS'];
+		
+		if($durationUnlimited==0){
+			if($durationUnit=='days'){
+				$quiz->timelimit = $duration*86400;
+			}else if($durationUnit=='hours'){
+				$quiz->timelimit = $duration*3600; 
+			}else if($durationUnit=='minutes'){
+				$quiz->timelimit = $duration*60;
+			}else if($durationUnit=='seconds'){
+				$quiz->timelimit = $duration;
+			}
+		}else {
+			$quiz->timelimit = 0;
+		}
+		 
+		$allowSubmissionAfter = $row['ALLOWSUBMISSIONAFTER'];
+		
+		if($allowSubmissionAfter==1){
+			$quiz->overduehandling ='autosubmit';
+		}else {
+			$quiz->overduehandling ='autoabandon';
+		}		
+		$quiz->graceperiod=0;
+		
+		$quiz->preferredbehaviour=0;
+		$quiz->attempts_number=$row['NUMBEROFATTEMPTS'];
+		$quiz->attemptonlast=0;
+		switch ($row['RESULTSSCORETYPE']){
+			case 'Highest':
+				$quiz->grademethod=1;				
+				break;
+			case 'Average':
+				$quiz->grademethod=2;				
+				break;
+			case 'First':
+				$quiz->grademethod=3;				
+				break;
+			case 'Last':
+				$quiz->grademethod=4;			
+				break;
+		}
+		
+		
+		$quiz->decimalpoints=2;		
+		$quiz->questiondecimalpoints=-1;
+		$quiz->reviewattempt=69904;
+		$quiz->reviewcorrectness=4368;
+		$quiz->reviewmarks=4368;
+		$quiz->reviewspecificfeedback=4368;
+		$quiz->reviewgeneralfeedback=4368;
+		$quiz->reviewrightanswer=4368;
+		$quiz->reviewoverallfeedback=4368;
+		
+		$quiz->questionsperpage=0;
+		
+		if($row['QUESTIONDELIVERY']='allAtOnce'){
+			$quiz->navmethod="free";
+		}else {
+			$quiz->navmethod="sequential";
+		}
+		
+		if($row['RANDOMIZE_ATTEMPTS']==0){
+			$quiz->shufflequestions=0;
+			$quiz->shuffleanswers =0 ;				
+		}else {
+			$quiz->shufflequestions=1;
+			$quiz->shuffleanswers =1;
+		}
+		
+		//QUESTIONS
+		
+		$quiz->sumgrades="1.00000";
+		$quiz->grade = str_replace(',', '.', $row['MAXSCORE']);
+
+		$quiz->timecreated=time();
+		$quiz->timemodified=time();
+		
+		$quiz->password=$row['SECURITYPASSWORD'];
+		$address = $row['SECURITYADDRESS'];
+		if($address!='0.0.0.0'){
+			$quiz->subnet= $address;
+		}
+		$quiz->browsersecurity='-';
+		$quiz->delay1=0;
+		$quiz->delay2=0;
+
+		$quiz->showuserpicture=0;
+		$quiz->showblocks=0;
+				
+		return $quiz;
 	}
 	
 }
