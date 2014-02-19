@@ -55,6 +55,7 @@ class SyllabusManage {
 	
 	function _construct(){
 		$this->syllabus = new Syllabus();
+		$this->courseInfo = array();
 		$this->custum = array();
 		$this->policy = array();
 		$this->ressource = array();
@@ -63,7 +64,7 @@ class SyllabusManage {
 		$this->learningObj = array();
 		$this->courseReq = array();
 		$this->lesson = array();
-		$this->courseInfo = array();
+		
 	}
 }
 
@@ -104,6 +105,23 @@ class Policy {
 		$this->policyAddReq = new PolicyRubrique();
 	}
 	
+	public function info(){
+		$resultat =  "<p> <strong> ". $this->policyIntro->title ." </strong> </br> " ;
+		if (($this->policyIntro->value != NULL) || ($this->policyAddReq->value != NULL)){
+			$resultat = $resultat . "<ul>";
+			if($this->policyIntro->value != NULL)
+				$resultat = $resultat . " <li> Introduction: " . $this->policyIntro->value . "</li>";
+			if($this->policyAddReq->value != NULL)
+				$resultat = $resultat . "<li> Informations supplementaires: " . $this->policyAddReq->value . "</li> ";
+			$resultat = $resultat . "</ul>";
+		}
+		$resultat = $resultat . "</p>";
+	
+	
+		/**/
+		return $resultat;
+	}
+	
 }
 
 class PolicyRubrique extends RubriqueSyllabus {
@@ -132,9 +150,23 @@ class Custum extends RubriqueSyllabus {
 		$this->title = $res["TITLE"];
 		$this->syllItem_id = $res2["SYLLITEM_ID"];
 		$this->cust_item_name = $res2["CUST_ITEM_NAME"];
-		$valeur = $res2["CUST_ITEM_VALUE"];
-	//	$this->cust_item_value = $valeur->load();
+		$this->cust_item_value = $res2["CUST_ITEM_VALUE"];
 		
+	}
+	
+	public function info(){
+		$resultat =  "<p> <strong> ". $this->title ." </strong> </br> " ;
+		
+		if (($this->cust_item_name != NULL) || ($this->cust_item_value  != NULL)){
+			$resultat = $resultat  . "<ul> <li> ";
+			if($this->cust_item_name != NULL)
+				$resultat = $resultat . $this->cust_item_name . " : ";
+			if($this->cust_item_value  != NULL)
+				$resultat = $resultat . $this->cust_item_value ;
+			$resultat = $resultat  . "</li> </ul>";
+		}
+		$resultat = $resultat . "</p>";
+		return $resultat;
 	}
 }
 
@@ -159,6 +191,33 @@ class Ressource extends RubriqueSyllabus {
 		$this->ressource_edition_year = $res2["RESOURCE_EDITION_YEAR"];
 	}
 	
+	public function info(){
+		$resultat =  "<p> <strong> ". $this->title ." </strong> </br>" ;
+		if(($this->ressource_name != NULL) || ($this->ressource_author != NULL) || ($this->ressource_publisher != NULL) ||
+		($this->ressource_edition_year != NULL) || ($this->ressource_isbn != NULL) || ($this->ressource_info != NULL) ||
+		($this->ressource_required != NULL)){
+			$resultat = $resultat . '<ul>' ;
+			if(($this->ressource_name != NULL))
+				$resultat = $resultat . " <li> Titre: " . $this->ressource_name . "</li> ";
+			if(($this->ressource_author != NULL))
+				$resultat = $resultat . " <li> Auteur: " . $this->ressource_author . "</li> ";
+			if($this->ressource_publisher != NULL)
+				$resultat = $resultat . "<li> Editeur: " . $this->ressource_publisher . "</li> ";
+			if(($this->ressource_edition_year != NULL))
+				$resultat = $resultat . "<li> Edition/Annee: " . $this->ressource_edition_year . "</li> ";
+			if($this->ressource_isbn != NULL)
+				$resultat = $resultat . "<li> ISBN: " . $this->ressource_isbn . "</li> ";
+			if($this->ressource_info != NULL)
+				$resultat = $resultat . "<li> Informations supplementaires : " . $this->ressource_info . "</li> ";
+			if($this->ressource_required != NULL)
+				$resultat = $resultat . "<li> Type : " . $this->ressource_required . "</li> ";
+			$resultat = $resultat . '</ul>' ;
+		}
+		$resultat = $resultat . '</p>' ;
+	
+		return $resultat;
+	}
+	
 }
 
 
@@ -174,6 +233,13 @@ class EducatorInfoSyllabus  {
 		$this->prenom = $donnees["NAME_N_GIVEN"];
 		$this->email = $donnees["EMAIL"];
 	}
+	
+	public function info(){
+		$resultat =  "<p> <strong> Formateur de section:". $this->nom . " " . $this->prenom  ." </strong> </br> " ;
+		$resultat = $resultat.  "<ul><li> Courrier electronique : ". $this->email . "</li> </ul> " ;
+		$resultat = $resultat . "</p>";
+		return $resultat;
+	}
 }
 
 class CustumHtmlItem extends RubriqueSyllabus {
@@ -187,6 +253,14 @@ class CustumHtmlItem extends RubriqueSyllabus {
 		$val = $res2["CUST_HTML_VALUE"];
 		$this->custm_html_value = $val->load();
 	}
+	
+	public function info(){
+		$resultat =  "<p> <strong>". $this->title ." </strong> </br> " ;
+		if($this->custm_html_value != NULL)
+			$resultat = $resultat.  "<ul><li> ". $this->custm_html_value . "</li> </ul> " ;
+		$resultat = $resultat . "</p>";
+		return $resultat;
+	}
 }
 
 class LearningObj_link {
@@ -194,6 +268,26 @@ class LearningObj_link {
 	
 	public function _construct(){	
 		$this->learningObject = array();
+	}
+	
+	public function info(){
+		$resultat = " ";
+		for($i =0  ; $i < count($this->learningObject) ; $i++){
+			$resultat = $resultat .  "<p> <strong>". $this->learningObject[$i]->title ." </strong> </br> " ;
+		//	var_dump($this->learningObject[$i]->name_cms_content)	;
+		//	echo '</br>';
+			if ( ($this->learningObject[$i]->name_cms_content != NULL) || 
+						($this->learningObject[$i]->description_cms_content != NULL)){
+			$resultat = $resultat .  "<ul>" ;
+			if($this->learningObject[$i]->name_cms_content != NULL)
+				$resultat = $resultat.  "<li> <strong> ". $this->learningObject[$i]->name_cms_content . " </strong> </li> " ;			
+			if($this->learningObject[$i]->description_cms_content != NULL)
+				$resultat = $resultat.  "<li> ". $this->learningObject[$i]->description_cms_content . "</li> " ;
+			$resultat = $resultat.  "</ul>" ;
+			}
+			$resultat = $resultat . "</p>";
+		}
+		return $resultat;
 	}
 }
 
@@ -220,6 +314,20 @@ class CourseReq {
 		$this->courseReqIntro = new CourseReqRubrique();
 		$this->courseReqReqs = new CourseReqRubrique();
 	}
+	
+	public function info(){
+		$resultat =  "<p> <strong> ". $this->courseReqIntro->title ." </strong> </br> " ;
+		if (($this->courseReqIntro->value != NULL) || ($this->courseReqReqs->value != NULL)){
+			$resultat = $resultat . "<ul>";
+			if($this->courseReqIntro->value != NULL)
+				$resultat = $resultat . " <li> Introduction: " . $this->courseReqIntro->value . "</li>";
+			if($this->courseReqReqs->value != NULL)
+				$resultat = $resultat . "<li> Condition requise: " . $this->courseReqReqs->value . "</li> ";
+			$resultat = $resultat . "</ul>";
+		}
+		$resultat = $resultat . "</p>";
+		return $resultat;
+	}
 }
 
 
@@ -243,12 +351,35 @@ class Lesson {
 	public $lessonReadings;
 	public $lessonAssignements;
 	public $lessonGoals;
+	public $ilias;
 	
 	function _construct(){
 		$this->lessonTopic = new LessonRubrique();
 		$this->lessonReadings = new LessonRubrique();
 		$this->lessonGoals = new LessonRubrique();
 		$this->lessonAssignements = new LessonRubrique();
+	}
+	
+	public function info(){
+		$resultat =  "<p> <strong> ". $this->lessonTopic->title ." </strong> </br> " ;
+		if (($this->lessonTopic->lesson_title != NULL) || ($this->lessonTopic->value != NULL) ||
+				($this->lessonReadings->value != NULL) ||($this->lessonAssignements->value != NULL) 
+					||($this->lessonGoals->value != NULL) ){
+			$resultat = $resultat . "<ul>";
+			if($this->lessonTopic->lesson_title != NULL)
+				$resultat = $resultat . " <li> Titre de la lecon: " . $this->lessonTopic->lesson_title . "</li>";
+			if($this->lessonGoals->value != NULL)
+				$resultat = $resultat . "<li> Objectifs: " . $this->lessonGoals->value . "</li> ";
+			if($this->lessonTopic->value != NULL)
+				$resultat = $resultat . "<li> Rubriques: " . $this->lessonTopic->value . "</li> ";
+			if($this->lessonReadings->value != NULL)
+				$resultat = $resultat . "<li> Lecture: " . $this->lessonReadings->value . "</li> ";
+			if($this->lessonAssignements->value != NULL)
+				$resultat = $resultat . "<li> Taches: " . $this->lessonAssignements->value . "</li> ";
+			$resultat = $resultat . "</ul>";
+		}
+		$resultat = $resultat . "</p>";
+		return $resultat;
 	}
 }
 
@@ -280,6 +411,15 @@ class CourseInfo {
 		$this->nomCours = $nomCour;
 		$this->infoSection = $infoSec;
 	}
+	
+	public function info(){
+		$resultat =  "<p> <strong> Information sur la section: ". $this->nomCours ." </strong> </br> " ;
+		if($this->nomCours != NULL)
+			$resultat = $resultat.  "<ul><li> Nom du cours: ". $this->infoSection . "</li> </ul> " ;
+		$resultat = $resultat . "</p>";
+		return $resultat;
+	}
+	
 }
 
 ?>
