@@ -33,6 +33,10 @@ require_once 'classes/model/activities/Glossary.php';
 require_once 'classes/model/activities/ActivityCompletion.php';
 require_once 'classes/model/activities/Module.php';
 require_once 'classes/model/activities/Quiz.php';
+require_once 'classes/model/activities/Assignment.php';
+require_once 'classes/model/activities/Grading.php';
+
+require_once 'classes/utils/HtmlContentClass.php';
 
 
 defined('MOODLE_INTERNAL') || die();
@@ -700,6 +704,39 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
 		
+		
+		//SECTION DES TACHES
+		$sectionModel = new SectionModel();
+		
+		//Default section used to put all the activities (for now)
+		$section = new Section();
+		$section->id=2;
+		$section->number=2;
+		$section->name=utf8_encode("Tâches");
+		$section->summary=utf8_encode("Liste de tous les tâches");
+		$section->summaryformat=1;
+		$section->visible=0;
+		$section->availablefrom=0;
+		$section->availableuntil=0;
+		$section->showavailability=0;
+		$section->groupingid=0;
+		
+		$sectionModel->section = $section;
+		
+		$infoRef = new InfoRef();
+		$sectionModel->inforef = $infoRef;
+		
+		$sectionModels[]=$sectionModel;
+		
+		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
+		
+		//moodle_backup settings
+		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
+		
+		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
+		
+		
 		$this->sections = $sectionModels;
 	}
 	
@@ -875,6 +912,10 @@ abstract class GlobalModel implements \IBackupModel {
 			$module->sectionid=$this->sections[1]->section->id;
 			$module->sectionnumber=$this->sections[1]->section->number;
 			$module->visible=$this->sections[1]->section->visible;
+		}if($name=="assign"){
+			$module->sectionid=$this->sections[2]->section->id;
+			$module->sectionnumber=$this->sections[2]->section->number;
+			$module->visible=$this->sections[2]->section->visible;
 		}else {
 			$module->sectionid=0;// 		<sectionid>36</sectionid>
 			$module->sectionnumber=0;// 		<sectionnumber>0</sectionnumber>
@@ -1051,6 +1092,17 @@ abstract class GlobalModel implements \IBackupModel {
 				mkdir($activityDir);
 			
 				$activityModel->quiz->toXMLFile($activityDir);
+				
+			}else if ($activityModel instanceof AssignmentModel) {
+				$activityDir = $dir.'/assign_'.$activityModel->module->id;
+			
+				if(is_dir($activityDir)){
+					rrmdir($activityDir);
+				}
+				mkdir($activityDir);
+			
+				$activityModel->assignment->toXMLFile($activityDir);
+				$activityModel->grading->toXMLFile($activityDir);
 			}
 			
 			$activityModel->calendar->toXMLFile($activityDir);
@@ -1180,6 +1232,11 @@ Class ActivityModel {
 	 */
 	public $roles;
 	
+	/**
+	 * @var Grading
+	 */
+	public $grading;
+	
 	
 }
 
@@ -1213,5 +1270,13 @@ Class BlockModel {
 	 * @var Block
 	 */
 	public $block;
+
+}
+
+class AssignmentModel extends ActivityModel {
+	/**
+	 * @var ActivityAssignment
+	 */
+	public $assignment;
 
 }

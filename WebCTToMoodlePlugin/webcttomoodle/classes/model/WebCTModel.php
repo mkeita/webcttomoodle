@@ -17,12 +17,14 @@ class WebCTModel extends \GlobalModel {
 		$this->learningContextId = $learningContextId;
 		parent::__construct();
 		
-		//TODO TEMPORARY DESACTIVATE GLOSSARIES EXTRACT
+		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
 		$this->retrieveGlossaries();
 
 		$this->retrieveQuestions();		
 		
 		$this->retrieveQuizzes();
+		
+		$this->retrieveAssignments();
 		
 		oci_close($this->connection);
 	}
@@ -231,7 +233,7 @@ class WebCTModel extends \GlobalModel {
 				$row3 = oci_fetch_array($stid3, OCI_ASSOC+OCI_RETURN_NULLS);
 				
 				//ADD THE ATTACHED FILE
-				$this->addFile($row3['RIGHTOBJECT_ID'],1,$entry,$glossary);
+				$this->addCMSFile($row3['RIGHTOBJECT_ID'],1,$entry,$glossary);
 			}
 			
 			$glossary->entries[]=$entry;
@@ -241,40 +243,65 @@ class WebCTModel extends \GlobalModel {
 		return $glossary;
 	}
 	
-	
+		
 	function convertHTMLContentLinks($htmlContent,  &$filesNames){
 		
-		$findWebCT   = '/webct/RelativeResourceManager/';	
+		$pattern = "/(?<=href=(\"|'))[^\"']+(?=(\"|'))/";
+		preg_match_all($pattern, $htmlContent, $result);
+		
+		var_dump($result);
+		
+		return "";
+		
+		
+		$findWebCT   = 'href="';	
 		$pos1 = strpos($htmlContent, $findWebCT);
 		$findQuot   = '"';
+		
+		echo '<br/>'. $htmlContent;
+		echo '<br/> POS 1 = '. $pos1;
 		
 		//error_log("HTMLCONTENT = ".$htmlContent, 0);
 		
 		while($pos1>0){
 			
-			$pos2 = strpos($htmlContent, $findQuot, $pos1);
+			$findWebCTLenght = strlen($findWebCT);
+			
+			$pos2 = strpos($htmlContent, $findQuot, $pos1+$findWebCTLenght);
+			
+			echo '<br/> POS 2 = '. $pos2;
 				
 			$formerLink = substr($htmlContent, $pos1,$pos2-$pos1);
 			
+			echo 'FORMER LINK ='. $formerLink;
+			
 			$lastSlashPos = strrpos($formerLink, "/");
 			
-			$fileName = substr($formerLink, $lastSlashPos+1);
+			if($lastSlashPos>0){
+				$lastSlashPos++;
+			}
+			$fileName = substr($formerLink, $lastSlashPos);
 			
 			$filesNames[] =  $fileName; 
 			
-			$newLink = "@@PLUGINFILE@@/".$fileName;
+			$newLink = $findWebCT."@@PLUGINFILE@@/".$fileName.'"';
 				
-			$htmlContent = str_replace($formerLink, $newLink, $htmlContent);
+			$htmlContent = str_replace($formerLink.'"', $newLink, $htmlContent);
 		
-			//$htmlContent = convertHTMLContentLinks($htmlContent, $filesNames);
 			$newPos1 = strpos($htmlContent, $findWebCT);
 			if($pos1==$newPos1){
-				break;
-			}else {
-				$pos1 = $newPos1;
+				$findWebCT   = 'src="';
+				$newPos1 = strpos($htmlContent, $findWebCT);
+				if($pos1==$newPos1){
+					break;
+				}
 			}
-			//error_log("POS = ".$pos1, 0);
-		}	
+			
+			$pos1 = $newPos1;
+			
+		}		
+		
+		echo '<br/> HTML CONTENT ='. $htmlContent;
 		
 		return $htmlContent;
 	} 
@@ -295,20 +322,23 @@ class WebCTModel extends \GlobalModel {
 	 * MODE 6 = Question file - Answer feedback text
 	 * MODE 7 = Question file - Match subquestion
 	 * MODE 8 = Question file - Essay grader info
+	 * MODE 9 = Assignment file - Assignment description
 	 * 
-	 * @return mixed
+	 * @return string
 	 */
 	public function convertTextAndCreateAssociedFiles($text,$mode,$item,$parent=NULL){
-		$filesName = array();
-		$convertedText = $this->convertHTMLContentLinks($text,$filesName);
-		foreach ($filesName as $fileName){
+		$htmlContentClass = new HtmlContentClass();
+		
+		//$convertedText = $this->convertHTMLContentLinks($text,$filesName);
+		$convertedText = $htmlContentClass->replaceAllLinks($text);
+		
+		foreach ($htmlContentClass->filesName as $fileName){
 			$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
 			$stid = oci_parse($this->connection,$request);
 			oci_execute($stid);
 			$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 			if(!empty($row)){
-				error_log($fileName,0);
-				$this->addFile($row["ORIGINAL_CONTENT_ID"], $mode, $item, $parent);
+				$this->addCMSFile($row["ORIGINAL_CONTENT_ID"], $mode, $item, $parent);
 			}
 		}
 		
@@ -327,64 +357,88 @@ class WebCTModel extends \GlobalModel {
 	 * MODE 6 = Question file - Answer feedback text
 	 * MODE 7 = Question file - Match subquestion
 	 * MODE 8 = Question file - Essay grader info
+	 * MODE 9 = Assignment file - Assignment description
 	 * @param unknown $item
 	 * @param unknown $parent
 	 */
-	public function addFile($fileOriginalContentId, $mode, $item, &$parent=NULL){
+	public function addCMSFile($fileOriginalContentId, $mode, $item, &$parent=NULL){
 		
+		$itemId = 0;
 		$fileArea = "";
 		$component ="";
+		$contextId=0;
 		switch ($mode){
 			case 1 : 
 				$component = "mod_glossary";
 				$fileArea = "attachment";
+				$itemId=$item->id;
+				$contextId=$parent->contextid;
 				break;
 			case 2:
 				$component = "mod_glossary";
 				$fileArea = "entry";
+				$itemId=$item->id;
+				$contextId=$parent->contextid;
 				break;
 				
 			case 3:
 				$component = "question";
 				$fileArea = "questiontext";
+				$itemId=$item->id;
+				$contextId=0;
 				break;
 			case 4:
 				$component = "question";
 				$fileArea = "generalfeedback";
+				$itemId=$item->id;
+				$contextId=0;
 				break;
 			case 5:
 				$component = "question";
 				$fileArea = "answer";
+				$itemId=$item->id;
+				$contextId=0;
 				break;
+				
 			case 6:
 				$component = "question";
 				$fileArea = "answerfeedback";
+				$itemId=$item->id;
+				$contextId=0;
 				break;
 			case 7:
 				$component = "qtype_match";
 				$fileArea = "subquestion";
+				$itemId=$item->id;
+				$contextId=0;
 				break;				
 			case 8:
 				$component = "qtype_essay";
 				$fileArea = "graderinfo";
+				$itemId=$item->id;
+				$contextId=0;
+				break;	
+			case 9:
+				$component = "mod_assign";
+				$fileArea = "intro";
+				$itemId=$item->id;
+				$contextId=$item->contextid;
 				break;
-				
-				
 				
 		}
 				
 		$repository = new FileBackup();
 		$repository->id=$this->getNextId();
 		$repository->contenthash="";// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
-		$repository->contextid=0;// 		<contextid>54</contextid> // ACTIVITY -- ICI GLOSSARY CONTEXT
+		$repository->contextid=$contextId;// 		<contextid>54</contextid> // ACTIVITY -- ICI GLOSSARY CONTEXT
 		$repository->component=$component;// 		<component>mod_glossary</component>
 		$repository->filearea=$fileArea;// 		<filearea>attachment</filearea>
-		$repository->itemid=$item->id;// 		<itemid>1</itemid> //GLOSSARY ID
+		$repository->itemid=$itemId;// 		<itemid>1</itemid>
 		$repository->filepath="/";// 		<filepath>/</filepath>
 		$repository->filename=".";// 		<filename>.</filename>
 		$repository->userid=$this->users->users[0]->id;// 		<userid>2</userid>
 		$repository->filesize=0;// 		<filesize>0</filesize>
-		$repository->mimetype="document/unknown";// 		<mimetype>document/unknown</mimetype>
+		$repository->mimetype="$@NULL@$";// 		<mimetype>document/unknown</mimetype>
 		$repository->status=0;// 		<status>0</status>
 		$repository->timecreated=time();// 		<timecreated>1390818824</timecreated>
 		$repository->timemodified=time();// 		<timemodified>1390818869</timemodified>
@@ -397,7 +451,11 @@ class WebCTModel extends \GlobalModel {
 		$repository->reference="$@NULL@$";// 		<reference>$@NULL@$</reference>
 			
 		
-		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE ORIGINAL_CONTENT_ID ='".$fileOriginalContentId."'";
+		$request = "SELECT CMS_CONTENT_ENTRY.NAME,CMS_CONTENT_ENTRY.FILESIZE,CMS_FILE_CONTENT.CONTENT,CMS_MIMETYPE.MIMETYPE  
+					FROM CMS_CONTENT_ENTRY 
+						INNER JOIN CMS_FILE_CONTENT ON CMS_FILE_CONTENT.ID=CMS_CONTENT_ENTRY.FILE_CONTENT_ID
+						INNER JOIN CMS_MIMETYPE ON CMS_MIMETYPE.ID=CMS_FILE_CONTENT.MIMETYPE_ID
+					WHERE ORIGINAL_CONTENT_ID ='".$fileOriginalContentId."'";
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
@@ -409,10 +467,10 @@ class WebCTModel extends \GlobalModel {
 		
 		$file = new FileBackup();
 		$file->id=$this->getNextId();
-		$file->contextid=0;// 		<contextid>54</contextid>
+		$file->contextid=$contextId;// 		<contextid>54</contextid>
 		$file->component=$component;// 		<component>mod_glossary</component>
 		$file->filearea=$fileArea;// 		<filearea>attachment</filearea>
-		$file->itemid=$item->id;// 		<itemid>1</itemid>
+		$file->itemid=$itemId;// 		<itemid>1</itemid>
 		$file->filepath="/";// 		<filepath>/</filepath>
 		$file->filename=$row['NAME'];// 		<filename>.</filename>
 		$file->userid=$this->users->users[0]->id;// 		<userid>2</userid>
@@ -430,22 +488,21 @@ class WebCTModel extends \GlobalModel {
 		
 
 		//GET THE CONTENT
-		$request = "SELECT * FROM CMS_FILE_CONTENT WHERE ID='".$row['FILE_CONTENT_ID']."'";
-		$stid = oci_parse($this->connection,$request);
-		oci_execute($stid);
-		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+// 		$request = "SELECT * FROM CMS_FILE_CONTENT WHERE ID='".$row['FILE_CONTENT_ID']."'";
+// 		$stid = oci_parse($this->connection,$request);
+// 		oci_execute($stid);
+// 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 		
 		//echo 'FILE='.$file->filename . "///".$fileOriginalContentId."\n";
 		$file->content = $row["CONTENT"]->load();
 
 		$file->contenthash=md5($file->content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
-		
-		
-		//RETRIEVE THE MIME TYPE
-		$request = "SELECT * FROM CMS_MIMETYPE WHERE ID='".$row['MIMETYPE_ID']."'";
-		$stid = oci_parse($this->connection,$request);
-		oci_execute($stid);
-		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+				
+// 		//RETRIEVE THE MIME TYPE
+// 		$request = "SELECT * FROM CMS_MIMETYPE WHERE ID='".$row['MIMETYPE_ID']."'";
+// 		$stid = oci_parse($this->connection,$request);
+// 		oci_execute($stid);
+// 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 		
 		$file->mimetype=$row['MIMETYPE'];// 		<mimetype>document/unknown</mimetype>
 			
@@ -458,11 +515,16 @@ class WebCTModel extends \GlobalModel {
 			case 2:
 				$parent->filesIds[] = $repository->id;		
 				$parent->filesIds[] = $file->id;
+			case 9:
+				$item->filesIds[] = $repository->id;
+				$item->filesIds[] = $file->id;
 			break;
 		}
 		//REFERENCE IN THE COURSE FILES
 		$this->files->files[]=$repository;
 		$this->files->files[]=$file;
+		
+		//echo '<br/>'.$file->filename;
 		
 				
 	}
@@ -609,7 +671,7 @@ class WebCTModel extends \GlobalModel {
 				// 			echo 'IMAGE NAME = '.$imageName."\n";
 				// 			echo 'IMAGE URI = '.$imageURI."\n";
 				$fileContentId = substr($imageURI, $pos+11);
-				$this->addFile($fileContentId, 3, $question);
+				$this->addCMSFile($fileContentId, 3, $question);
 		
 				$convertedDescription .= "<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
 			}
@@ -1052,7 +1114,7 @@ class WebCTModel extends \GlobalModel {
 					$pos = strpos($imageURI, $findContentId);
 					if($pos>0){
 						$fileContentId = substr($imageURI, $pos+11);
-						$this->addFile($fileContentId, 3, $question);
+						$this->addCMSFile($fileContentId, 3, $question);
 					
 						$questionFinalText .="<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
 					}
@@ -1386,7 +1448,7 @@ class WebCTModel extends \GlobalModel {
 				// 			echo 'IMAGE NAME = '.$imageName."\n";
 				// 			echo 'IMAGE URI = '.$imageURI."\n";
 				$fileContentId = substr($imageURI, $pos+11);
-				$this->addFile($fileContentId, 3, $question);
+				$this->addCMSFile($fileContentId, 3, $question);
 			
 				$convertedDescription .= "<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
 			}
@@ -1827,7 +1889,7 @@ class WebCTModel extends \GlobalModel {
 				// 			echo 'IMAGE NAME = '.$imageName."\n";
 				// 			echo 'IMAGE URI = '.$imageURI."\n";
 				$fileContentId = substr($imageURI, $pos+11);
-				$this->addFile($fileContentId, 3, $question);
+				$this->addCMSFile($fileContentId, 3, $question);
 			
 				$questionFinalText .= "<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
 			}
@@ -1863,7 +1925,7 @@ class WebCTModel extends \GlobalModel {
 	 */
 	public function addQuiz($quizId){
 	
-		echo $quizId.' - ';
+		//echo $quizId.' - ';
 	
 		
 		global $USER;
@@ -2050,13 +2112,13 @@ class WebCTModel extends \GlobalModel {
 		oci_execute($stid);
 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 		
-		$timeopen = $row['STARTTIME'];
+		$timeopen = substr($row['STARTTIME'],0,-3);
 		if(empty($timeopen)){
 			$timeopen=0;
 		}
 		$quiz->timeopen = $timeopen;
 		
-		$timeclose = $row['ENDTIME'];
+		$timeclose = substr($row['ENDTIME'],0-3);
 		if(empty($timeopen)){
 			$timeclose=0; 
 		}
@@ -2419,6 +2481,371 @@ class WebCTModel extends \GlobalModel {
 		$questionCategory->questions[]=$cloneQuestion;
 		
 		return $cloneQuestion;
+	}
+	
+	
+	
+	/***************************************************************************************************************
+	 * ASSIGNMENT
+	*/
+	
+	public function retrieveAssignments(){
+	
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='PROJECT_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+	
+			$assignmentId = $row['ORIGINAL_CONTENT_ID'];
+			$this->addAssignment($assignmentId);
+	
+		}
+	}
+	
+	
+	
+	/**
+	 * Add a Assignment
+	 */
+	public function addAssignment($assignmentId){	
+	
+		global $USER;
+	
+		//Glossary
+		$assignmentModel = new AssignmentModel();
+		$assignmentModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$assignmentModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$assignmentModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$assignmentModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+	
+	
+		$assignmentModel->module = $this->createModule($assignmentId,"assign","2013110500");
+	
+		$assignmentModel->assignment = $this->createAssignment($assignmentId, $assignmentModel->module);
+	
+	
+		//Grade
+		$gradeBook = new ActivityGradeBook();
+	
+		$gradeItem = new GradeItem();
+		$gradeItem->id=$this->getNextId();
+		$gradeItem->categoryid = $this->gradebook->grade_categories[0]->id;
+		$gradeItem->itemname =$assignmentModel->assignment->name;
+		$gradeItem->itemtype ="mod";
+		$gradeItem->itemmodule ="assign";
+		$gradeItem->iteminstance = $assignmentModel->assignment->id;
+		$gradeItem->itemnumber =0 ;//<itemnumber>$@NULL@$</itemnumber>
+		$gradeItem->iteminfo ="$@NULL@$";//<iteminfo>$@NULL@$</iteminfo>
+		$gradeItem->idnumber ="$@NULL@$";//<idnumber>$@NULL@$</idnumber>
+		$gradeItem->calculation ="$@NULL@$";//<calculation>$@NULL@$</calculation>
+
+		if($assignmentModel->assignment->grade<=0){
+			$gradeItem->gradetype =3 ;//<gradetype>1</gradetype>
+			$gradeItem->grademax =20;//<grademax>100.00000</grademax>
+		}else {
+			$gradeItem->gradetype =1 ;//<gradetype>1</gradetype>
+			$gradeItem->grademax =$assignmentModel->assignment->grade;//<grademax>100.00000</grademax>
+		}
+		$gradeItem->grademin ="0.00000" ;//<grademin>0.00000</grademin>
+		$gradeItem->scaleid = "$@NULL@$";//scaleid>$@NULL@$</scaleid>
+		$gradeItem->outcomeid = "$@NULL@$";//<outcomeid>$@NULL@$</outcomeid>
+		$gradeItem->gradepass = "0.00000";//<gradepass>0.00000</gradepass>
+		$gradeItem->multfactor ="1.00000" ;//<multfactor>1.00000</multfactor>
+		$gradeItem->plusfactor = "0.00000";//<plusfactor>0.00000</plusfactor>
+		$gradeItem->aggregationcoef = "0.00000";//<aggregationcoef>0.00000</aggregationcoef>
+		$gradeItem->sortorder = 1;//<sortorder>1</sortorder>
+		$gradeItem->display = 0;//<display>0</display>
+		$gradeItem->decimals = "$@NULL@$";//<decimals>$@NULL@$</decimals>
+		$gradeItem->hidden = 0;//<hidden>0</hidden>
+		$gradeItem->locked = 0;//<locked>0</locked>
+		$gradeItem->locktime= 0;//<locktime>0</locktime>
+		$gradeItem->needsupdate = 0;//<needsupdate>1</needsupdate>
+		$gradeItem->timecreated = time();
+		$gradeItem->timemodified = time() ;
+	
+		$gradeBook->grade_items[]= $gradeItem;
+		$assignmentModel->grades = $gradeBook;
+	
+
+		//Grading...
+		$grading = new Grading();
+		$area = new Area($this->getNextId(), "submissions", "$@NULL@$");
+		$grading->areas[]=$area;
+		$assignmentModel->grading = $grading;
+		
+	
+		//Event associé
+		$event = new Event();
+		$event->id=$this->getNextId();//
+		$event->name=$assignmentModel->assignment->name;
+		$event->description=$assignmentModel->assignment->intro;//<description>&lt;div class="no-overflow"&gt;&lt;p&gt;Voici ma description de mon évaluation...&lt;/p&gt;&lt;/div&gt;</description>
+		$event->format=1;//<format>1</format>
+		$event->courseid=$this->course->course->id;//<courseid>6</courseid>
+		$event->groupid=0;//<groupid>0</groupid>
+		$event->userid=$USER->id;//<userid>2</userid>
+		$event->repeatid=0;//<repeatid>0</repeatid>
+		$event->modulename="assign";
+		$event->instance=$assignmentModel->assignment->id;//<instance>40</instance>
+		$event->eventtype="due";//<eventtype>open</eventtype>
+		$event->timestart=$assignmentModel->assignment->duedate;//<timestart>-152423940</timestart>
+		if($assignmentModel->assignment->duedate==0 && $assignmentModel->assignment->cutoffdate==0){
+			$event->timeduration=0;
+		}else if($assignmentModel->assignment->duedate==0){
+			$event->timeduration=$assignmentModel->assignment->cutoffdate  - time();
+		}else if($assignmentModel->assignment->cutoffdate==0){
+			$event->timeduration=$assignmentModel->assignment->duedate - time();
+		}else {
+			$event->timeduration=$assignmentModel->assignment->cutoffdate-$assignmentModel->assignment->duedate;//<timeduration>0</timeduration>
+		}
+		$event->visible=0;//<visible>0</visible>
+		$event->uuid="";//<uuid></uuid>
+		$event->sequence=1;//<sequence>1</sequence>
+		$event->timemodified=time();//<timemodified>1392650251</timemodified>
+	
+		$events = new Events();
+		$events->events[] = $event;
+		$assignmentModel->calendar = $events;
+	
+	
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$assignmentModel->module->id;
+		$activity->sectionid=2;
+		$activity->modulename=$assignmentModel->module->modulename;
+		$activity->title=$assignmentModel->assignment->name;
+		$activity->directory="activities/assign_".$assignmentModel->assignment->assignmentId;
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+	
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","assign_".$assignmentModel->assignment->assignmentId,"assign_".$assignmentModel->assignment->assignmentId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","assign_".$assignmentModel->assignment->assignmentId,"assign_".$assignmentModel->assignment->assignmentId."_userinfo",1);
+	
+		$inforRef = new InfoRef();
+		$inforRef->userids[]=$USER->id;
+		$inforRef->fileids=$assignmentModel->assignment->filesIds;
+	
+		$inforRef->gradeItemids[] = $gradeItem->id;
+	
+		$assignmentModel->inforef = $inforRef;
+	
+		$this->activities[] = $assignmentModel;
+	
+		$this->sections[2]->section->sequence[]= $assignmentModel->assignment->assignmentId;
+	}
+	
+	
+	public function createAssignment($assignmentId, $module){
+	
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE ORIGINAL_CONTENT_ID='".$assignmentId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+	
+		$cmsContentEntryId= $row['ID'];
+		
+		$assignment = new ActivityAssignment();
+		$assignment->id = $assignmentId;
+		$assignment->moduleid =$module->id;
+		$assignment->modulename =$module->modulename;
+		$assignment->contextid=$this->getNextId();
+		$assignment->assignmentId = $assignmentId;
+		
+		$assignment->name =$row['NAME'];
+	
+		$description = "";
+		if(!empty($row['DESCRIPTION'])){
+			$description =$row['DESCRIPTION']->load();			
+		}
+	
+		$request = "SELECT AGN_ASSIGNMENT.TAKEBACKABLE_FLAG, AGN_ASSIGNMENT.INSTRUCTIONS, AGN_ASSIGNMENT.SENDEMAILONSUBMISSION_FLAG,AGN_ASSIGNMENT.DUEDATE,AGN_ASSIGNMENT.LEEWAYDATE,AGN_ASSIGNMENT.COLLABORATIVE,
+							SIMPLE_FILE.NAME,SIMPLE_FILE.FILESIZE,
+							CMS_FILE_CONTENT.CONTENT,CMS_MIMETYPE.MIMETYPE,
+							SECTION_COLUMN.LABEL,SECTION_COLUMN.MAX_VALUE
+					FROM AGN_ASSIGNMENT
+				        INNER JOIN SIMPLE_FILE ON SIMPLE_FILE.GROUP_ID=AGN_ASSIGNMENT.SIMPLE_FILE_GROUP_ID
+				        INNER JOIN CMS_FILE_CONTENT ON CMS_FILE_CONTENT.ID=SIMPLE_FILE.FILE_CONTENT_ID
+						INNER JOIN CMS_MIMETYPE ON CMS_MIMETYPE.ID=CMS_FILE_CONTENT.MIMETYPE_ID
+						INNER JOIN SECTION_COLUMN ON SECTION_COLUMN.CONTENT_ENTRY_ID='".$cmsContentEntryId."'        
+				    WHERE AGN_ASSIGNMENT.ID='".$assignmentId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+
+		if(!empty($row['INSTRUCTIONS'])){
+			$description .=$row['INSTRUCTIONS']->load();
+		}
+		
+		//TODO SEARCH LINKS
+		$convertedDescription = $this->convertTextAndCreateAssociedFiles($description, 9, $assignment);
+				
+		if(!empty($row['NAME'])){
+			$convertedDescription .= "<br/>".utf8_encode("Fichier attaché :") ."<a href=\"@@PLUGINFILE@@/".$row['NAME']."\">".$row['NAME']."</a>";
+			$this->addSimpleFile(1, $assignment, $row['NAME'], $row['FILESIZE'], $row['CONTENT']->load(), $row['MIMETYPE']);
+		}		
+		
+		$assignment->intro = $convertedDescription;		
+
+		$assignment->introformat =1;
+		$assignment->alwaysshowdescription=0;
+		
+		$assignment->submissiondrafts=$row['TAKEBACKABLE_FLAG'];//<submissiondrafts>1</submissiondrafts>
+		
+		$assignment->sendnotifications=$row['SENDEMAILONSUBMISSION_FLAG'];//<sendnotifications>1</sendnotifications>					
+		$assignment->sendlatenotifications=0;//<sendlatenotifications>0</sendlatenotifications>
+		$assignment->duedate=substr($row['DUEDATE'],0,-3);//<duedate>1393711200</duedate>
+		$assignment->cutoffdate=substr($row['LEEWAYDATE'],0,-3);//<cutoffdate>1394488800</cutoffdate>
+		$assignment->allowsubmissionsfromdate=0;//<allowsubmissionsfromdate>0</allowsubmissionsfromdate>
+		
+		if(empty($row['LABEL'])){
+			$assignment->grade=0;
+		}else {
+			if(empty($row['MAX_VALUE'])){
+				$assignment->grade=0;
+				error_log("ASSIGNMENT - EVALUATION ALPHANUMERIQUE - ".$assignment->name);
+			}else {
+				$assignment->grade=str_replace(",", ".", $row['MAX_VALUE']);
+			}
+		}
+		$assignment->timemodified=time();//<timemodified>1392710910</timemodified>
+		$assignment->completionsubmit=0;// <completionsubmit>0</completionsubmit>
+		$assignment->requiresubmissionstatement=0;//<requiresubmissionstatement>0</requiresubmissionstatement>
+		
+		if($row['COLLABORATIVE']=='true'){
+			$assignment->teamsubmission=1;//<teamsubmission>0</teamsubmission>
+		}else {
+			$assignment->teamsubmission=0;//<teamsubmission>0</teamsubmission>
+		}
+		$assignment->requireallteammemberssubmit=0;//<requireallteammemberssubmit>0</requireallteammemberssubmit>
+		$assignment->teamsubmissiongroupingid=0;//<teamsubmissiongroupingid>0</teamsubmissiongroupingid>
+		
+		$assignment->blindmarking=0;//<blindmarking>0</blindmarking>
+		$assignment->revealidentities=0;//<revealidentities>0</revealidentities>
+		
+		$assignment->attemptreopenmethod="none";//<attemptreopenmethod>none</attemptreopenmethod>
+		$assignment->maxattempts=-1;//<maxattempts>-1</maxattempts>
+		$assignment->markingworkflow=0;//<markingworkflow>0</markingworkflow>
+		$assignment->markingallocation=0;//<markingallocation>0</markingallocation>
+		
+		$pluginConfig = new PluginConfig($this->getNextId(), "onlinetext", "assignsubmission", "enabled", 1);
+		$assignment->plugin_configs[]=$pluginConfig;
+		
+		$pluginConfig = new PluginConfig($this->getNextId(), "file", "assignsubmission", "enabled", 1);		
+		$assignment->plugin_configs[]=$pluginConfig;
+
+		$pluginConfig = new PluginConfig($this->getNextId(), "file", "maxfilesubmissions", "enabled", 1);
+		$assignment->plugin_configs[]=$pluginConfig;
+		
+		$pluginConfig = new PluginConfig($this->getNextId(), "file", "maxsubmissionsizebytes", "enabled", 0);
+		$assignment->plugin_configs[]=$pluginConfig;
+
+		$pluginConfig = new PluginConfig($this->getNextId(), "comments", "assignsubmission", "enabled", 1);
+		$assignment->plugin_configs[]=$pluginConfig;
+		
+		$pluginConfig = new PluginConfig($this->getNextId(), "comments", "assignfeedback", "enabled", 1);
+		$assignment->plugin_configs[]=$pluginConfig;
+		
+		$pluginConfig = new PluginConfig($this->getNextId(), "editpdf", "assignfeedback", "enabled", 0);
+		$assignment->plugin_configs[]=$pluginConfig;
+		
+		$pluginConfig = new PluginConfig($this->getNextId(), "offline", "assignfeedback", "enabled", 0);
+		$assignment->plugin_configs[]=$pluginConfig;
+		
+		$pluginConfig = new PluginConfig($this->getNextId(), "file", "assignfeedback", "enabled", 0);
+		$assignment->plugin_configs[]=$pluginConfig;
+
+		return $assignment;
+	}
+
+	/**
+	 * @param unknown $mode
+	 * MODE 1 = Assignment file - attachment
+	 * @param unknown $item
+	 * @param unknown $fileName
+	 * @param unknown $fileSize
+	 * @param unknown $fileContent
+	 * @param unknown $fileMimeType
+	 * @param string $parent
+	 */
+	public function addSimpleFile($mode, &$item, $fileName, $fileSize, $fileContent, $fileMimeType){
+	
+		$fileArea = "";
+		$component ="";
+		switch ($mode){
+			case 1 :
+				$component = "mod_assign";
+				$fileArea = "intro";
+				break;
+		}
+	
+		$repository = new FileBackup();
+		$repository->id=$this->getNextId();
+		$repository->contenthash="";// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
+		$repository->contextid=$item->contextid;// 		<contextid>54</contextid> // ACTIVITY -- ICI GLOSSARY CONTEXT
+		$repository->component=$component;// 		<component>mod_glossary</component>
+		$repository->filearea=$fileArea;// 		<filearea>attachment</filearea>
+		$repository->itemid=$item->id;// 		<itemid>1</itemid> //GLOSSARY ID
+		$repository->filepath="/";// 		<filepath>/</filepath>
+		$repository->filename=".";// 		<filename>.</filename>
+		$repository->userid=$this->users->users[0]->id;// 		<userid>2</userid>
+		$repository->filesize=0;// 		<filesize>0</filesize>
+		$repository->mimetype="$@NULL@$";// 		<mimetype>document/unknown</mimetype>
+		$repository->status=0;// 		<status>0</status>
+		$repository->timecreated=time();// 		<timecreated>1390818824</timecreated>
+		$repository->timemodified=time();// 		<timemodified>1390818869</timemodified>
+		$repository->source="$@NULL@$";// 		<source>$@NULL@$</source>
+		$repository->author="$@NULL@$";// 		<author>$@NULL@$</author>
+		$repository->license="$@NULL@$";// 		<license>$@NULL@$</license>
+		$repository->sortorder=0;// 		<sortorder>0</sortorder>
+		$repository->repositorytype="$@NULL@$";// 		<repositorytype>$@NULL@$</repositorytype>
+		$repository->repositoryid="$@NULL@$";// 		<repositoryid>$@NULL@$</repositoryid>
+		$repository->reference="$@NULL@$";// 		<reference>$@NULL@$</reference>
+			
+	
+		$file = new FileBackup();
+		$file->id=$this->getNextId();
+		$file->contextid=$item->contextid;// 		<contextid>54</contextid>
+		$file->component=$component;// 		<component>mod_glossary</component>
+		$file->filearea=$fileArea;// 		<filearea>attachment</filearea>
+		switch ($mode){
+			case 1 :
+				$file->itemid=0;// 		<itemid>1</itemid>
+				break;
+			default:
+				$file->itemid=$item->id;
+				break;
+		}	
+		$file->filepath="/";// 		<filepath>/</filepath>
+		$file->filename=$fileName;// 		<filename>.</filename>
+		$file->userid=$this->users->users[0]->id;// 		<userid>2</userid>
+		$file->filesize=$fileSize;// 		<filesize>0</filesize>
+		$file->author=$this->users->users[0]->firstname." ".$this->users->users[0]->lastname;// 		<author>$@NULL@$</author>
+		$file->license="allrightsreserved";// 		<license>$@NULL@$</license>
+		$file->sortorder=0;// 		<sortorder>0</sortorder>
+		$file->repositorytype="$@NULL@$";// 		<repositorytype>$@NULL@$</repositorytype>
+		$file->repositoryid="$@NULL@$";// 		<repositoryid>$@NULL@$</repositoryid>
+		$file->reference="$@NULL@$";// 		<reference>$@NULL@$</reference>
+		$file->status=0;// 		<status>0</status>
+		$file->timecreated=time();// 		<timecreated>1390818824</timecreated>
+		$file->timemodified=time();// 		<timemodified>1390818869</timemodified>
+		$file->source=$fileName;// 		<source>$@NULL@$</source>
+		$file->content = $fileContent;
+	
+		$file->contenthash=md5($file->content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
+	
+		$file->mimetype=$fileMimeType;// 		<mimetype>document/unknown</mimetype>
+	
+				
+		switch ($mode){
+			case 1 :
+				$item->filesIds[]=$repository->id;
+				$item->filesIds[]=$file->id;
+				break;
+		}
+		
+		//REFERENCE IN THE COURSE FILES
+		$this->files->files[]=$repository;
+		$this->files->files[]=$file;
+	
 	}
 	
 	

@@ -37,6 +37,7 @@ class Module implements \IBackupModel {
 		$writer = new XMLWriter();
 		$writer->openURI($repository.'/module.xml');
 		$writer->startDocument('1.0','UTF-8');
+		$writer->setIndent(true);
 			$writer->startElement('module');
 				$writer->writeAttribute('id', $this->id);
 				$writer->writeAttribute('version', $this->version);

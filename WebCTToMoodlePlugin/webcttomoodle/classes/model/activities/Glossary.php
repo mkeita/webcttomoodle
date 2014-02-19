@@ -37,6 +37,9 @@ class Glossary implements \IBackupModel {
 	public $timemodified;// 	<timemodified>1390818670</timemodified>
 	public $completionentries;// 	<completionentries>0</completionentries>
 		
+	/**
+	 * @var int|Array
+	 */
 	public $filesIds = array();
 	
 	
