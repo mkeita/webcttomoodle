@@ -280,8 +280,6 @@ class CourseInfo {
 		$this->nomCours = $nomCour;
 		$this->infoSection = $infoSec;
 	}
-	
-	//TEST CONTENU..
 }
 
 ?>
