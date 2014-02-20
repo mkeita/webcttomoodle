@@ -367,6 +367,7 @@ class WebCTModel extends \GlobalModel {
 		$fileArea = "";
 		$component ="";
 		$contextId=0;
+		$ilias;
 		switch ($mode){
 			case 1 : 
 				$component = "mod_glossary";
