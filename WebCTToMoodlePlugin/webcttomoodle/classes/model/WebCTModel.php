@@ -182,7 +182,7 @@ class WebCTModel extends \GlobalModel {
 			$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
 					
 						
-			$entry = new Entry();
+			$entry = new Entry($glossary);
 			$entry->id=$row1['ORIGINAL_CONTENT_ID'];// 		id="1">
 			$entry->userid=$USER->id;// 		<userid>2</userid>
 			$entry->concept=$row1['NAME'];// 		<concept>Entry1</concept>
@@ -192,7 +192,7 @@ class WebCTModel extends \GlobalModel {
 			$completeDescription = $description->load();
 			
 			$filesName = array();
-			$convertedDescription =$this->convertTextAndCreateAssociedFiles($completeDescription,2, $entry, $glossary); 
+			$convertedDescription =$this->convertTextAndCreateAssociedFiles($completeDescription,2, $entry); 
 						
 			$entry->definition =$convertedDescription;// 		<definition>&lt;p&gt;Entry 1 of glossary&lt;/p&gt;</definition>
 			
@@ -326,7 +326,7 @@ class WebCTModel extends \GlobalModel {
 	 * 
 	 * @return string
 	 */
-	public function convertTextAndCreateAssociedFiles($text,$mode,$item,$parent=NULL){
+	public function convertTextAndCreateAssociedFiles($text,$mode,$item){
 		$htmlContentClass = new HtmlContentClass();
 		
 		//$convertedText = $this->convertHTMLContentLinks($text,$filesName);
@@ -338,7 +338,7 @@ class WebCTModel extends \GlobalModel {
 			oci_execute($stid);
 			$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 			if(!empty($row)){
-				$this->addCMSFile($row["ORIGINAL_CONTENT_ID"], $mode, $item, $parent);
+				$this->addCMSFile($row["ORIGINAL_CONTENT_ID"], $mode, $item);
 			}
 		}
 		
@@ -361,7 +361,7 @@ class WebCTModel extends \GlobalModel {
 	 * @param unknown $item
 	 * @param unknown $parent
 	 */
-	public function addCMSFile($fileOriginalContentId, $mode, $item, &$parent=NULL){
+	public function addCMSFile($fileOriginalContentId, $mode, &$item){
 		
 		$itemId = 0;
 		$fileArea = "";
@@ -372,56 +372,56 @@ class WebCTModel extends \GlobalModel {
 				$component = "mod_glossary";
 				$fileArea = "attachment";
 				$itemId=$item->id;
-				$contextId=$parent->contextid;
+				$contextId=$item->glossary->contextid;
 				break;
 			case 2:
 				$component = "mod_glossary";
 				$fileArea = "entry";
 				$itemId=$item->id;
-				$contextId=$parent->contextid;
+				$contextId=$item->glossary->contextid;
 				break;
 				
 			case 3:
 				$component = "question";
 				$fileArea = "questiontext";
 				$itemId=$item->id;
-				$contextId=0;
+				$contextId=$item->category->contextid;
 				break;
 			case 4:
 				$component = "question";
 				$fileArea = "generalfeedback";
 				$itemId=$item->id;
-				$contextId=0;
+				$contextId=$item->category->contextid;
 				break;
 			case 5:
 				$component = "question";
 				$fileArea = "answer";
 				$itemId=$item->id;
-				$contextId=0;
+				$contextId=$item->category->contextid;
 				break;
 				
 			case 6:
 				$component = "question";
 				$fileArea = "answerfeedback";
 				$itemId=$item->id;
-				$contextId=0;
+				$contextId=$item->category->contextid;
 				break;
 			case 7:
 				$component = "qtype_match";
 				$fileArea = "subquestion";
 				$itemId=$item->id;
-				$contextId=0;
+				$contextId=$item->category->contextid;
 				break;				
 			case 8:
 				$component = "qtype_essay";
 				$fileArea = "graderinfo";
 				$itemId=$item->id;
-				$contextId=0;
+				$contextId=$item->category->contextid;
 				break;	
 			case 9:
 				$component = "mod_assign";
 				$fileArea = "intro";
-				$itemId=$item->id;
+				$itemId=0;
 				$contextId=$item->contextid;
 				break;
 				
@@ -513,8 +513,8 @@ class WebCTModel extends \GlobalModel {
 		switch ($mode){
 			case 1:
 			case 2:
-				$parent->filesIds[] = $repository->id;		
-				$parent->filesIds[] = $file->id;
+				$item->glossary->filesIds[] = $repository->id;		
+				$item->glossary->filesIds[] = $file->id;
 			case 9:
 				$item->filesIds[] = $repository->id;
 				$item->filesIds[] = $file->id;
@@ -2770,20 +2770,24 @@ class WebCTModel extends \GlobalModel {
 	
 		$fileArea = "";
 		$component ="";
+		$itemId = 0;
+		$contextId=0;
 		switch ($mode){
 			case 1 :
 				$component = "mod_assign";
 				$fileArea = "intro";
+				$itemId=0;
+				$contextId=$item->contextid;
 				break;
 		}
 	
 		$repository = new FileBackup();
 		$repository->id=$this->getNextId();
 		$repository->contenthash="";// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
-		$repository->contextid=$item->contextid;// 		<contextid>54</contextid> // ACTIVITY -- ICI GLOSSARY CONTEXT
+		$repository->contextid=$contextId;// 		<contextid>54</contextid> // ACTIVITY -- ICI GLOSSARY CONTEXT
 		$repository->component=$component;// 		<component>mod_glossary</component>
 		$repository->filearea=$fileArea;// 		<filearea>attachment</filearea>
-		$repository->itemid=$item->id;// 		<itemid>1</itemid> //GLOSSARY ID
+		$repository->itemid=$itemId;// 		<itemid>1</itemid> //GLOSSARY ID
 		$repository->filepath="/";// 		<filepath>/</filepath>
 		$repository->filename=".";// 		<filename>.</filename>
 		$repository->userid=$this->users->users[0]->id;// 		<userid>2</userid>
@@ -2803,17 +2807,10 @@ class WebCTModel extends \GlobalModel {
 	
 		$file = new FileBackup();
 		$file->id=$this->getNextId();
-		$file->contextid=$item->contextid;// 		<contextid>54</contextid>
+		$file->contextid=$contextId;// 		<contextid>54</contextid>
 		$file->component=$component;// 		<component>mod_glossary</component>
 		$file->filearea=$fileArea;// 		<filearea>attachment</filearea>
-		switch ($mode){
-			case 1 :
-				$file->itemid=0;// 		<itemid>1</itemid>
-				break;
-			default:
-				$file->itemid=$item->id;
-				break;
-		}	
+		$file->itemid=$itemId;// 		<itemid>1</itemid>
 		$file->filepath="/";// 		<filepath>/</filepath>
 		$file->filename=$fileName;// 		<filename>.</filename>
 		$file->userid=$this->users->users[0]->id;// 		<userid>2</userid>
