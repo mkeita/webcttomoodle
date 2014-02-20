@@ -660,7 +660,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$infoRef = new InfoRef();		
 		$sectionModel->inforef = $infoRef;
 		
-		$sectionModels[]=$sectionModel;
+		$sectionModels[0]=$sectionModel;
 		
 		
 		//Reference dans moodle_backup
@@ -694,7 +694,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$infoRef = new InfoRef();
 		$sectionModel->inforef = $infoRef;
 	
-		$sectionModels[]=$sectionModel;
+		$sectionModels[1]=$sectionModel;
 		
 		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
 		
@@ -726,7 +726,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$infoRef = new InfoRef();
 		$sectionModel->inforef = $infoRef;
 		
-		$sectionModels[]=$sectionModel;
+		$sectionModels[2]=$sectionModel;
 		
 		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
 		
@@ -912,14 +912,14 @@ abstract class GlobalModel implements \IBackupModel {
 			$module->sectionid=$this->sections[1]->section->id;
 			$module->sectionnumber=$this->sections[1]->section->number;
 			$module->visible=$this->sections[1]->section->visible;
-		}if($name=="assign"){
+		}else if($name=="assign"){
 			$module->sectionid=$this->sections[2]->section->id;
 			$module->sectionnumber=$this->sections[2]->section->number;
 			$module->visible=$this->sections[2]->section->visible;
 		}else {
-			$module->sectionid=0;// 		<sectionid>36</sectionid>
-			$module->sectionnumber=0;// 		<sectionnumber>0</sectionnumber>
-			$module->visible=1;// 		<visible>1</visible>
+			$module->sectionid=$this->sections[0]->section->id;// 		<sectionid>36</sectionid>
+			$module->sectionnumber=$this->sections[0]->section->number;// 		<sectionnumber>0</sectionnumber>
+			$module->visible=$this->sections[0]->section->visible;// 		<visible>1</visible>
 		}
 				
 		$module->idnumber="";// 		<idnumber></idnumber>

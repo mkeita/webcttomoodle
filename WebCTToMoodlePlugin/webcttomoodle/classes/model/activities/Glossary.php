@@ -172,7 +172,21 @@ class Entry {
 	 * @var RatingBackup | Array
 	 */
 	public $ratings = array();//         <ratings>
+	
+	
+	/**
+	 * @var Glossary
+	 */
+	public $glossary;
 
+	
+	/**
+	 * @param Glossary $glossary
+	 */
+	public function __construct($glossary){
+		$this->glossary = $glossary;
+	}
+	
 }
 
 class Alias {
