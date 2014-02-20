@@ -18,13 +18,15 @@ class WebCTModel extends \GlobalModel {
 		parent::__construct();
 		
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
-		$this->retrieveGlossaries();
+	//	$this->retrieveGlossaries();
 
-		$this->retrieveQuestions();		
+	//	$this->retrieveQuestions();		
 		
-		$this->retrieveQuizzes();
+	//	$this->retrieveQuizzes();
 		
-		$this->retrieveAssignments();
+	//	$this->retrieveAssignments();
+		
+		$this->retrieveSyllabus();
 		
 		oci_close($this->connection);
 	}
@@ -112,6 +114,7 @@ class WebCTModel extends \GlobalModel {
 		}
 	}
 	
+
 	
 	/**
 	 * @var unknown $glossaryId
@@ -2502,6 +2505,7 @@ class WebCTModel extends \GlobalModel {
 	
 		}
 	}
+
 	
 	
 	
@@ -2838,6 +2842,7 @@ class WebCTModel extends \GlobalModel {
 				$item->filesIds[]=$repository->id;
 				$item->filesIds[]=$file->id;
 				break;
+				
 		}
 		
 		//REFERENCE IN THE COURSE FILES
@@ -2846,9 +2851,89 @@ class WebCTModel extends \GlobalModel {
 	
 	}
 	
+	
+
+	public function retrieveSyllabus(){
+		$pageId = $this->recupererDeliveryContextId_Syllabus();
+		$this->addPage($pageId,"syllabus");
+	}
+	/**
+	* Add a page
+	*@param $type correspond au type d'information qui sera placé dans la page (syllabus,url,...)
+	*/
+	public function addPage($pageId , $type){
+		
+		$pageModel = new PageModel();
+		$pageModel->roles = new RolesBackup(); //Vide
+		$pageModel->inforef = new InfoRef(); // Vide
+		$pageModel->grades = new ActivityGradeBook(); // Vide
+		$pageModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$pageModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$pageModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED		
+		
+		$pageModel->module = $this->createModule($pageId,"page","2013110500");
+		$pageModel->page  = $this->createPage($pageId, $pageModel->module, $type)	;
+		
+		$event = new Event();
+		$events = new Events();
+		$events->events[] = $event;
+		$pageModel->calendar = $events;
+		
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$pageModel->module->id;
+		$activity->sectionid=0;
+		$activity->modulename=$pageModel->module->modulename;
+		$activity->title=$pageModel->page->name;
+		$activity->directory="activities/page_".$pageModel->page->pageId;	
+		
+		
+		$this->moodle_backup->contents->activities[] = $activity;
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","page_".$pageModel->page->pageId,"page_".$pageModel->page->pageId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","page_".$pageModel->page->pageId,"page_".$pageModel->page->pageId."_userinfo",1);
+		
+		$this->activities[] = $pageModel;
+	
+		$this->sections[0]->section->sequence[]= $pageModel->page->pageId;	
+	}
+
+	/**
+	*@param $type correspond au type d'information qui sera placé dans la page (syllabus,url,...)
+	*/
+	public function createPage($pageId , $module , $type){
+		$infoContent = "";
+		$name = "";
+		if($type == "syllabus"){		
+			$this->initializeSyllabus();
+			$infoContent = $this->recupererInfoSyllabus();
+			$name = "Plan de cours: " . $this->syllabusManager->courseInfo->nomCours;
+		}
+		
+		$pageActivity = new ActivityPage();
+		$pageActivity->id = $pageId ; 
+		$pageActivity->moduleid =$module->id;
+		$pageActivity->modulename =$module->modulename;
+		$pageActivity->contextid=$this->getNextId();
+		$pageActivity->pageId = $pageId;
+		$pageActivity->name = $name;
+		$pageActivity->intro = 'Description';
+		$pageActivity->introformat = '1';
+		$pageActivity->content = $infoContent;
+		$pageActivity->contentformat = '1';
+		$pageActivity->legacyfiles = '0';
+		$pageActivity->legacyfileslast = '$@NULL@$';
+		$pageActivity->display = '5';
+		$pageActivity->displayoptions = 'a:1:{s:10:"printintro";s:1:"0";}';
+		$pageActivity->revision = '0'; 
+		$pageActivity->timemodified = time();
+
+		return $pageActivity;
+
+
+	}
+
 	/**
 	 * Permet de récupérer le delivryContext du syllabus lié au cours.
-	 * 
+	 *
 	 * @return Le delivryContextId su Syllabus.
 	 */
 	private function recupererDeliveryContextId_Syllabus() {
@@ -2859,6 +2944,7 @@ class WebCTModel extends \GlobalModel {
 		$res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS );
 		return $res ["ID"];
 	}
+	
 	private function initializeSyllabus() {
 		$res = $this->recupererInfo_TableSyllabus ();
 		$this->syllabusManager->syllabus = new Syllabus ();
@@ -2871,62 +2957,38 @@ class WebCTModel extends \GlobalModel {
 			$this->initialiserPolicy ( $idSyllabus );
 			$this->initialiserCourseReq ( $idSyllabus );
 			$this->initialiserLesson ( $idSyllabus );
-			$this->initialiserEducatorInfo ( $idSyllabus );
+			//$this->initialiserEducatorInfo ( $idSyllabus );
 			$this->initialiserLearningObjectifGroup ( $idSyllabus );
 			$this->initialiserCourseInfo ();
+		}else{
+			
 		}
 	}
-	public function retrieveSyllabus() {
-		$this->initializeSyllabus ();
-		$info = $this->recupererInfoSyllabus ();
-		echo $info . '</br>';
-		
-		$writer = new XMLWriter ();
-		
-		$writer->openURI ( 'C:/Users/Ilias/Desktop/TESTXml' . '/pageIlias.xml' );
-		$writer->startDocument ( '1.0', 'UTF-8' );
-		$writer->setIndent ( true );
-		$writer->startElement ( 'activity' );
-		$writer->writeAttribute ( 'id', '5' );
-		$writer->writeAttribute ( 'moduleid', '6' );
-		$writer->writeAttribute ( 'modulename', 'page' );
-		$writer->writeAttribute ( 'contextid', '25' );
-		
-		$writer->startElement ( 'page' );
-		$writer->writeAttribute ( 'id', '5' );
-		$writer->writeElement ( 'name', 'Plan de cours' );
-		$writer->writeElement ( 'intro', ' ' );
-		$writer->writeElement ( 'introformat', '1' );
-		$writer->writeElement ( 'content', $info );
-		$writer->writeElement ( 'contentformat', '1' );
-		$writer->writeElement ( 'legacyfiles', '0' );
-		$writer->writeElement ( 'legacyfileslast', '$@NULL@$' );
-		$writer->writeElement ( 'display', '5' );
-		$writer->writeElement ( 'displayoptions', 'a:1:{s:10:"printintro";s:1:"0";}' );
-		$writer->writeElement ( 'revision', '6' );
-		$writer->writeElement ( 'timemodified', '1392802545' );
-		$writer->endElement ();
-		
-		$writer->endElement ();
-		$writer->endDocument ();
-	}
-	private function recupererInfoSyllabus() {
-		$res = $this->syllabusManager->courseInfo->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->educatorInfo ); $i ++)
-			$res = $res . $this->syllabusManager->educatorInfo [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->courseReq ); $i ++)
-			$res = $res . $this->syllabusManager->courseReq [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->lesson ); $i ++)
-			$res = $res . $this->syllabusManager->lesson [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->policy ); $i ++)
-			$res = $res . $this->syllabusManager->policy [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->ressource ); $i ++)
-			$res = $res . $this->syllabusManager->ressource [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->custumHtmlItem ); $i ++)
-			$res = $res . $this->syllabusManager->custumHtmlItem [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->custum ); $i ++)
-			$res = $res . $this->syllabusManager->custum [$i]->info ();
-		$res = $res . $this->syllabusManager->learningObj->info ();
+	
+	/**
+	 * Recuperer les information qui seront placé dans la page.
+	 * @return string
+	 */
+	private  function recupererInfoSyllabus(){
+		$res = "";
+		if ($this->syllabusManager->syllabus->use_source_file_fl == '0'){
+			$res = $this->syllabusManager->courseInfo->info ();
+			// for($i =0 ; $i < count($this->syllabusManager->educatorInfo); $i++)
+			// $res = $res . $this->syllabusManager->educatorInfo[$i]->info();
+			for($i = 0; $i < count ( $this->syllabusManager->courseReq ); $i ++)
+				$res = $res . $this->syllabusManager->courseReq [$i]->info ();
+			for($i = 0; $i < count ( $this->syllabusManager->lesson ); $i ++)
+				$res = $res . $this->syllabusManager->lesson [$i]->info ();
+			for($i = 0; $i < count ( $this->syllabusManager->policy ); $i ++)
+				$res = $res . $this->syllabusManager->policy [$i]->info ();
+			for($i = 0; $i < count ( $this->syllabusManager->ressource ); $i ++)
+				$res = $res . $this->syllabusManager->ressource [$i]->info ();
+			for($i = 0; $i < count ( $this->syllabusManager->custumHtmlItem ); $i ++)
+				$res = $res . $this->syllabusManager->custumHtmlItem [$i]->info ();
+			for($i = 0; $i < count ( $this->syllabusManager->custum ); $i ++)
+				$res = $res . $this->syllabusManager->custum [$i]->info ();
+			$res = $res . $this->syllabusManager->learningObj->info ();
+		}
 		return $res;
 	}
 	private function initialiserCourseInfo() {

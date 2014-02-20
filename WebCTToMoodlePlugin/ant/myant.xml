@@ -2,7 +2,7 @@
 
 <project default="copy_to_moodle" basedir="../.">
 
-<property name="moodle_dir" value="D:/MoodleWindowsInstaller-latest-26/server/moodle"/>
+<property name="moodle_dir" value="C:/moodle/MoodleWindowsInstaller/server/moodle"/>
 
 
 	<target name="delete_moodle_files">

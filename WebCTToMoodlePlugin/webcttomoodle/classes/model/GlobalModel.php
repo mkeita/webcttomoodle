@@ -35,8 +35,11 @@ require_once 'classes/model/activities/Module.php';
 require_once 'classes/model/activities/Quiz.php';
 require_once 'classes/model/activities/Assignment.php';
 require_once 'classes/model/activities/Grading.php';
+require_once 'classes/model/activities/ActivityPage.php';
 
 require_once 'classes/utils/HtmlContentClass.php';
+
+require_once 'classes/model/Syllabus.php';
 
 
 defined('MOODLE_INTERNAL') || die();
@@ -121,7 +124,11 @@ abstract class GlobalModel implements \IBackupModel {
 	 */
 	public $activities = array();
 	
-	
+	/**
+	 *
+	 * @var SyllabusManage
+	 */
+	public $syllabusManager;
 
 	protected $idCount = 1;
 	
@@ -147,6 +154,8 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->initializeCourseModel();
 		
 		$this->initializeGradeBookModel();
+		
+		$this->initializeSyllabusModel();
 		
 	}
 	
@@ -405,6 +414,11 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->gradebook = $gradebook;
 	}
 	
+	public function initializeSyllabusModel(){
+		$this->syllabusManager = new SyllabusManage();
+		$this->syllabusManager->_construct();
+	
+	}
 	
 	
 	/**
@@ -1025,6 +1039,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->outcomes->toXMLFile($repository);
 		$this->scales->toXMLFile($repository);
 		
+		
 		//COURSE REPOSITORY
 		$dir = $repository.'/course';
 		
@@ -1095,6 +1110,7 @@ abstract class GlobalModel implements \IBackupModel {
 				
 			}else if ($activityModel instanceof AssignmentModel) {
 				$activityDir = $dir.'/assign_'.$activityModel->module->id;
+				
 			
 				if(is_dir($activityDir)){
 					rrmdir($activityDir);
@@ -1103,9 +1119,21 @@ abstract class GlobalModel implements \IBackupModel {
 			
 				$activityModel->assignment->toXMLFile($activityDir);
 				$activityModel->grading->toXMLFile($activityDir);
+			}else if($activityModel instanceof PageModel){
+				echo '</br> je suis dans page </br>';
+				$activityDir = $dir.'/page_'.$activityModel->module->id;			
+				echo $activityDir . '</br>';
+				if(is_dir($activityDir)){
+					rrmdir($activityDir);
+				}
+				mkdir($activityDir);
+				
+				$activityModel->page->toXMLFile($activityDir);
+			
 			}
 			
 			$activityModel->calendar->toXMLFile($activityDir);
+			
 			$activityModel->comments->toXMLFile($activityDir);
 			$activityModel->completion->toXMLFile($activityDir);
 			$activityModel->filters->toXMLFile($activityDir);
@@ -1113,6 +1141,8 @@ abstract class GlobalModel implements \IBackupModel {
 			$activityModel->inforef->toXMLFile($activityDir);
 			$activityModel->module->toXMLFile($activityDir);
 			$activityModel->roles->toXMLFile($activityDir);
+			
+			
 		}
 		
 		
@@ -1279,4 +1309,11 @@ class AssignmentModel extends ActivityModel {
 	 */
 	public $assignment;
 
+}
+
+class PageModel extends ActivityModel{
+	/**
+	*@var ActivityPage
+	*/
+	public $page;
 }
