@@ -367,6 +367,7 @@ class WebCTModel extends \GlobalModel {
 		$fileArea = "";
 		$component ="";
 		$contextId=0;
+		
 		switch ($mode){
 			case 1 : 
 				$component = "mod_glossary";
@@ -2772,7 +2773,6 @@ class WebCTModel extends \GlobalModel {
 		$component ="";
 		$itemId = 0;
 		$contextId=0;
-		$test;
 		switch ($mode){
 			case 1 :
 				$component = "mod_assign";
@@ -2844,6 +2844,274 @@ class WebCTModel extends \GlobalModel {
 		$this->files->files[]=$repository;
 		$this->files->files[]=$file;
 	
+	}
+	
+	/**
+	 * Permet de récupérer le delivryContext du syllabus lié au cours.
+	 * 
+	 * @return Le delivryContextId su Syllabus.
+	 */
+	private function recupererDeliveryContextId_Syllabus() {
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE DELIVERY_CONTEXT_ID ='" . $this->deliveryContextId . "' AND
+		CE_TYPE_NAME = 'SYLLABUS_TYPE'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		$res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS );
+		return $res ["ID"];
+	}
+	private function initializeSyllabus() {
+		$res = $this->recupererInfo_TableSyllabus ();
+		$this->syllabusManager->syllabus = new Syllabus ();
+		$this->syllabusManager->syllabus->_construct ( $res );
+		$idSyllabus = $this->syllabusManager->syllabus->id;
+		if ($this->syllabusManager->syllabus->use_source_file_fl == '0') {
+			$this->initialiseResource ( $idSyllabus );
+			$this->initialiseCustum ( $idSyllabus );
+			$this->initialiseCustomHtmlItem ( $idSyllabus );
+			$this->initialiserPolicy ( $idSyllabus );
+			$this->initialiserCourseReq ( $idSyllabus );
+			$this->initialiserLesson ( $idSyllabus );
+			$this->initialiserEducatorInfo ( $idSyllabus );
+			$this->initialiserLearningObjectifGroup ( $idSyllabus );
+			$this->initialiserCourseInfo ();
+		}
+	}
+	public function retrieveSyllabus() {
+		$this->initializeSyllabus ();
+		$info = $this->recupererInfoSyllabus ();
+		echo $info . '</br>';
+		
+		$writer = new XMLWriter ();
+		
+		$writer->openURI ( 'C:/Users/Ilias/Desktop/TESTXml' . '/pageIlias.xml' );
+		$writer->startDocument ( '1.0', 'UTF-8' );
+		$writer->setIndent ( true );
+		$writer->startElement ( 'activity' );
+		$writer->writeAttribute ( 'id', '5' );
+		$writer->writeAttribute ( 'moduleid', '6' );
+		$writer->writeAttribute ( 'modulename', 'page' );
+		$writer->writeAttribute ( 'contextid', '25' );
+		
+		$writer->startElement ( 'page' );
+		$writer->writeAttribute ( 'id', '5' );
+		$writer->writeElement ( 'name', 'Plan de cours' );
+		$writer->writeElement ( 'intro', ' ' );
+		$writer->writeElement ( 'introformat', '1' );
+		$writer->writeElement ( 'content', $info );
+		$writer->writeElement ( 'contentformat', '1' );
+		$writer->writeElement ( 'legacyfiles', '0' );
+		$writer->writeElement ( 'legacyfileslast', '$@NULL@$' );
+		$writer->writeElement ( 'display', '5' );
+		$writer->writeElement ( 'displayoptions', 'a:1:{s:10:"printintro";s:1:"0";}' );
+		$writer->writeElement ( 'revision', '6' );
+		$writer->writeElement ( 'timemodified', '1392802545' );
+		$writer->endElement ();
+		
+		$writer->endElement ();
+		$writer->endDocument ();
+	}
+	private function recupererInfoSyllabus() {
+		$res = $this->syllabusManager->courseInfo->info ();
+		for($i = 0; $i < count ( $this->syllabusManager->educatorInfo ); $i ++)
+			$res = $res . $this->syllabusManager->educatorInfo [$i]->info ();
+		for($i = 0; $i < count ( $this->syllabusManager->courseReq ); $i ++)
+			$res = $res . $this->syllabusManager->courseReq [$i]->info ();
+		for($i = 0; $i < count ( $this->syllabusManager->lesson ); $i ++)
+			$res = $res . $this->syllabusManager->lesson [$i]->info ();
+		for($i = 0; $i < count ( $this->syllabusManager->policy ); $i ++)
+			$res = $res . $this->syllabusManager->policy [$i]->info ();
+		for($i = 0; $i < count ( $this->syllabusManager->ressource ); $i ++)
+			$res = $res . $this->syllabusManager->ressource [$i]->info ();
+		for($i = 0; $i < count ( $this->syllabusManager->custumHtmlItem ); $i ++)
+			$res = $res . $this->syllabusManager->custumHtmlItem [$i]->info ();
+		for($i = 0; $i < count ( $this->syllabusManager->custum ); $i ++)
+			$res = $res . $this->syllabusManager->custum [$i]->info ();
+		$res = $res . $this->syllabusManager->learningObj->info ();
+		return $res;
+	}
+	private function initialiserCourseInfo() {
+		$request = "SELECT * FROM LEARNING_CONTEXT WHERE ID = '" . $this->learningContextId . "'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		$res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS );
+		$nomCour = $res ["NAME"];
+		$request = "SELECT NAME FROM LEARNING_CONTEXT WHERE ID = '" . $res ["PARENT_ID"] . "'";
+		// echo $request;
+		$stid2 = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid2 );
+		$res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
+		$this->syllabusManager->courseInfo = new CourseInfo ();
+		$this->syllabusManager->courseInfo->_construct ( $nomCour, $res2 ["NAME"] );
+	}
+	private function initialiserLearningObjectifGroup($idSyllabus) {
+		$request = "SELECT * FROM SYLLITEM WHERE  SYLLABUS_ID = '" . $idSyllabus . "' AND
+		ITEM_TYPE_CD = 'LearningObjectiveGroup'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		$this->syllabusManager->learningObj = new LearningObj_link ();
+		$this->syllabusManager->learningObj->_construct ();
+		while ( $res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+			$req = "SELECT * FROM SYLLITEM_LEARNINGOBJ_LINK
+					JOIN CMS_LINK on SYLLITEM_LEARNINGOBJ_LINK.ID = CMS_LINK.ID
+					JOIN CMS_CONTENT_ENTRY on CMS_LINK.RIGHTOBJECT_ID = CMS_CONTENT_ENTRY.ID
+					 where '" . $res ["ID"] . "' = SYLLITEM_LEARNINGOBJ_LINK.SYLLITEM_ID";
+			
+			$stid2 = oci_parse ( $this->connection, $req );
+			oci_execute ( $stid2 );
+			
+			while ( $res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+				$learningObjectifRub = new LearningObj_linkRub ();
+				
+				$learningObjectifRub->_construct ( $res2, $res ["TITLE"] );
+				// var_dump($learningObjectifRub);
+				$this->syllabusManager->learningObj->learningObject [] = clone $learningObjectifRub;
+			}
+		}
+	}
+	private function initialiserEducatorInfo($idSyllabus) {
+		$request = "SELECT * FROM SYLLITEM WHERE  SYLLABUS_ID = '" . $idSyllabus . "' AND
+		ITEM_TYPE_CD = 'EducatorInfo'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		while ( $res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+			$reqRole = "SELECT * FROM ROLE
+					JOIN MEMBER  on ROLE.MEMBER_ID = MEMBER.ID
+		   			JOIN PERSON on MEMBER.PERSON_ID = PERSON.ID
+		   			WHERE  ROLE.ID = " . $res ["ROLE_ID"];
+			$stid2 = oci_parse ( $this->connection, $reqRole );
+			oci_execute ( $stid2 );
+			$res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
+			
+			$educatorInfo = new EducatorInfoSyllabus ();
+			$educatorInfo->_construct ( $res2 );
+			$this->syllabusManager->educatorInfo [] = clone $educatorInfo;
+		}
+	}
+	private function initialiserLesson($idSyllabus) {
+		$request = "SELECT * FROM SYLLITEM WHERE  SYLLABUS_ID = '" . $idSyllabus . "' AND
+		ITEM_TYPE_CD = 'Lesson'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		while ( $res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+			$lesson = new Lesson ();
+			$lesson->_construct ();
+			$request2 = "SELECT * FROM SYLLITEM_DETAIL WHERE  SYLLITEM_ID = '" . $res ["ID"] . "'";
+			$stid2 = oci_parse ( $this->connection, $request2 );
+			oci_execute ( $stid2 );
+			while ( $res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+				if ($res2 ["NAME"] == "syllabus.label.lesson.topics") {
+					$lesson->lessonTopic->_construct ( $res, $res2 );
+				} elseif ($res2 ["NAME"] == "syllabus.label.lesson.readings") {
+					$lesson->lessonReadings->_construct ( $res, $res2 );
+				} elseif ($res2 ["NAME"] == "syllabus.label.lesson.assignments") {
+					$lesson->lessonAssignements->_construct ( $res, $res2 );
+				} elseif ($res2 ["NAME"] == "syllabus.label.lesson.goals") {
+					$lesson->lessonGoals->_construct ( $res, $res2 );
+				}
+			}
+			$this->syllabusManager->lesson [] = clone $lesson;
+		}
+	}
+	private function initialiserCourseReq($idSyllabus) {
+		$request = "SELECT * FROM SYLLITEM WHERE  SYLLABUS_ID = '" . $idSyllabus . "' AND
+		ITEM_TYPE_CD = 'CourseReq'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		while ( $res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+			$courseReq = new CourseReq ();
+			$courseReq->_construct ();
+			$request2 = "SELECT * FROM SYLLITEM_DETAIL WHERE  SYLLITEM_ID = '" . $res ["ID"] . "'";
+			$stid2 = oci_parse ( $this->connection, $request2 );
+			oci_execute ( $stid2 );
+			while ( $res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+				if ($res2 ["NAME"] == "syllabus.label.requirements.introduction") {
+					$courseReq->courseReqIntro->_construct ( $res, $res2 );
+				} elseif ($res2 ["NAME"] == "syllabus.label.requirements.requirements") {
+					$courseReq->courseReqReqs->_construct ( $res, $res2 );
+				}
+			}
+			$this->syllabusManager->courseReq [] = clone $courseReq;
+		}
+	}
+	private function initialiserPolicy($idSyllabus) {
+		$request = "SELECT * FROM SYLLITEM WHERE  SYLLABUS_ID = '" . $idSyllabus . "' AND
+		ITEM_TYPE_CD = 'Policy'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		while ( $res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+			$policy = new Policy ();
+			$policy->_construct ();
+			$request2 = "SELECT * FROM SYLLITEM_DETAIL WHERE  SYLLITEM_ID = '" . $res ["ID"] . "'";
+			$stid2 = oci_parse ( $this->connection, $request2 );
+			oci_execute ( $stid2 );
+			while ( $res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+				if ($res2 ["NAME"] == "syllabus.label.policy.introduction") {
+					$policy->policyIntro->_construct ( $res, $res2 );
+				} elseif ($res2 ["NAME"] == "syllabus.label.policy.additionalInformation") {
+					$policy->policyAddReq->_construct ( $res, $res2 );
+				}
+			}
+			$this->syllabusManager->policy [] = clone $policy;
+		}
+	}
+	private function initialiseCustomHtmlItem($idSyllabus) {
+		$request = "SELECT * FROM SYLLITEM WHERE  SYLLABUS_ID = '" . $idSyllabus . "' AND
+		ITEM_TYPE_CD = 'Custom HTML Item'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		while ( $res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+			$request2 = "SELECT * FROM SYLLSUBITEM WHERE  SYLLITEM_ID = '" . $res ["ID"] . "'";
+			$stid2 = oci_parse ( $this->connection, $request2 );
+			oci_execute ( $stid2 );
+			$res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
+			$customHtml = new CustumHtmlItem ();
+			$customHtml->_construct ( $res, $res2 );
+			$this->syllabusManager->custumHtmlItem [] = clone $customHtml;
+		}
+	}
+	private function initialiseCustum($idSyllabus) {
+		$request = "SELECT * FROM SYLLITEM WHERE  SYLLABUS_ID = '" . $idSyllabus . "' AND
+		ITEM_TYPE_CD = 'Custom'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		while ( $res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+			$request2 = "SELECT * FROM SYLLSUBITEM WHERE  SYLLITEM_ID = '" . $res ["ID"] . "'";
+			$stid2 = oci_parse ( $this->connection, $request2 );
+			oci_execute ( $stid2 );
+			$res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
+			$custom = new Custum ();
+			$custom->_construct ( $res, $res2 );
+			$this->syllabusManager->custum [] = clone $custom;
+		}
+	}
+	private function initialiseResource($idSyllabus) {
+		$request = "SELECT * FROM SYLLITEM WHERE  SYLLABUS_ID = '" . $idSyllabus . "' AND
+		ITEM_TYPE_CD = 'Resource'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		while ( $res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
+			$request2 = "SELECT * FROM SYLLSUBITEM WHERE  SYLLITEM_ID = '" . $res ["ID"] . "'";
+			$stid2 = oci_parse ( $this->connection, $request2 );
+			oci_execute ( $stid2 );
+			$res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
+			$resource = new Ressource ();
+			$resource->_construct ( $res, $res2 );
+			$this->syllabusManager->ressource [] = clone $resource;
+		}
+	}
+	
+	/**
+	 * Permet de récupérer les informations de la table SYLLABUS pour un cour en particulier.
+	 * 
+	 * @return Le contenu de la table Syllabus lié au cour.
+	 */
+	private function recupererInfo_TableSyllabus() {
+		$deliveryContextId_Syllabus = $this->recupererDeliveryContextId_Syllabus ();
+		$request = "SELECT * FROM SYLLABUS WHERE ID ='" . $deliveryContextId_Syllabus . "'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		$res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS );
+		return $res;
 	}
 	
 	
