@@ -2838,6 +2838,7 @@ class WebCTModel extends \GlobalModel {
 				$item->filesIds[]=$repository->id;
 				$item->filesIds[]=$file->id;
 				break;
+				
 		}
 		
 		//REFERENCE IN THE COURSE FILES
