@@ -26,6 +26,8 @@ class WebCTModel extends \GlobalModel {
 		
 		$this->retrieveAssignments();
 		
+		$this->retrieveFolders();
+		
 		oci_close($this->connection);
 	}
 
@@ -133,7 +135,7 @@ class WebCTModel extends \GlobalModel {
 		$glossary->id=$glossaryId;//		<activity id="1" moduleid="11" modulename="glossary" contextid="54">
 		$glossary->moduleid =$module->id; //ID
 		$glossary->modulename =$module->modulename;
-		$glossary->contextid=0;
+		$glossary->contextid=$module->contextid;
 		$glossary->glossaryid=$glossaryId;
 		$glossary->name =$row['NAME'];// 		<name>Marc glossary</name>
 		
@@ -345,6 +347,111 @@ class WebCTModel extends \GlobalModel {
 		return $convertedText;
 	}
 	
+	
+	/**
+	 * @param unknown $contextId	<contextid>54</contextid>
+	 * @param unknown $component	<component>mod_glossary</component>
+	 * @param unknown $fileArea	<filearea>attachment</filearea>
+	 * @param unknown $itemId 	<itemid>1</itemid>
+	 * @param string $path 		<filepath>/</filepath>
+	 * @return FileBackup
+	 */
+	public function addCMSRepository($contextId,$component,$fileArea,$itemId,$path){
+		
+		global $USER;
+		
+		$repository = new FileBackup();
+		$repository->id=$this->getNextId();
+		$repository->contenthash="";// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
+		$repository->contextid=$contextId;// 		<contextid>54</contextid> // ACTIVITY -- ICI GLOSSARY CONTEXT
+		$repository->component=$component;// 		<component>mod_glossary</component>
+		$repository->filearea=$fileArea;// 		<filearea>attachment</filearea>
+		$repository->itemid=$itemId;// 		<itemid>1</itemid>
+		$repository->filepath=$path; // <filepath>/</filepath>
+		$repository->filename=".";// 		<filename>.</filename>
+		$repository->userid=$USER->id;// 		<userid>2</userid>
+		$repository->filesize=0;// 		<filesize>0</filesize>
+		$repository->mimetype="$@NULL@$";// 		<mimetype>document/unknown</mimetype>
+		$repository->status=0;// 		<status>0</status>
+		$repository->timecreated=time();// 		<timecreated>1390818824</timecreated>
+		$repository->timemodified=time();// 		<timemodified>1390818869</timemodified>
+		$repository->source="$@NULL@$";// 		<source>$@NULL@$</source>
+		$repository->author="$@NULL@$";// 		<author>$@NULL@$</author>
+		$repository->license="$@NULL@$";// 		<license>$@NULL@$</license>
+		$repository->sortorder=0;// 		<sortorder>0</sortorder>
+		$repository->repositorytype="$@NULL@$";// 		<repositorytype>$@NULL@$</repositorytype>
+		$repository->repositoryid="$@NULL@$";// 		<repositoryid>$@NULL@$</repositoryid>
+		$repository->reference="$@NULL@$";// 		<reference>$@NULL@$</reference>
+		
+		//REFERENCE IN THE COURSE FILES
+		$this->files->files[]=$repository;
+		
+		return $repository;
+		
+	}
+	
+	/**
+	 * @param unknown $contextId	<contextid>54</contextid>
+	 * @param unknown $component	<component>mod_glossary</component>
+	 * @param unknown $fileArea	<filearea>attachment</filearea>
+	 * @param unknown $itemId 	<itemid>1</itemid>
+	 * @param string $path 		<filepath>/</filepath>
+	 * 
+	 * @return void|FileBackup
+	 */
+	public function addCMSSimpleFile($fileOriginalContentId, $contextId,$component,$fileArea,$itemId,$path){
+	
+		global $USER;
+		
+		$request = "SELECT CMS_CONTENT_ENTRY.NAME,CMS_CONTENT_ENTRY.FILESIZE,CMS_FILE_CONTENT.CONTENT,CMS_MIMETYPE.MIMETYPE
+					FROM CMS_CONTENT_ENTRY
+						INNER JOIN CMS_FILE_CONTENT ON CMS_FILE_CONTENT.ID=CMS_CONTENT_ENTRY.FILE_CONTENT_ID
+						INNER JOIN CMS_MIMETYPE ON CMS_MIMETYPE.ID=CMS_FILE_CONTENT.MIMETYPE_ID
+					WHERE ORIGINAL_CONTENT_ID ='".$fileOriginalContentId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+		
+		if(empty($row)){
+			//No element found!!
+			return null;
+		}
+		
+		$file = new FileBackup();
+		$file->id=$this->getNextId();
+		$file->contextid=$contextId;// 		<contextid>54</contextid>
+		$file->component=$component;// 		<component>mod_glossary</component>
+		$file->filearea=$fileArea;// 		<filearea>attachment</filearea>
+		$file->itemid=$itemId;// 		<itemid>1</itemid>
+		$file->filepath=$path;// 		<filepath>/</filepath>
+		$file->filename= $row['NAME'];// 		<filename>.</filename>
+		$file->userid=$USER->id;// 		<userid>2</userid>
+		$file->filesize=$row['FILESIZE'];// 		<filesize>0</filesize>
+		$file->author=$USER->firstname." ".$USER->lastname;// 		<author>$@NULL@$</author>
+		$file->license="allrightsreserved";// 		<license>$@NULL@$</license>
+		$file->sortorder=0;// 		<sortorder>0</sortorder>
+		$file->repositorytype="$@NULL@$";// 		<repositorytype>$@NULL@$</repositorytype>
+		$file->repositoryid="$@NULL@$";// 		<repositoryid>$@NULL@$</repositoryid>
+		$file->reference="$@NULL@$";// 		<reference>$@NULL@$</reference>
+		$file->status=0;// 		<status>0</status>
+		$file->timecreated=time();// 		<timecreated>1390818824</timecreated>
+		$file->timemodified=time();// 		<timemodified>1390818869</timemodified>
+		$file->source=$row['NAME'];// 		<source>$@NULL@$</source>
+		
+		$file->content = $row["CONTENT"]->load();
+		
+		$file->contenthash=md5($file->content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
+		
+		$file->mimetype=$row['MIMETYPE'];// 		<mimetype>document/unknown</mimetype>
+		
+		
+		//REFERENCE IN THE COURSE FILES
+		$this->files->files[]=$file;		
+		
+		return $file;
+		
+	}
+	
 	/**
 	 *
 	 * @param unknown $fileOriginalContentId
@@ -428,87 +535,13 @@ class WebCTModel extends \GlobalModel {
 				
 		}
 				
-		$repository = new FileBackup();
-		$repository->id=$this->getNextId();
-		$repository->contenthash="";// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
-		$repository->contextid=$contextId;// 		<contextid>54</contextid> // ACTIVITY -- ICI GLOSSARY CONTEXT
-		$repository->component=$component;// 		<component>mod_glossary</component>
-		$repository->filearea=$fileArea;// 		<filearea>attachment</filearea>
-		$repository->itemid=$itemId;// 		<itemid>1</itemid>
-		$repository->filepath="/";// 		<filepath>/</filepath>
-		$repository->filename=".";// 		<filename>.</filename>
-		$repository->userid=$this->users->users[0]->id;// 		<userid>2</userid>
-		$repository->filesize=0;// 		<filesize>0</filesize>
-		$repository->mimetype="$@NULL@$";// 		<mimetype>document/unknown</mimetype>
-		$repository->status=0;// 		<status>0</status>
-		$repository->timecreated=time();// 		<timecreated>1390818824</timecreated>
-		$repository->timemodified=time();// 		<timemodified>1390818869</timemodified>
-		$repository->source="$@NULL@$";// 		<source>$@NULL@$</source>
-		$repository->author="$@NULL@$";// 		<author>$@NULL@$</author>
-		$repository->license="$@NULL@$";// 		<license>$@NULL@$</license>
-		$repository->sortorder=0;// 		<sortorder>0</sortorder>
-		$repository->repositorytype="$@NULL@$";// 		<repositorytype>$@NULL@$</repositorytype>
-		$repository->repositoryid="$@NULL@$";// 		<repositoryid>$@NULL@$</repositoryid>
-		$repository->reference="$@NULL@$";// 		<reference>$@NULL@$</reference>
+		$repository = $this->addCMSRepository($contextId, $component, $fileArea, $itemId, "/");
 			
-		
-		$request = "SELECT CMS_CONTENT_ENTRY.NAME,CMS_CONTENT_ENTRY.FILESIZE,CMS_FILE_CONTENT.CONTENT,CMS_MIMETYPE.MIMETYPE  
-					FROM CMS_CONTENT_ENTRY 
-						INNER JOIN CMS_FILE_CONTENT ON CMS_FILE_CONTENT.ID=CMS_CONTENT_ENTRY.FILE_CONTENT_ID
-						INNER JOIN CMS_MIMETYPE ON CMS_MIMETYPE.ID=CMS_FILE_CONTENT.MIMETYPE_ID
-					WHERE ORIGINAL_CONTENT_ID ='".$fileOriginalContentId."'";
-		$stid = oci_parse($this->connection,$request);
-		oci_execute($stid);
-		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
-				
-		if(empty($row)){
-			//No element found!!
-			return;
+		$file = $this->addCMSSimpleFile($fileOriginalContentId, $contextId, $component, $fileArea, $itemId, "/");
+									
+		if(file==null){
+			return;			
 		}
-		
-		$file = new FileBackup();
-		$file->id=$this->getNextId();
-		$file->contextid=$contextId;// 		<contextid>54</contextid>
-		$file->component=$component;// 		<component>mod_glossary</component>
-		$file->filearea=$fileArea;// 		<filearea>attachment</filearea>
-		$file->itemid=$itemId;// 		<itemid>1</itemid>
-		$file->filepath="/";// 		<filepath>/</filepath>
-		$file->filename=$row['NAME'];// 		<filename>.</filename>
-		$file->userid=$this->users->users[0]->id;// 		<userid>2</userid>
-		$file->filesize=$row['FILESIZE'];// 		<filesize>0</filesize>
-		$file->author=$this->users->users[0]->firstname." ".$this->users->users[0]->lastname;// 		<author>$@NULL@$</author>
-		$file->license="allrightsreserved";// 		<license>$@NULL@$</license>
-		$file->sortorder=0;// 		<sortorder>0</sortorder>
-		$file->repositorytype="$@NULL@$";// 		<repositorytype>$@NULL@$</repositorytype>
-		$file->repositoryid="$@NULL@$";// 		<repositoryid>$@NULL@$</repositoryid>
-		$file->reference="$@NULL@$";// 		<reference>$@NULL@$</reference>
-		$file->status=0;// 		<status>0</status>
-		$file->timecreated=time();// 		<timecreated>1390818824</timecreated>
-		$file->timemodified=time();// 		<timemodified>1390818869</timemodified>
-		$file->source=$row['NAME'];// 		<source>$@NULL@$</source>
-		
-
-		//GET THE CONTENT
-// 		$request = "SELECT * FROM CMS_FILE_CONTENT WHERE ID='".$row['FILE_CONTENT_ID']."'";
-// 		$stid = oci_parse($this->connection,$request);
-// 		oci_execute($stid);
-// 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
-		
-		//echo 'FILE='.$file->filename . "///".$fileOriginalContentId."\n";
-		$file->content = $row["CONTENT"]->load();
-
-		$file->contenthash=md5($file->content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
-				
-// 		//RETRIEVE THE MIME TYPE
-// 		$request = "SELECT * FROM CMS_MIMETYPE WHERE ID='".$row['MIMETYPE_ID']."'";
-// 		$stid = oci_parse($this->connection,$request);
-// 		oci_execute($stid);
-// 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
-		
-		$file->mimetype=$row['MIMETYPE'];// 		<mimetype>document/unknown</mimetype>
-			
-		//$filename = "C:/Users/Marc/Documents/ComVerbale.odt" ;
-		//$file->content = file_get_contents($filename);
 		
 		//REFERENCE IN THE GLOSSARY
 		switch ($mode){
@@ -520,13 +553,7 @@ class WebCTModel extends \GlobalModel {
 				$item->filesIds[] = $repository->id;
 				$item->filesIds[] = $file->id;
 			break;
-		}
-		//REFERENCE IN THE COURSE FILES
-		$this->files->files[]=$repository;
-		$this->files->files[]=$file;
-		
-		//echo '<br/>'.$file->filename;
-		
+		}		
 				
 	}
 	
@@ -2846,6 +2873,129 @@ class WebCTModel extends \GlobalModel {
 		$this->files->files[]=$file;
 	
 	}
+	
+	
+	/***************************************************************************************************************
+	 * FOLDERS
+	*/
+	
+	public function retrieveFolders(){
+	
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='Template' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+	
+			$folderId = $row['ID'];
+			$this->addFolder($folderId);
+	
+		}
+	}
+	
+	
+	/**
+	 * Add a Folder and all its content
+	 */
+	public function addFolder($folderId){
+	
+		global $USER;
+	
+		//Glossary
+		$folderModel = new FolderModel();
+		$folderModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->grades = new ActivityGradeBook();
+		$folderModel->calendar = new Events();
+	
+		$folderModel->module = $this->createModule($folderId,"folder","2013110500");
+	
+		$folderModel->folder = $this->createActivityFolder($folderId, $folderModel->module);
+	
+		
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$folderModel->module->id;
+		$activity->sectionid=$this->sections[0]->section->id;
+		$activity->modulename=$folderModel->module->modulename;
+		$activity->title=$folderModel->folder->name;
+		$activity->directory="activities/folder_".$folderModel->folder->folderId;
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+	
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","folder_".$folderModel->folder->folderId,"folder_".$folderModel->folder->folderId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","folder_".$folderModel->folder->folderId,"folder_".$folderModel->folder->folderId."_userinfo",1);
+	
+		$inforRef = new InfoRef();
+		$inforRef->userids[]=$USER->id;
+		$inforRef->fileids=$folderModel->folder->filesIds;
+	
+		$folderModel->inforef = $inforRef;
+	
+		$this->activities[] = $folderModel;
+	
+		$this->sections[0]->section->sequence[]= $folderModel->folder->folderId;
+	}
+	
+	
+	/**
+	 * @param unknown $folderId
+	 * @param Module $module
+	 * @return ActivityFolder
+	 */
+	public function createActivityFolder($folderId, $module){
+				
+		$folder = new ActivityFolder();
+		$folder->id = $folderId;
+		$folder->moduleid =$module->id;
+		$folder->modulename =$module->modulename;
+		$folder->contextid=$this->getNextId();
+		$folder->folderId = $folderId;
+		
+		//Ici on choisit le nom de notre folder
+		$folder->name =utf8_encode("Dossiers & fichiers récupérés");
+		$folder->intro=utf8_encode("Ensemble de tous les dossiers et fichiers récupérés de WEBCT.");
+		$folder->introformat=1;
+		$folder->revision=0;
+		$folder->timemodified=time();
+		$folder->display=0;
+		$folder->showexpanded=0;
+
+		
+		//Recherche et récupére tous les fichiers et dossiers de WebCT
+		$this->addFolderFiles($folderId, $folder->contextid, "/", $folder->filesIds);
+		
+		return $folder;
+	}
+	
+	public function addFolderFiles($folderId, $contextId, $path, &$filesIds){
+		
+		$component = "mod_folder";
+		$fileArea = "content";
+		$itemId = 0;
+		
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE PARENT_ID='".$folderId."' AND CE_TYPE_NAME IN ('ContentFile','Folder','TEMPLATE_PUBLIC_AREA') AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+		
+			if($row['CE_TYPE_NAME']=="ContentFile"){
+				$file = $this->addCMSSimpleFile($row["ORIGINAL_CONTENT_ID"], $contextId, $component, $fileArea, $itemId, $path);
+				$filesIds[] = $file->id;
+			}else {
+				$newPath = $path.$row['NAME']."/";
+				$repository = $this->addCMSRepository($contextId, $component, $fileArea, $itemId, $newPath);
+				$filesIds[] = $repository->id;	
+
+				$this->addFolderFiles($row['ID'], $contextId, $newPath, $filesIds);
+			}
+		
+		}		
+		
+	}
+	
+	
 	
 	/**
 	 * Permet de récupérer le delivryContext du syllabus lié au cours.

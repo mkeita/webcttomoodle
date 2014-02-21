@@ -35,6 +35,7 @@ require_once 'classes/model/activities/Module.php';
 require_once 'classes/model/activities/Quiz.php';
 require_once 'classes/model/activities/Assignment.php';
 require_once 'classes/model/activities/Grading.php';
+require_once 'classes/model/activities/Folder.php';
 
 require_once 'classes/utils/HtmlContentClass.php';
 
@@ -1103,6 +1104,16 @@ abstract class GlobalModel implements \IBackupModel {
 			
 				$activityModel->assignment->toXMLFile($activityDir);
 				$activityModel->grading->toXMLFile($activityDir);
+				
+			}else if ($activityModel instanceof FolderModel) {
+				$activityDir = $dir.'/folder_'.$activityModel->module->id;
+			
+				if(is_dir($activityDir)){
+					rrmdir($activityDir);
+				}
+				mkdir($activityDir);
+			
+				$activityModel->folder->toXMLFile($activityDir);
 			}
 			
 			$activityModel->calendar->toXMLFile($activityDir);
@@ -1278,5 +1289,13 @@ class AssignmentModel extends ActivityModel {
 	 * @var ActivityAssignment
 	 */
 	public $assignment;
+
+}
+
+class FolderModel extends ActivityModel {
+	/**
+	 * @var ActivityFolder
+	 */
+	public $folder;
 
 }
