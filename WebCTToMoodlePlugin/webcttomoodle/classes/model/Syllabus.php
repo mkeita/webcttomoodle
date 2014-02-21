@@ -213,6 +213,7 @@ class EducatorInfoSyllabus {
 		$resultat = $resultat . "<ul><li> Courrier electronique : " . $this->email . "</li> </ul> ";
 		$resultat = $resultat . "</p>";
 		return $resultat;
+		
 	}
 }
 class CustumHtmlItem extends RubriqueSyllabus {
