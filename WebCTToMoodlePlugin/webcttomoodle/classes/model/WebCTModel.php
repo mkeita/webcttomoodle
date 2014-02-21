@@ -32,6 +32,7 @@ class WebCTModel extends \GlobalModel {
 		
 		$this->retrieveFolders();
 		
+		
 		oci_close($this->connection);
 	}
 
