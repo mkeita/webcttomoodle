@@ -163,6 +163,7 @@ abstract class GlobalModel implements \IBackupModel {
 	public function initializeMoodleBackupModel(){
 		global $CFG;//, $DB;
 		
+		
 		$moodleBackup = new MoodleBackup();
 				
 		$moodleBackup->moodle_version = $CFG->version;
