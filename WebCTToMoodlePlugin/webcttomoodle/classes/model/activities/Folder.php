@@ -5,7 +5,7 @@ class ActivityFolder implements \IBackupModel {
 	
 	public $id;//id="4" moduleid="57" modulename="assign" contextid="107"
 	public $moduleid;
-	public $modulename="assign";	
+	public $modulename="folder";	
 	public $contextid ;
 	
 	public $folderId; // id="1"
