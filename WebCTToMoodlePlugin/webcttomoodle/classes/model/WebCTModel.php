@@ -20,7 +20,11 @@ class WebCTModel extends \GlobalModel {
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
 		$this->retrieveGlossaries();
 
-		$this->retrieveQuestions();		
+		$this->retrieveQuestions();	
+
+		foreach($this->questions->allQuestions as $key=>$value){
+			error_log($key.'-->'.$value->name.'<br/>');
+		} 
 		
 		$this->retrieveQuizzes();
 		
@@ -135,7 +139,7 @@ class WebCTModel extends \GlobalModel {
 		$glossary->id=$glossaryId;//		<activity id="1" moduleid="11" modulename="glossary" contextid="54">
 		$glossary->moduleid =$module->id; //ID
 		$glossary->modulename =$module->modulename;
-		$glossary->contextid=$module->contextid;
+		$glossary->contextid=$this->getNextId();
 		$glossary->glossaryid=$glossaryId;
 		$glossary->name =$row['NAME'];// 		<name>Marc glossary</name>
 		
@@ -539,7 +543,7 @@ class WebCTModel extends \GlobalModel {
 			
 		$file = $this->addCMSSimpleFile($fileOriginalContentId, $contextId, $component, $fileArea, $itemId, "/");
 									
-		if(file==null){
+		if($file==null){
 			return;			
 		}
 		
@@ -940,7 +944,7 @@ class WebCTModel extends \GlobalModel {
 			}
 			
 		}else {
-			echo "MULTI ANSWERS";
+			//echo "MULTI ANSWERS";
 			$newQuestion = new MultiAnswerQuestion();
 			$newQuestion->fillWith($question);
 			
@@ -2131,10 +2135,10 @@ class WebCTModel extends \GlobalModel {
 		
 		
 		$request = "SELECT * FROM ASSMT_ASSESSMENT 
-						INNER JOIN ASSMT_SETTING ON ASSMT_ASSESSMENT.ID=ASSMT_SETTING.ASSESSMENT_ID 
-		  				INNER JOIN ASSMT_SECURITY_SETTING ON ASSMT_SETTING.ID=ASSMT_SECURITY_SETTING.ID
-						INNER JOIN ASSMT_SUBMISSION_SETTING ON ASSMT_SETTING.ID=ASSMT_SUBMISSION_SETTING.ID
-					  	INNER JOIN ASSMT_RESULT_SETTING ON ASSMT_SETTING.ID=ASSMT_RESULT_SETTING.ID 
+						LEFT JOIN ASSMT_SETTING ON ASSMT_ASSESSMENT.ID=ASSMT_SETTING.ASSESSMENT_ID 
+		  				LEFT JOIN ASSMT_SECURITY_SETTING ON ASSMT_SETTING.ID=ASSMT_SECURITY_SETTING.ID
+						LEFT JOIN ASSMT_SUBMISSION_SETTING ON ASSMT_SETTING.ID=ASSMT_SUBMISSION_SETTING.ID
+					  	LEFT JOIN ASSMT_RESULT_SETTING ON ASSMT_SETTING.ID=ASSMT_RESULT_SETTING.ID 
 					WHERE ASSMT_ASSESSMENT.ID='".$quizId."'";
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
@@ -2480,9 +2484,10 @@ class WebCTModel extends \GlobalModel {
 
 			$sequence = array();
 			
+			echo $question->name.' - '.$question->id.'<br/>' ;
 			foreach ($cloneQuestion->multiAnswer->sequence as $questionId){
 				
-				$originalSubQuestion = $this->questions->allQuestions[''.$questionId];
+				$originalSubQuestion = $this->questions->allQuestions[(string)$questionId];
 				$subQuestion = clone $originalSubQuestion;
 				$subQuestion->id = $this->getNextId();
 				$subQuestion->parent = $cloneQuestion->id;
@@ -2690,17 +2695,17 @@ class WebCTModel extends \GlobalModel {
 							CMS_FILE_CONTENT.CONTENT,CMS_MIMETYPE.MIMETYPE,
 							SECTION_COLUMN.LABEL,SECTION_COLUMN.MAX_VALUE
 					FROM AGN_ASSIGNMENT
-				        INNER JOIN SIMPLE_FILE ON SIMPLE_FILE.GROUP_ID=AGN_ASSIGNMENT.SIMPLE_FILE_GROUP_ID
-				        INNER JOIN CMS_FILE_CONTENT ON CMS_FILE_CONTENT.ID=SIMPLE_FILE.FILE_CONTENT_ID
-						INNER JOIN CMS_MIMETYPE ON CMS_MIMETYPE.ID=CMS_FILE_CONTENT.MIMETYPE_ID
-						INNER JOIN SECTION_COLUMN ON SECTION_COLUMN.CONTENT_ENTRY_ID='".$cmsContentEntryId."'        
+				        LEFT JOIN SIMPLE_FILE ON SIMPLE_FILE.GROUP_ID=AGN_ASSIGNMENT.SIMPLE_FILE_GROUP_ID
+				        LEFT JOIN CMS_FILE_CONTENT ON CMS_FILE_CONTENT.ID=SIMPLE_FILE.FILE_CONTENT_ID
+						LEFT JOIN CMS_MIMETYPE ON CMS_MIMETYPE.ID=CMS_FILE_CONTENT.MIMETYPE_ID
+						LEFT JOIN SECTION_COLUMN ON SECTION_COLUMN.CONTENT_ENTRY_ID='".$cmsContentEntryId."'        
 				    WHERE AGN_ASSIGNMENT.ID='".$assignmentId."'";
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 
 		if(!empty($row['INSTRUCTIONS'])){
-			$description .=$row['INSTRUCTIONS']->load();
+			$description .='<br><b> Instructions : </b><br>'.$row['INSTRUCTIONS']->load();
 		}
 		
 		//TODO SEARCH LINKS
