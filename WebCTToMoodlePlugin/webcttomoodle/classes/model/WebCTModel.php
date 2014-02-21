@@ -22,9 +22,9 @@ class WebCTModel extends \GlobalModel {
 
 		$this->retrieveQuestions();	
 
-		foreach($this->questions->allQuestions as $key=>$value){
-			error_log($key.'-->'.$value->name.'<br/>');
-		} 
+// 		foreach($this->questions->allQuestions as $key=>$value){
+// 			error_log($key.'-->'.$value->name.'<br/>');
+// 		} 
 		
 		$this->retrieveQuizzes();
 		
