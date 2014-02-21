@@ -28,6 +28,7 @@ class WebCTModel extends \GlobalModel {
 		
 		$this->retrieveSyllabus();
 		
+		
 		oci_close($this->connection);
 	}
 
