@@ -22,9 +22,9 @@ class WebCTModel extends \GlobalModel {
 
 		$this->retrieveQuestions();	
 
-// 		foreach($this->questions->allQuestions as $key=>$value){
-// 			error_log($key.'-->'.$value->name.'<br/>');
-// 		} 
+		foreach($this->questions->allQuestions as $key=>$value){
+			error_log($key.'-->'.$value->name.'<br/>');
+		} 
 		
 		$this->retrieveQuizzes();
 		
@@ -597,7 +597,7 @@ class WebCTModel extends \GlobalModel {
 	
 				if($row1['CE_SUBTYPE_NAME']=='MultipleChoice'){ //MULTICHOICE
 					$question = new MultiChoiceQuestion();
-					$question->category = $questionCategory;
+					
 					//$question->id = $row1['ORIGINAL_CONTENT_ID'];
 					//$question->parent= 0;//$questionCategory->id;
 					//$question->name=$row1['NAME'];
@@ -606,28 +606,28 @@ class WebCTModel extends \GlobalModel {
 					//$questionCategory->questions[]=$question;
 				}else if($row1['CE_SUBTYPE_NAME']=='ShortAnswer'){ //
 					$question = new ShortAnswerQuestion();
-					$question->category = $questionCategory;
+					
 				} else if($row1['CE_SUBTYPE_NAME']=='FillInTheBlank'){ //
 					$question = new FillInBlankQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='Matching'){ //
 					$question = new MatchingQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='Paragraph'){ //
 					$question = new ParagraphQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='TrueFalse'){ //
 					$question = new TrueFalseQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='Calculated'){ //
 					$question = new CalculatedQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='CombinationMultipleChoice'){ //
 					$question = new CombinaisonMultiChoiceQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='JumbledSentence'){ //
 					$question = new JumbledSentenceQuestion();
-					$question->category = $questionCategory;
+					
 				}
 				if(empty($question)){
 					continue;					
@@ -635,11 +635,12 @@ class WebCTModel extends \GlobalModel {
 				$question->id = $row1['ORIGINAL_CONTENT_ID'];
 				$question->parent= 0;//$questionCategory->id;
 				$question->name=$row1['NAME'];
-					
-				$this->fillQuestion($question, $row1['FILE_CONTENT_ID']);
-				$questionCategory->questions[]=$question;
+
+				$questionCategory->addQuestion($question);
 				
-				$this->questions->allQuestions[$question->id]=$question;
+				$this->fillQuestion($question, $row1['FILE_CONTENT_ID']);
+				
+				$this->questions->allQuestions[(string)$question->id]=$question;
 				
 				//break;
 			}
@@ -893,7 +894,7 @@ class WebCTModel extends \GlobalModel {
 				}
 			}
 		}		
-		$question->shorAnswer = $shortanswer;
+		$question->shortAnswer = $shortanswer;
 		
 		
 		if($isShortAnswer){ //On crée vraiment une short Answer
@@ -992,7 +993,7 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswer->id=$shortAnswerQuestion->id;
 				$shortAnswer->usecase = $shortanswer->usecase;
 				
-				$shortAnswerQuestion->shorAnswer = $shortAnswer;
+				$shortAnswerQuestion->shortAnswer = $shortAnswer;
 				
 				//Answers
 				$count2 = 0;
@@ -1080,10 +1081,14 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswerQuestion->questiontext =$shortAnswerQuestionText;
 				
 				//Add the short question to the current category..
-				$question->category->questions[] = $shortAnswerQuestion;
+				$question->category->addQuestion($shortAnswerQuestion);
 				$multiAnswer->sequence[]=$shortAnswerQuestion->id;
 				
-				$this->questions->allQuestions[$shortAnswerQuestion->id]=$shortAnswerQuestion;
+				if($question->id=='3785530001'){
+					echo 'PROBLEMATIC SHORT ANSWER = '.$shortAnswerQuestion->name."---".$shortAnswerQuestion->id. " <br/>";
+				}
+				
+				$this->questions->allQuestions[(string)$shortAnswerQuestion->id]=$shortAnswerQuestion;
 				
 			}
 			$finalText = $finalText."</ol>";
@@ -1186,7 +1191,7 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswer->id=$shortAnswerQuestion->id;
 				$shortAnswer->usecase = $usercase;
 				
-				$shortAnswerQuestion->shorAnswer = $shortAnswer;
+				$shortAnswerQuestion->shortAnswer = $shortAnswer;
 				
 				//Answers
 				$count2 = 0;
@@ -1271,10 +1276,10 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswerQuestion->questiontext =$shortAnswerQuestionText;
 				
 				//Add the short question to the current category..
-				$question->category->questions[] = $shortAnswerQuestion;
+				$question->category->addQuestion($shortAnswerQuestion);
 				$multiAnswer->sequence[]=$shortAnswerQuestion->id;
 				
-				$this->questions->allQuestions[$shortAnswerQuestion->id]=$shortAnswerQuestion;
+				$this->questions->allQuestions[(string)$shortAnswerQuestion->id]=$shortAnswerQuestion;
 				
 			}
 		}
@@ -1903,10 +1908,10 @@ class WebCTModel extends \GlobalModel {
 			
 			
 			//Add the short question to the current category..
-			$question->category->questions[] = $multiChoiceQuestion;
+			$question->category->addQuestion($multiChoiceQuestion);
 			$multiAnswer->sequence[]=$multiChoiceQuestion->id;
 			
-			$this->questions->allQuestions[$multiChoiceQuestion->id]=$multiChoiceQuestion;
+			$this->questions->allQuestions[(string)$multiChoiceQuestion->id]=$multiChoiceQuestion;
 				
 		}
 				
@@ -2419,7 +2424,7 @@ class WebCTModel extends \GlobalModel {
 			$randomQuestion->createdby=$USER->id;//<createdby>2</createdby>
 			$randomQuestion->modifiedby=$USER->id;//<modifiedby>2</modifiedby>
 
-			$questionCategory->questions[]=$randomQuestion;
+			$questionCategory->addQuestion($randomQuestion);
 			
 			
 			//Add the random to the quiz
@@ -2444,7 +2449,8 @@ class WebCTModel extends \GlobalModel {
 			oci_execute($stid1);
 			$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
 						
-			$this->addCloneQuestionToCategory($this->questions->allQuestions[$row1['QUESTION_ID']], $questionCategory);				
+			echo 'QUESTION ID = '.$row1['QUESTION_ID']."<br/>";
+			$this->addCloneQuestionToCategory($this->questions->allQuestions[(string)$row1['QUESTION_ID']], $questionCategory);				
 				
 			$request = "SELECT * FROM ASSMT_SECTION_ELEMENT
 						WHERE SECTION_PARENT_ID='".$sectionId."' AND PREVIOUS_ELEMENT_ID='".$row['ID']."'";
@@ -2464,6 +2470,13 @@ class WebCTModel extends \GlobalModel {
 	 * @return Question
 	 */
 	public function addCloneQuestionToCategory($question,&$questionCategory){
+		if($question->id=='3785530001'){
+			echo '<br/>------------------------------------------------------- <br/>';
+			echo $question->multiAnswer->sequence;
+			echo '<br/>------------------------------------------------------- <br/>';
+		
+		}
+		
 		$cloneQuestion = clone $question;
 		
 		$cloneQuestion->id= $this->getNextId();
@@ -2486,6 +2499,17 @@ class WebCTModel extends \GlobalModel {
 			$sequence = array();
 			
 			echo $question->name.' - '.$question->id.'<br/>' ;
+			
+			if($question->id=='3785530001'){
+				echo '------------------------------------------------------- <br/>';
+				echo var_dump($question->multiAnswer->sequence);
+				echo '------------------------------------------------------- <br/>';
+				echo var_dump($cloneQuestion->multiAnswer->sequence);
+				echo '------------------------------------------------------- <br/>';
+				echo  var_dump($this->questions->allQuestions["3785530001"]->multiAnswer->sequence);
+				echo '------------------------------------------------------- <br/>';
+				
+			}
 			foreach ($cloneQuestion->multiAnswer->sequence as $questionId){
 				
 				$originalSubQuestion = $this->questions->allQuestions[(string)$questionId];
@@ -2504,15 +2528,25 @@ class WebCTModel extends \GlobalModel {
 					}
 				}
 				
-				$questionCategory->questions[]=$subQuestion;
+				$questionCategory->addQuestion($subQuestion);
 				
 				$sequence[]= $subQuestion->id;
-			}
+			}			
 			
 			$cloneQuestion->multiAnswer->sequence = $sequence;
+			
+			if($question->id=='3785530001'){
+				echo '------------------------------------------------------- <br/>';
+				echo var_dump($question->multiAnswer->sequence);
+				echo '------------------------------------------------------- <br/>';
+				echo var_dump($cloneQuestion->multiAnswer->sequence);
+				echo '------------------------------------------------------- <br/>';
+				echo  var_dump($this->questions->allQuestions["3785530001"]->multiAnswer->sequence);
+				echo '------------------------------------------------------- <br/>';
+			}
 		}
 		
-		$questionCategory->questions[]=$cloneQuestion;
+		$questionCategory->addQuestion($cloneQuestion);
 		
 		return $cloneQuestion;
 	}
