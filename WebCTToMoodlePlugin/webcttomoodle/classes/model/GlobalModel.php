@@ -36,6 +36,7 @@ require_once 'classes/model/activities/Quiz.php';
 require_once 'classes/model/activities/Assignment.php';
 require_once 'classes/model/activities/Grading.php';
 require_once 'classes/model/activities/ActivityPage.php';
+require_once 'classes/model/activities/ActivityRessource.php';
 
 require_once 'classes/utils/HtmlContentClass.php';
 
@@ -170,7 +171,6 @@ abstract class GlobalModel implements \IBackupModel {
 	 */
 	public function initializeMoodleBackupModel(){
 		global $CFG;//, $DB;
-		
 		
 		$moodleBackup = new MoodleBackup();
 				
@@ -1121,7 +1121,6 @@ abstract class GlobalModel implements \IBackupModel {
 				$activityModel->assignment->toXMLFile($activityDir);
 				$activityModel->grading->toXMLFile($activityDir);
 			}else if($activityModel instanceof PageModel){
-				echo '</br> je suis dans page </br>';
 				$activityDir = $dir.'/page_'.$activityModel->module->id;			
 				echo $activityDir . '</br>';
 				if(is_dir($activityDir)){
@@ -1129,8 +1128,16 @@ abstract class GlobalModel implements \IBackupModel {
 				}
 				mkdir($activityDir);
 				
-				$activityModel->page->toXMLFile($activityDir);
-			
+				$activityModel->page->toXMLFile($activityDir);			
+			}else if ($activityModel instanceof RessourceModel){
+				$activityDir = $dir.'/resource_'.$activityModel->module->id;
+				echo $activityDir . '</br>';
+				if(is_dir($activityDir)){
+					rrmdir($activityDir);
+				}
+				mkdir($activityDir);
+				
+				$activityModel->ressource->toXMLFile($activityDir);
 			}
 			
 			$activityModel->calendar->toXMLFile($activityDir);
@@ -1312,9 +1319,18 @@ class AssignmentModel extends ActivityModel {
 
 }
 
+
 class PageModel extends ActivityModel{
 	/**
 	*@var ActivityPage
 	*/
 	public $page;
+}
+
+class RessourceModel extends ActivityModel{
+	
+	/**
+	 * @var ActivityRessource
+	 */
+	public $ressource;
 }

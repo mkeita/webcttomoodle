@@ -94,7 +94,7 @@ class Policy {
 		$this->policyAddReq = new PolicyRubrique ();
 	}
 	public function info() {
-		$resultat = "<p> <strong> <font color = \"0000ff\"> " . $this->policyIntro->title . " </font> </strong> </br> ";
+		$resultat = "<p> <strong>  " . $this->policyIntro->title . " </strong> </br> ";
 		if (($this->policyIntro->value != NULL) || ($this->policyAddReq->value != NULL)) {
 			$resultat = $resultat . "<ul>";
 			if ($this->policyIntro->value != NULL)
@@ -124,17 +124,19 @@ class PolicyRubrique extends RubriqueSyllabus {
 class Custum extends RubriqueSyllabus {
 	public $cust_item_name;
 	public $cust_item_value;
+	
 	function _construct(array $res, array $res2) {
 		$this->id = $res2 ["ID"];
 		$this->lastmodify_ts = $res2 ["LASTMODIFY_TS"];
 		$this->create_ts = $res2 ["CREATE_TS"];
 		$this->title = $res ["TITLE"];
-		$this->syllItem_id = $res2 ["SYLLITEM_ID"];
+		$this->syllItem_id = $res2["SYLLITEM_ID"];
 		$this->cust_item_name = $res2 ["CUST_ITEM_NAME"];
 		$this->cust_item_value = $res2 ["CUST_ITEM_VALUE"];
 	}
+	
 	public function info() {
-		$resultat = "<p> <strong> <font color = \"0000ff\"> " . $this->title . " </font> </strong> </br> ";
+		$resultat = "<p> <strong>  " . $this->title . "  </strong> </br> ";
 		
 		if (($this->cust_item_name != NULL) || ($this->cust_item_value != NULL)) {
 			$resultat = $resultat . "<ul> <li> ";
@@ -175,7 +177,7 @@ class Ressource extends RubriqueSyllabus {
 		}
 	}
 	public function info() {
-		$resultat = "<p> <strong> <font color = \"0000ff\"> ". $this->title . "</font> </strong> </br>";
+		$resultat = "<p> <strong>  ". $this->title . " </strong> </br>";
 		if (($this->ressource_name != NULL) || ($this->ressource_author != NULL) || ($this->ressource_publisher != NULL) || ($this->ressource_edition_year != NULL) || ($this->ressource_isbn != NULL) || ($this->ressource_info != NULL) || ($this->ressource_required != NULL)) {
 			$resultat = $resultat . '<ul>';
 			if (($this->ressource_name != NULL))
@@ -185,11 +187,11 @@ class Ressource extends RubriqueSyllabus {
 			if ($this->ressource_publisher != NULL)
 				$resultat = $resultat . "<li> Editeur: " . $this->ressource_publisher . "</li> ";
 			if (($this->ressource_edition_year != NULL))
-				$resultat = $resultat . "<li> Edition/Annee: " . $this->ressource_edition_year . "</li> ";
+				$resultat = $resultat . "<li> Edition/Ann".utf8_encode('é')."e: " . $this->ressource_edition_year . "</li> ";
 			if ($this->ressource_isbn != NULL)
 				$resultat = $resultat . "<li> ISBN: " . $this->ressource_isbn . "</li> ";
 			if ($this->ressource_info != NULL)
-				$resultat = $resultat . "<li> Informations supplementaires : " . $this->ressource_info . "</li> ";
+				$resultat = $resultat . "<li> Informations suppl".utf8_encode('é')."mentaires : " . $this->ressource_info . "</li> ";
 			if ($this->ressource_required != NULL)
 				$resultat = $resultat . "<li> Type : " . $this->ressource_required . "</li> ";
 			$resultat = $resultat . '</ul>';
@@ -227,7 +229,7 @@ class CustumHtmlItem extends RubriqueSyllabus {
 		$this->custm_html_value = $val->load ();
 	}
 	public function info() {
-		$resultat = "<p> <strong> <font color = \"0000ff\">" . $this->title . " </font>> </strong> </br> ";
+		$resultat = "<p> <strong> " . $this->title . "  </strong> </br> ";
 		if ($this->custm_html_value != NULL)
 			$resultat = $resultat . "<ul><li> " . $this->custm_html_value . "</li> </ul> ";
 		$resultat = $resultat . "</p>";
@@ -242,7 +244,7 @@ class LearningObj_link {
 	public function info() {
 		$resultat = " ";
 		for($i = 0; $i < count ( $this->learningObject ); $i ++) {
-			$resultat = $resultat . "<p> <strong> <font color = \"0000ff\">" . $this->learningObject [$i]->title . " </font> </strong> </br> ";
+			$resultat = $resultat . "<p> <strong> " . $this->learningObject [$i]->title . "  </strong> </br> ";
 			if (($this->learningObject [$i]->name_cms_content != NULL) || ($this->learningObject [$i]->description_cms_content != NULL)) {
 				$resultat = $resultat . "<ul>";
 				if ($this->learningObject [$i]->name_cms_content != NULL)
@@ -276,7 +278,7 @@ class CourseReq {
 		$this->courseReqReqs = new CourseReqRubrique ();
 	}
 	public function info() {
-		$resultat = "<p> <strong> <font color = \"0000ff\">" . $this->courseReqIntro->title . "</font> </strong> </br> ";
+		$resultat = "<p> <strong> " . $this->courseReqIntro->title . " </strong> </br> ";
 		if (($this->courseReqIntro->value != NULL) || ($this->courseReqReqs->value != NULL)) {
 			$resultat = $resultat . "<ul>";
 			if ($this->courseReqIntro->value != NULL)
@@ -314,11 +316,11 @@ class Lesson {
 		$this->lessonAssignements = new LessonRubrique ();
 	}
 	public function info() {
-		$resultat = "<p> <strong> <font color = \"0000ff\">" . $this->lessonTopic->title . " </font> </strong> </br> ";
+		$resultat = "<p> <strong> " . $this->lessonTopic->title . "  </strong> </br> ";
 		if (($this->lessonTopic->lesson_title != NULL) || ($this->lessonTopic->value != NULL) || ($this->lessonReadings->value != NULL) || ($this->lessonAssignements->value != NULL) || ($this->lessonGoals->value != NULL)) {
 			$resultat = $resultat . "<ul>";
 			if ($this->lessonTopic->lesson_title != NULL)
-				$resultat = $resultat . " <li> Titre de la lecon: " . $this->lessonTopic->lesson_title . "</li>";
+				$resultat = $resultat . " <li> Titre de la le".utf8_encode("ç")."on: " . $this->lessonTopic->lesson_title . "</li>";
 			if ($this->lessonGoals->value != NULL)
 				$resultat = $resultat . "<li> Objectifs: " . $this->lessonGoals->value . "</li> ";
 			if ($this->lessonTopic->value != NULL)
@@ -326,7 +328,7 @@ class Lesson {
 			if ($this->lessonReadings->value != NULL)
 				$resultat = $resultat . "<li> Lecture: " . $this->lessonReadings->value . "</li> ";
 			if ($this->lessonAssignements->value != NULL)
-				$resultat = $resultat . "<li> Taches: " . $this->lessonAssignements->value . "</li> ";
+				$resultat = $resultat . "<li> T".utf8_encode('â')."ches: " . $this->lessonAssignements->value . "</li> ";
 			$resultat = $resultat . "</ul>";
 		}
 		$resultat = $resultat . "</p>";
@@ -358,7 +360,7 @@ class CourseInfo {
 		$this->infoSection = $infoSec;
 	}
 	public function info() {
-		$resultat = "<p> <strong> <font color = \"0000ff\"> Information sur la section: " . $this->nomCours . "</font> </strong> </br> ";
+		$resultat = "<p> <strong> Information sur la section: " . $this->nomCours . " </strong> </br> ";
 		if ($this->nomCours != NULL)
 			$resultat = $resultat . "<ul><li> Nom du cours: " . $this->infoSection . "</li> </ul> ";
 		$resultat = $resultat . "</p>";
