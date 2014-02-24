@@ -10,24 +10,6 @@ class WebCTModel extends \GlobalModel {
 	
 	private $deliveryContextId;
 		
-	
-	/**
-	 * Used to store all the questions for reusing...
-	 *
-	 * @var Question|Array
-	 */
-	public $allQuestions = array() ;
-	
-	
-	/**
-	 * Used to store all the files for reusing...
-	 *
-	 * @var FileBackup|Array
-	 */
-	public $allFiles = array() ;
-	
-	
-	
 	/* (non-PHPdoc)
 	 * @see GlobalModel::__construct()
 	 */
@@ -39,6 +21,10 @@ class WebCTModel extends \GlobalModel {
 		$this->retrieveGlossaries();
 
 		$this->retrieveQuestions();	
+
+// 		foreach($this->questions->allQuestions as $key=>$value){
+// 			error_log($key.'-->'.$value->name.'<br/>');
+// 		} 
 		
 		$this->retrieveQuizzes();
 		
@@ -47,6 +33,8 @@ class WebCTModel extends \GlobalModel {
 		$this->retrieveFolders();
 		
 		$this->retrieveWebLinks();
+
+		$this->retrieveSyllabus();
 		
 		oci_close($this->connection);
 	}
@@ -3174,7 +3162,153 @@ class WebCTModel extends \GlobalModel {
 	}
 	
 	
+public function retrieveSyllabus(){
+		$this->initializeSyllabus();
+		$pageId = $this->syllabusManager->syllabus->id;
+		if($this->syllabusManager->syllabus->use_source_file_fl == 1){			
+			$originalContentId = $this->recupererOriginalContentId($this->deliveryContextId);
+			if($originalContentId != NULL){
+				$this->addResource($originalContentId);
+			}else{
+				error_log("Programme : " . $this->syllabusManager->courseInfo->nomCours .' --> Incohérence BD <br/>');
+			}		
+		}else if($this->verifierCreerProgramme($pageId)){
+			echo 'Création du cour </br>';
+			$this->addPage($pageId,"syllabus");
+		}else{
+			error_log("Programme : " . $this->syllabusManager->courseInfo->nomCours .' --> Seulement des formateurs donc pas de création de page <br/>');
+		}
+		
+	}
 	
+	public function addResource($originalContentId){
+		echo 'OriginalContentId: ' . $originalContentId . '</br>';
+		$resourceModel = new RessourceModel();
+		$resourceModel->calendar = new Events(); //vide
+		$resourceModel->comments = new Comments(); //vide
+		$resourceModel->completion = new ActivityCompletion(); //vide
+		$resourceModel->filters = new Filters(); //vide
+		$resourceModel->grades = new ActivityGradeBook(); // Vide
+		$resourceModel->inforef = new InfoRef(); // A remplir
+		$resourceModel->roles = new RolesBackup(); //Vide
+		
+		$resourceModel->module = $this->createModule($originalContentId,"resource","2013110500");
+		$resourceModel->ressource = $this->createResource($originalContentId, $resourceModel->module);
+		
+		$this->addCMSFile($originalContentId, "10", $resourceModel->ressource);
+		$resourceModel->inforef->fileids = $resourceModel->ressource->filesIds ;	
+		
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$resourceModel->module->id;
+		$activity->sectionid=0;
+		$activity->modulename=$resourceModel->module->modulename;
+		$activity->title=$resourceModel->ressource->name;
+		$activity->directory="activities/resource_".$resourceModel->ressource->ressourceId;
+		
+		
+		$this->moodle_backup->contents->activities[] = $activity;
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","resource_".$resourceModel->ressource->ressourceId,"resource_".$resourceModel->ressource->ressourceId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","resource_".$resourceModel->ressource->ressourceId,"resource_".$resourceModel->ressource->ressourceId."_userinfo",1);
+		
+		$this->activities[] = $resourceModel;
+		
+		$this->sections[0]->section->sequence[]= $resourceModel->ressource->ressourceId;			
+	}
+	
+	public function createResource($resourceId , $module){
+		
+		$name = "File: " . $this->syllabusManager->courseInfo->nomCours;
+		
+		$resourceActivity = new ActivityRessource();
+		$resourceActivity->id = $resourceId ;
+		$resourceActivity->moduleid =$module->id;
+		$resourceActivity->modulename =$module->modulename;
+		$resourceActivity->contextid=$this->getNextId();
+		$resourceActivity->ressourceId = $resourceId;
+		$resourceActivity->name = $name;
+		$resourceActivity->intro = "Description";
+		$resourceActivity->introformat = "1";
+		$resourceActivity->tobemigrated = "0";
+		$resourceActivity->legacyfiles = "0";
+		$resourceActivity->legacyfileslast = "$@NULL@$";
+		$resourceActivity->display = "0";
+		$resourceActivity->displayoptions = 'a:1:{s:10:"printintro";i:1;}';
+		$resourceActivity->filterFiles = '0';
+		$resourceActivity->revision = '1';
+		$resourceActivity->timemodified =time();
+		
+		return $resourceActivity;
+		
+	}
+	
+	/**
+	 * Add a page
+	 *@param $type correspond au type d'information qui sera placé dans la page (syllabus,url,...)
+	 */
+	public function addPage($pageId , $type){
+		$pageModel = new PageModel();
+		$pageModel->roles = new RolesBackup(); //Vide
+		$pageModel->inforef = new InfoRef(); // Vide
+		$pageModel->grades = new ActivityGradeBook(); // Vide
+		$pageModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$pageModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$pageModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+		$pageModel->calendar = new Events();
+		
+		$pageModel->module = $this->createModule($pageId,"page","2013110500");
+		$pageModel->page  = $this->createPage($pageId, $pageModel->module, $type)	;
+		
+		
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$pageModel->module->id;
+		$activity->sectionid=0;
+		$activity->modulename=$pageModel->module->modulename;
+		$activity->title=$pageModel->page->name;
+		$activity->directory="activities/page_".$pageModel->page->pageId;
+	
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","page_".$pageModel->page->pageId,"page_".$pageModel->page->pageId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","page_".$pageModel->page->pageId,"page_".$pageModel->page->pageId."_userinfo",1);
+	
+		$this->activities[] = $pageModel;
+	
+		$this->sections[0]->section->sequence[]= $pageModel->page->pageId;
+	}
+	
+	/**
+	 *@param $type correspond au type d'information qui sera placé dans la page (syllabus,url,...)
+	 */
+	public function createPage($pageId , $module , $type){
+		$infoContent = "";
+		$name = "";
+		if($type == "syllabus"){
+			$infoContent = $this->recupererInfoSyllabus();
+			$name = "Plan de cours: " . $this->syllabusManager->courseInfo->nomCours;
+		}
+	
+		$pageActivity = new ActivityPage();
+		$pageActivity->id = $pageId ;
+		$pageActivity->moduleid =$module->id;
+		$pageActivity->modulename =$module->modulename;
+		$pageActivity->contextid=$this->getNextId();
+		$pageActivity->pageId = $pageId;
+		$pageActivity->name = $name;
+		$pageActivity->intro = 'Description';
+		$pageActivity->introformat = '1';
+		$pageActivity->content = $infoContent;
+		$pageActivity->contentformat = '1';
+		$pageActivity->legacyfiles = '0';
+		$pageActivity->legacyfileslast = '$@NULL@$';
+		$pageActivity->display = '5';
+		$pageActivity->displayoptions = 'a:1:{s:10:"printintro";s:1:"0";}';
+		$pageActivity->revision = '0';
+		$pageActivity->timemodified = time();
+	
+		return $pageActivity;
+	
+	
+	}
 	/**
 	 * Permet de récupérer le delivryContext du syllabus lié au cours.
 	 * 
@@ -3188,74 +3322,67 @@ class WebCTModel extends \GlobalModel {
 		$res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS );
 		return $res ["ID"];
 	}
+	
 	private function initializeSyllabus() {
 		$res = $this->recupererInfo_TableSyllabus ();
 		$this->syllabusManager->syllabus = new Syllabus ();
-		$this->syllabusManager->syllabus->_construct ( $res );
-		$idSyllabus = $this->syllabusManager->syllabus->id;
-		if ($this->syllabusManager->syllabus->use_source_file_fl == '0') {
-			$this->initialiseResource ( $idSyllabus );
-			$this->initialiseCustum ( $idSyllabus );
-			$this->initialiseCustomHtmlItem ( $idSyllabus );
-			$this->initialiserPolicy ( $idSyllabus );
-			$this->initialiserCourseReq ( $idSyllabus );
-			$this->initialiserLesson ( $idSyllabus );
-			$this->initialiserEducatorInfo ( $idSyllabus );
-			$this->initialiserLearningObjectifGroup ( $idSyllabus );
-			$this->initialiserCourseInfo ();
+		if($res != NULL){
+			$this->syllabusManager->syllabus->_construct ( $res );
+			$idSyllabus = $this->syllabusManager->syllabus->id;
+			$this->initialiserCourseInfo();
+			if ($this->syllabusManager->syllabus->use_source_file_fl == '0') {
+				$this->initialiseResource ( $idSyllabus );
+				$this->initialiseCustum ( $idSyllabus );
+				$this->initialiseCustomHtmlItem ( $idSyllabus );
+				$this->initialiserPolicy ( $idSyllabus );
+				$this->initialiserCourseReq ( $idSyllabus );
+				$this->initialiserLesson ( $idSyllabus );
+				//$this->initialiserEducatorInfo ( $idSyllabus );
+				$this->initialiserLearningObjectifGroup ( $idSyllabus );
+				
+			}
+		}else{
+			echo 'Mauvais Learning_Context';
 		}
+		
 	}
-	public function retrieveSyllabus() {
-		$this->initializeSyllabus ();
-		$info = $this->recupererInfoSyllabus ();
-		echo $info . '</br>';
+	
+	/**
+	 * Un programme sera créer seulement s'il posséde au moins 
+	 *  une rubrique en plus de CourseInfo et EducatorInfo.
+	 *  @return vrai si on peut créer un programme.
+	 */
+	private function verifierCreerProgramme($idSyllabus){
+		$request = "SELECT count(*) FROM SYLLITEM WHERE SYLLABUS_ID = '" . $idSyllabus . "' and
+				ITEM_TYPE_CD != 'CourseInfo' and ITEM_TYPE_CD != 'EducatorInfo' ";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		$res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS );
+		echo 'count() = ' . $res["COUNT(*)"] ; '</br>';
+		return $res["COUNT(*)"] != "0";
 		
-		$writer = new XMLWriter ();
-		
-		$writer->openURI ( 'C:/Users/Ilias/Desktop/TESTXml' . '/pageIlias.xml' );
-		$writer->startDocument ( '1.0', 'UTF-8' );
-		$writer->setIndent ( true );
-		$writer->startElement ( 'activity' );
-		$writer->writeAttribute ( 'id', '5' );
-		$writer->writeAttribute ( 'moduleid', '6' );
-		$writer->writeAttribute ( 'modulename', 'page' );
-		$writer->writeAttribute ( 'contextid', '25' );
-		
-		$writer->startElement ( 'page' );
-		$writer->writeAttribute ( 'id', '5' );
-		$writer->writeElement ( 'name', 'Plan de cours' );
-		$writer->writeElement ( 'intro', ' ' );
-		$writer->writeElement ( 'introformat', '1' );
-		$writer->writeElement ( 'content', $info );
-		$writer->writeElement ( 'contentformat', '1' );
-		$writer->writeElement ( 'legacyfiles', '0' );
-		$writer->writeElement ( 'legacyfileslast', '$@NULL@$' );
-		$writer->writeElement ( 'display', '5' );
-		$writer->writeElement ( 'displayoptions', 'a:1:{s:10:"printintro";s:1:"0";}' );
-		$writer->writeElement ( 'revision', '6' );
-		$writer->writeElement ( 'timemodified', '1392802545' );
-		$writer->endElement ();
-		
-		$writer->endElement ();
-		$writer->endDocument ();
 	}
-	private function recupererInfoSyllabus() {
-		$res = $this->syllabusManager->courseInfo->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->educatorInfo ); $i ++)
-			$res = $res . $this->syllabusManager->educatorInfo [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->courseReq ); $i ++)
-			$res = $res . $this->syllabusManager->courseReq [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->lesson ); $i ++)
-			$res = $res . $this->syllabusManager->lesson [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->policy ); $i ++)
-			$res = $res . $this->syllabusManager->policy [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->ressource ); $i ++)
-			$res = $res . $this->syllabusManager->ressource [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->custumHtmlItem ); $i ++)
-			$res = $res . $this->syllabusManager->custumHtmlItem [$i]->info ();
-		for($i = 0; $i < count ( $this->syllabusManager->custum ); $i ++)
-			$res = $res . $this->syllabusManager->custum [$i]->info ();
-		$res = $res . $this->syllabusManager->learningObj->info ();
+	
+	private  function recupererInfoSyllabus(){
+		$res = "";
+		if ($this->syllabusManager->syllabus->use_source_file_fl == '0'){
+			//$res = $this->syllabusManager->courseInfo->info ();
+			// for($i =0 ; $i < count($this->syllabusManager->educatorInfo); $i++)
+			// $res = $res . $this->syllabusManager->educatorInfo[$i]->info();
+			for($i = 0; $i < count ( $this->syllabusManager->courseReq ); $i ++)
+				$res = $res . $this->syllabusManager->courseReq [$i]->info ();
+			for($i = 0; $i < count ( $this->syllabusManager->lesson ); $i ++)
+				$res = $res . $this->syllabusManager->lesson [$i]->info ();
+			for($i = 0; $i < count ( $this->syllabusManager->policy ); $i ++)
+				$res = $res . $this->syllabusManager->policy [$i]->info ();
+			for($i = 0; $i < count ( $this->syllabusManager->ressource ); $i ++)
+				$res = $res . $this->syllabusManager->ressource [$i]->info ();
+			for($i = 0; $i < count ( $this->syllabusManager->custumHtmlItem ); $i ++)
+				$res = $res . $this->syllabusManager->custumHtmlItem [$i]->info ();
+			for($i = 0; $i < count ( $this->syllabusManager->custum ); $i ++)
+				$res = $res . $this->syllabusManager->custum [$i]->info ();
+			$res = $res . $this->syllabusManager->learningObj->info ();
+		}
 		return $res;
 	}
 	private function initialiserCourseInfo() {
@@ -3263,14 +3390,16 @@ class WebCTModel extends \GlobalModel {
 		$stid = oci_parse ( $this->connection, $request );
 		oci_execute ( $stid );
 		$res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS );
-		$nomCour = $res ["NAME"];
+		$nomCour = $res["NAME"];
 		$request = "SELECT NAME FROM LEARNING_CONTEXT WHERE ID = '" . $res ["PARENT_ID"] . "'";
-		// echo $request;
 		$stid2 = oci_parse ( $this->connection, $request );
 		oci_execute ( $stid2 );
 		$res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
 		$this->syllabusManager->courseInfo = new CourseInfo ();
-		$this->syllabusManager->courseInfo->_construct ( $nomCour, $res2 ["NAME"] );
+		if($res2 != NULL){
+			$this->syllabusManager->courseInfo->_construct ( $nomCour, $res2 ["NAME"] );
+		}
+		
 	}
 	private function initialiserLearningObjectifGroup($idSyllabus) {
 		$request = "SELECT * FROM SYLLITEM WHERE  SYLLABUS_ID = '" . $idSyllabus . "' AND
@@ -3290,8 +3419,10 @@ class WebCTModel extends \GlobalModel {
 			
 			while ( $res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
 				$learningObjectifRub = new LearningObj_linkRub ();
-				
-				$learningObjectifRub->_construct ( $res2, $res ["TITLE"] );
+				if($res2 != NULL){
+					$learningObjectifRub->_construct ( $res2, $res ["TITLE"] );
+				}
+			
 				// var_dump($learningObjectifRub);
 				$this->syllabusManager->learningObj->learningObject [] = clone $learningObjectifRub;
 			}
@@ -3328,15 +3459,18 @@ class WebCTModel extends \GlobalModel {
 			$stid2 = oci_parse ( $this->connection, $request2 );
 			oci_execute ( $stid2 );
 			while ( $res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
-				if ($res2 ["NAME"] == "syllabus.label.lesson.topics") {
-					$lesson->lessonTopic->_construct ( $res, $res2 );
-				} elseif ($res2 ["NAME"] == "syllabus.label.lesson.readings") {
-					$lesson->lessonReadings->_construct ( $res, $res2 );
-				} elseif ($res2 ["NAME"] == "syllabus.label.lesson.assignments") {
-					$lesson->lessonAssignements->_construct ( $res, $res2 );
-				} elseif ($res2 ["NAME"] == "syllabus.label.lesson.goals") {
-					$lesson->lessonGoals->_construct ( $res, $res2 );
+				if($res2 != NULL){
+					if ($res2 ["NAME"] == "syllabus.label.lesson.topics") {
+						$lesson->lessonTopic->_construct ( $res, $res2 );
+					} elseif ($res2 ["NAME"] == "syllabus.label.lesson.readings") {
+						$lesson->lessonReadings->_construct ( $res, $res2 );
+					} elseif ($res2 ["NAME"] == "syllabus.label.lesson.assignments") {
+						$lesson->lessonAssignements->_construct ( $res, $res2 );
+					} elseif ($res2 ["NAME"] == "syllabus.label.lesson.goals") {
+						$lesson->lessonGoals->_construct ( $res, $res2 );
+					}
 				}
+				
 			}
 			$this->syllabusManager->lesson [] = clone $lesson;
 		}
@@ -3353,11 +3487,14 @@ class WebCTModel extends \GlobalModel {
 			$stid2 = oci_parse ( $this->connection, $request2 );
 			oci_execute ( $stid2 );
 			while ( $res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
-				if ($res2 ["NAME"] == "syllabus.label.requirements.introduction") {
-					$courseReq->courseReqIntro->_construct ( $res, $res2 );
-				} elseif ($res2 ["NAME"] == "syllabus.label.requirements.requirements") {
-					$courseReq->courseReqReqs->_construct ( $res, $res2 );
+				if($res2 != NULL){
+					if ($res2 ["NAME"] == "syllabus.label.requirements.introduction") {
+						$courseReq->courseReqIntro->_construct ( $res, $res2 );
+					} elseif ($res2 ["NAME"] == "syllabus.label.requirements.requirements") {
+						$courseReq->courseReqReqs->_construct ( $res, $res2 );
+					}
 				}
+				
 			}
 			$this->syllabusManager->courseReq [] = clone $courseReq;
 		}
@@ -3374,11 +3511,14 @@ class WebCTModel extends \GlobalModel {
 			$stid2 = oci_parse ( $this->connection, $request2 );
 			oci_execute ( $stid2 );
 			while ( $res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
-				if ($res2 ["NAME"] == "syllabus.label.policy.introduction") {
-					$policy->policyIntro->_construct ( $res, $res2 );
-				} elseif ($res2 ["NAME"] == "syllabus.label.policy.additionalInformation") {
-					$policy->policyAddReq->_construct ( $res, $res2 );
+				if($res2 != NULL){
+					if ($res2 ["NAME"] == "syllabus.label.policy.introduction") {
+						$policy->policyIntro->_construct ( $res, $res2 );
+					} elseif ($res2 ["NAME"] == "syllabus.label.policy.additionalInformation") {
+						$policy->policyAddReq->_construct ( $res, $res2 );
+					}
 				}
+				
 			}
 			$this->syllabusManager->policy [] = clone $policy;
 		}
@@ -3394,7 +3534,10 @@ class WebCTModel extends \GlobalModel {
 			oci_execute ( $stid2 );
 			$res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
 			$customHtml = new CustumHtmlItem ();
-			$customHtml->_construct ( $res, $res2 );
+			if($res2 != NULL){
+				$customHtml->_construct ( $res, $res2 );
+			}
+			
 			$this->syllabusManager->custumHtmlItem [] = clone $customHtml;
 		}
 	}
@@ -3404,12 +3547,15 @@ class WebCTModel extends \GlobalModel {
 		$stid = oci_parse ( $this->connection, $request );
 		oci_execute ( $stid );
 		while ( $res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS ) ) {
-			$request2 = "SELECT * FROM SYLLSUBITEM WHERE  SYLLITEM_ID = '" . $res ["ID"] . "'";
+			$request2 = "SELECT * FROM SYLLSUBITEM WHERE  SYLLITEM_ID = '" . $res["ID"] . "'";
 			$stid2 = oci_parse ( $this->connection, $request2 );
 			oci_execute ( $stid2 );
 			$res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
 			$custom = new Custum ();
-			$custom->_construct ( $res, $res2 );
+			if($res2 != NULL){
+				$custom->_construct ( $res, $res2 );
+			}
+			
 			$this->syllabusManager->custum [] = clone $custom;
 		}
 	}
@@ -3424,7 +3570,10 @@ class WebCTModel extends \GlobalModel {
 			oci_execute ( $stid2 );
 			$res2 = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
 			$resource = new Ressource ();
-			$resource->_construct ( $res, $res2 );
+			if($res2 != NULL){
+				$resource->_construct ( $res, $res2 );
+			}
+			
 			$this->syllabusManager->ressource [] = clone $resource;
 		}
 	}
@@ -3443,5 +3592,19 @@ class WebCTModel extends \GlobalModel {
 		return $res;
 	}
 	
+	private function recupererOriginalContentId($deliveryContextId){
+		$request = "SELECT CMS_LINK.RIGHTOBJECT_ID FROM CMS_CONTENT_ENTRY
+			JOIN CMS_LINK on CMS_LINK.LEFTOBJECT_ID = CMS_CONTENT_ENTRY.ID
+			WHERE CMS_CONTENT_ENTRY.DELIVERY_CONTEXT_ID = ". $deliveryContextId ."
+			and CMS_LINK.LINK_TYPE_ID = '30004' and CMS_CONTENT_ENTRY.CE_TYPE_NAME = 'SYLLABUS_TYPE' ";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute($stid);
+		$res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS );
+		$request = "SELECT ORIGINAL_CONTENT_ID FROM CMS_CONTENT_ENTRY WHERE ID = '". $res["RIGHTOBJECT_ID"] ."'";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute($stid);
+		$res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS );
+		return $res["ORIGINAL_CONTENT_ID"];
+	}
 	
 }

@@ -42,4 +42,6 @@ if(empty($learningContextId)){
 	die();
 }
 
+
+
 ?>
