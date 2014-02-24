@@ -10,6 +10,24 @@ class WebCTModel extends \GlobalModel {
 	
 	private $deliveryContextId;
 		
+	
+	/**
+	 * Used to store all the questions for reusing...
+	 *
+	 * @var Question|Array
+	 */
+	public $allQuestions = array() ;
+	
+	
+	/**
+	 * Used to store all the files for reusing...
+	 *
+	 * @var FileBackup|Array
+	 */
+	public $allFiles = array() ;
+	
+	
+	
 	/* (non-PHPdoc)
 	 * @see GlobalModel::__construct()
 	 */
@@ -21,10 +39,6 @@ class WebCTModel extends \GlobalModel {
 		$this->retrieveGlossaries();
 
 		$this->retrieveQuestions();	
-
-// 		foreach($this->questions->allQuestions as $key=>$value){
-// 			error_log($key.'-->'.$value->name.'<br/>');
-// 		} 
 		
 		$this->retrieveQuizzes();
 		
@@ -87,7 +101,7 @@ class WebCTModel extends \GlobalModel {
 		$this->moodle_backup->original_course_id = $row['ID'];
 		$this->moodle_backup->original_course_fullname = $row['NAME'];//WebCt Course 0";
 		$this->moodle_backup->original_course_shortname = $shortName;//WEBCT-0";
-		$this->moodle_backup->name = "backup-".$this->moodle_backup->original_course_shortname.".mbz"; //test_backup.mbz
+		$this->moodle_backup->name = "backup-".$this->moodle_backup->original_course_shortname."_".time().".mbz"; //test_backup.mbz
 		$this->moodle_backup->settings[0] = new MoodleBackupBasicSetting("root","filename",$this->moodle_backup->name);
 	}
 	
@@ -444,12 +458,15 @@ class WebCTModel extends \GlobalModel {
 		$file->timemodified=time();// 		<timemodified>1390818869</timemodified>
 		$file->source=$row['NAME'];// 		<source>$@NULL@$</source>
 		
-		$file->content = $row["CONTENT"]->load();
+		$content = $row["CONTENT"]->load();
 		
-		$file->contenthash=md5($file->content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
+		$file->contenthash=md5($content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
 		
 		$file->mimetype=$row['MIMETYPE'];// 		<mimetype>document/unknown</mimetype>
 		
+		
+		//Create the real file		
+		$file->createFile($content, $this->repository);
 		
 		//REFERENCE IN THE COURSE FILES
 		$this->files->files[]=$file;		
@@ -609,7 +626,7 @@ class WebCTModel extends \GlobalModel {
 	
 				if($row1['CE_SUBTYPE_NAME']=='MultipleChoice'){ //MULTICHOICE
 					$question = new MultiChoiceQuestion();
-					$question->category = $questionCategory;
+					
 					//$question->id = $row1['ORIGINAL_CONTENT_ID'];
 					//$question->parent= 0;//$questionCategory->id;
 					//$question->name=$row1['NAME'];
@@ -618,28 +635,28 @@ class WebCTModel extends \GlobalModel {
 					//$questionCategory->questions[]=$question;
 				}else if($row1['CE_SUBTYPE_NAME']=='ShortAnswer'){ //
 					$question = new ShortAnswerQuestion();
-					$question->category = $questionCategory;
+					
 				} else if($row1['CE_SUBTYPE_NAME']=='FillInTheBlank'){ //
 					$question = new FillInBlankQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='Matching'){ //
 					$question = new MatchingQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='Paragraph'){ //
 					$question = new ParagraphQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='TrueFalse'){ //
 					$question = new TrueFalseQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='Calculated'){ //
 					$question = new CalculatedQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='CombinationMultipleChoice'){ //
 					$question = new CombinaisonMultiChoiceQuestion();
-					$question->category = $questionCategory;
+					
 				}else if($row1['CE_SUBTYPE_NAME']=='JumbledSentence'){ //
 					$question = new JumbledSentenceQuestion();
-					$question->category = $questionCategory;
+					
 				}
 				if(empty($question)){
 					continue;					
@@ -647,11 +664,12 @@ class WebCTModel extends \GlobalModel {
 				$question->id = $row1['ORIGINAL_CONTENT_ID'];
 				$question->parent= 0;//$questionCategory->id;
 				$question->name=$row1['NAME'];
-					
-				$this->fillQuestion($question, $row1['FILE_CONTENT_ID']);
-				$questionCategory->questions[]=$question;
+
+				$questionCategory->addQuestion($question);
 				
-				$this->questions->allQuestions[$question->id]=$question;
+				$this->fillQuestion($question, $row1['FILE_CONTENT_ID']);
+				
+				$this->allQuestions[(string)$question->id]=$question;
 				
 				//break;
 			}
@@ -905,7 +923,7 @@ class WebCTModel extends \GlobalModel {
 				}
 			}
 		}		
-		$question->shorAnswer = $shortanswer;
+		$question->shortAnswer = $shortanswer;
 		
 		
 		if($isShortAnswer){ //On crée vraiment une short Answer
@@ -1004,7 +1022,7 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswer->id=$shortAnswerQuestion->id;
 				$shortAnswer->usecase = $shortanswer->usecase;
 				
-				$shortAnswerQuestion->shorAnswer = $shortAnswer;
+				$shortAnswerQuestion->shortAnswer = $shortAnswer;
 				
 				//Answers
 				$count2 = 0;
@@ -1092,10 +1110,14 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswerQuestion->questiontext =$shortAnswerQuestionText;
 				
 				//Add the short question to the current category..
-				$question->category->questions[] = $shortAnswerQuestion;
+				$question->category->addQuestion($shortAnswerQuestion);
 				$multiAnswer->sequence[]=$shortAnswerQuestion->id;
 				
-				$this->questions->allQuestions[$shortAnswerQuestion->id]=$shortAnswerQuestion;
+				if($question->id=='3785530001'){
+					echo 'PROBLEMATIC SHORT ANSWER = '.$shortAnswerQuestion->name."---".$shortAnswerQuestion->id. " <br/>";
+				}
+				
+				$this->allQuestions[(string)$shortAnswerQuestion->id]=$shortAnswerQuestion;
 				
 			}
 			$finalText = $finalText."</ol>";
@@ -1198,7 +1220,7 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswer->id=$shortAnswerQuestion->id;
 				$shortAnswer->usecase = $usercase;
 				
-				$shortAnswerQuestion->shorAnswer = $shortAnswer;
+				$shortAnswerQuestion->shortAnswer = $shortAnswer;
 				
 				//Answers
 				$count2 = 0;
@@ -1283,10 +1305,10 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswerQuestion->questiontext =$shortAnswerQuestionText;
 				
 				//Add the short question to the current category..
-				$question->category->questions[] = $shortAnswerQuestion;
+				$question->category->addQuestion($shortAnswerQuestion);
 				$multiAnswer->sequence[]=$shortAnswerQuestion->id;
 				
-				$this->questions->allQuestions[$shortAnswerQuestion->id]=$shortAnswerQuestion;
+				$this->allQuestions[(string)$shortAnswerQuestion->id]=$shortAnswerQuestion;
 				
 			}
 		}
@@ -1915,10 +1937,10 @@ class WebCTModel extends \GlobalModel {
 			
 			
 			//Add the short question to the current category..
-			$question->category->questions[] = $multiChoiceQuestion;
+			$question->category->addQuestion($multiChoiceQuestion);
 			$multiAnswer->sequence[]=$multiChoiceQuestion->id;
 			
-			$this->questions->allQuestions[$multiChoiceQuestion->id]=$multiChoiceQuestion;
+			$this->allQuestions[(string)$multiChoiceQuestion->id]=$multiChoiceQuestion;
 				
 		}
 				
@@ -2431,7 +2453,7 @@ class WebCTModel extends \GlobalModel {
 			$randomQuestion->createdby=$USER->id;//<createdby>2</createdby>
 			$randomQuestion->modifiedby=$USER->id;//<modifiedby>2</modifiedby>
 
-			$questionCategory->questions[]=$randomQuestion;
+			$questionCategory->addQuestion($randomQuestion);
 			
 			
 			//Add the random to the quiz
@@ -2456,7 +2478,8 @@ class WebCTModel extends \GlobalModel {
 			oci_execute($stid1);
 			$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
 						
-			$this->addCloneQuestionToCategory($this->questions->allQuestions[$row1['QUESTION_ID']], $questionCategory);				
+			//echo 'QUESTION ID = '.$row1['QUESTION_ID']."<br/>";
+			$this->addCloneQuestionToCategory($this->allQuestions[(string)$row1['QUESTION_ID']], $questionCategory);				
 				
 			$request = "SELECT * FROM ASSMT_SECTION_ELEMENT
 						WHERE SECTION_PARENT_ID='".$sectionId."' AND PREVIOUS_ELEMENT_ID='".$row['ID']."'";
@@ -2476,6 +2499,7 @@ class WebCTModel extends \GlobalModel {
 	 * @return Question
 	 */
 	public function addCloneQuestionToCategory($question,&$questionCategory){
+		
 		$cloneQuestion = clone $question;
 		
 		$cloneQuestion->id= $this->getNextId();
@@ -2497,10 +2521,9 @@ class WebCTModel extends \GlobalModel {
 
 			$sequence = array();
 			
-			echo $question->name.' - '.$question->id.'<br/>' ;
 			foreach ($cloneQuestion->multiAnswer->sequence as $questionId){
 				
-				$originalSubQuestion = $this->questions->allQuestions[(string)$questionId];
+				$originalSubQuestion = $this->allQuestions[(string)$questionId];
 				$subQuestion = clone $originalSubQuestion;
 				$subQuestion->id = $this->getNextId();
 				$subQuestion->parent = $cloneQuestion->id;
@@ -2516,15 +2539,16 @@ class WebCTModel extends \GlobalModel {
 					}
 				}
 				
-				$questionCategory->questions[]=$subQuestion;
+				$questionCategory->addQuestion($subQuestion);
 				
 				$sequence[]= $subQuestion->id;
-			}
+			}			
 			
 			$cloneQuestion->multiAnswer->sequence = $sequence;
+			
 		}
 		
-		$questionCategory->questions[]=$cloneQuestion;
+		$questionCategory->addQuestion($cloneQuestion);
 		
 		return $cloneQuestion;
 	}
@@ -2871,13 +2895,16 @@ class WebCTModel extends \GlobalModel {
 		$file->timecreated=time();// 		<timecreated>1390818824</timecreated>
 		$file->timemodified=time();// 		<timemodified>1390818869</timemodified>
 		$file->source=$fileName;// 		<source>$@NULL@$</source>
-		$file->content = $fileContent;
+		//$file->content = $fileContent;
 	
-		$file->contenthash=md5($file->content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
+		$file->contenthash=md5($fileContent);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
 	
 		$file->mimetype=$fileMimeType;// 		<mimetype>document/unknown</mimetype>
 	
-				
+
+		//Create the real file
+		$file->createFile($fileContent, $this->repository);
+		
 		switch ($mode){
 			case 1 :
 				$item->filesIds[]=$repository->id;

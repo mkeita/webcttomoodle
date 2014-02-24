@@ -35,12 +35,9 @@ require_once 'classes/model/activities/Module.php';
 require_once 'classes/model/activities/Quiz.php';
 require_once 'classes/model/activities/Assignment.php';
 require_once 'classes/model/activities/Grading.php';
-require_once 'classes/model/activities/ActivityPage.php';
-require_once 'classes/model/activities/ActivityRessource.php';
+require_once 'classes/model/activities/Folder.php';
 
 require_once 'classes/utils/HtmlContentClass.php';
-
-require_once 'classes/model/Syllabus.php';
 
 
 defined('MOODLE_INTERNAL') || die();
@@ -125,11 +122,12 @@ abstract class GlobalModel implements \IBackupModel {
 	 */
 	public $activities = array();
 	
+	
+	
 	/**
-	 *
-	 * @var SyllabusManage
+	 * @var string
 	 */
-	public $syllabusManager;
+	public $repository;
 
 	protected $idCount = 1;
 	
@@ -156,8 +154,14 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		$this->initializeGradeBookModel();
 		
-		$this->initializeSyllabusModel();
+		$dir = sys_get_temp_dir().mb_substr($this->moodle_backup->name, 0, -4);
 		
+		if(is_dir($dir)){
+			rrmdir($dir);
+		}
+		mkdir($dir);
+		
+		$this->repository = $dir;
 	}
 	
 	
@@ -171,6 +175,7 @@ abstract class GlobalModel implements \IBackupModel {
 	 */
 	public function initializeMoodleBackupModel(){
 		global $CFG;//, $DB;
+		
 		
 		$moodleBackup = new MoodleBackup();
 				
@@ -415,11 +420,6 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->gradebook = $gradebook;
 	}
 	
-	public function initializeSyllabusModel(){
-		$this->syllabusManager = new SyllabusManage();
-		$this->syllabusManager->_construct();
-	
-	}
 	
 	
 	/**
@@ -1028,6 +1028,9 @@ abstract class GlobalModel implements \IBackupModel {
 	
 	
 	public function toXMLFile($repository){
+		
+		$repository = $this->repository;
+		
 		$this->moodle_backup->toXMLFile($repository);
 		$this->roles->toXMLFile($repository);
 		$this->users->toXMLFile($repository);
@@ -1039,7 +1042,6 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->groups->toXMLFile($repository);
 		$this->outcomes->toXMLFile($repository);
 		$this->scales->toXMLFile($repository);
-		
 		
 		//COURSE REPOSITORY
 		$dir = $repository.'/course';
@@ -1111,7 +1113,6 @@ abstract class GlobalModel implements \IBackupModel {
 				
 			}else if ($activityModel instanceof AssignmentModel) {
 				$activityDir = $dir.'/assign_'.$activityModel->module->id;
-				
 			
 				if(is_dir($activityDir)){
 					rrmdir($activityDir);
@@ -1120,28 +1121,19 @@ abstract class GlobalModel implements \IBackupModel {
 			
 				$activityModel->assignment->toXMLFile($activityDir);
 				$activityModel->grading->toXMLFile($activityDir);
-			}else if($activityModel instanceof PageModel){
-				$activityDir = $dir.'/page_'.$activityModel->module->id;			
-				echo $activityDir . '</br>';
+				
+			}else if ($activityModel instanceof FolderModel) {
+				$activityDir = $dir.'/folder_'.$activityModel->module->id;
+			
 				if(is_dir($activityDir)){
 					rrmdir($activityDir);
 				}
 				mkdir($activityDir);
-				
-				$activityModel->page->toXMLFile($activityDir);			
-			}else if ($activityModel instanceof RessourceModel){
-				$activityDir = $dir.'/resource_'.$activityModel->module->id;
-				echo $activityDir . '</br>';
-				if(is_dir($activityDir)){
-					rrmdir($activityDir);
-				}
-				mkdir($activityDir);
-				
-				$activityModel->ressource->toXMLFile($activityDir);
+			
+				$activityModel->folder->toXMLFile($activityDir);
 			}
 			
 			$activityModel->calendar->toXMLFile($activityDir);
-			
 			$activityModel->comments->toXMLFile($activityDir);
 			$activityModel->completion->toXMLFile($activityDir);
 			$activityModel->filters->toXMLFile($activityDir);
@@ -1149,11 +1141,21 @@ abstract class GlobalModel implements \IBackupModel {
 			$activityModel->inforef->toXMLFile($activityDir);
 			$activityModel->module->toXMLFile($activityDir);
 			$activityModel->roles->toXMLFile($activityDir);
-			
-			
 		}
 		
 		
+	}
+	
+	public function toMBZArchive($directory){
+		
+		echo '<br/>REPOSITORY = '.$this->repository."<br/>";
+		
+		$this->toXMLFile($this->repository);
+		
+		//zip the repertory to .mbz
+		$packer = get_file_packer('application/vnd.moodle.backup');
+		
+		$packer->archive_to_pathname(array(null=>$this->repository), $directory."/".$this->moodle_backup->name);
 	}
 	
 	
@@ -1319,18 +1321,10 @@ class AssignmentModel extends ActivityModel {
 
 }
 
-
-class PageModel extends ActivityModel{
+class FolderModel extends ActivityModel {
 	/**
-	*@var ActivityPage
-	*/
-	public $page;
-}
-
-class RessourceModel extends ActivityModel{
-	
-	/**
-	 * @var ActivityRessource
+	 * @var ActivityFolder
 	 */
-	public $ressource;
+	public $folder;
+
 }

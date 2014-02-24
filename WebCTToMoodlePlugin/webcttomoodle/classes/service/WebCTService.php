@@ -40,28 +40,8 @@ class WebCTService {
 	public function createBackup($model,$settings){
 		
 		$repository = "D:/Documents/ULB/Moodle Migration/MoodleBackups";
-		
-		//Create the backup repository
-		$dir = $repository.'/'.mb_substr($model->moodle_backup->name, 0, -4);
-		
-		if(is_dir($dir)){
-			rrmdir($dir);
-		}
-		mkdir($dir);
-		
-		$model->toXMLFile($dir);
-		
-		
-		//$model->moodle_backup->toXMLFile($repository);
-		//$model->moodle_backup->toXMLFile($repository);
-		
-		
-		//zip the repertory to .mbz
-		$packer = get_file_packer('application/vnd.moodle.backup');
-		
-		$packer->archive_to_pathname(array(null=>$dir), $dir.'.mbz');
-		
-		
+				
+		$model->toMBZArchive($repository);
 	}
 	
 }

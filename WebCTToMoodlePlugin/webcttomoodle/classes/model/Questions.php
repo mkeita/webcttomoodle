@@ -7,13 +7,7 @@ class Questions implements \IBackupModel {
 	 * @var QuestionCategory|Array
 	 */
 	public $question_categories = array() ;
-	
-	
-	/**
-	 * @var Question|Array
-	 */
-	public $allQuestions = array() ;
-	
+		
 	
 	public function toXMLFile($repository) {
 		$writer = new XMLWriter();
@@ -47,6 +41,7 @@ class Questions implements \IBackupModel {
 		$writer->endDocument();
 		
 	}
+	
 }
 
 
@@ -68,7 +63,16 @@ class QuestionCategory{
 	/**
 	 * @var Question|Array
 	 */
-	public $questions = array() ;	
+	public $questions = array() ;
+
+	
+	/**
+	 * @param Question $question
+	 */
+	public function addQuestion($question){
+		$question->category = $this;
+		$this->questions[]= $question;
+	}
 }
 
 abstract class Question {
@@ -98,6 +102,11 @@ abstract class Question {
 	 * @var QuestionCategory
 	 */
 	public $category;
+	
+	
+	public function __clone(){
+		$category = null;
+	}
 	
 	/**
 	 * @param XMLWriter $writer
@@ -147,6 +156,13 @@ class MultiChoiceQuestion extends Question {
 	
 	public function __construct(){
 		$this->qtype = "multichoice";
+	}
+	
+	public function __clone(){
+		parent::__clone();
+		
+		$this->answers = array_merge_recursive(array(), $this->answers);
+		$this->multiChoice = clone $this->multiChoice;
 	}
 
 	/* (non-PHPdoc)
@@ -241,12 +257,19 @@ class ShortAnswerQuestion extends Question {
 	/**
 	 * @var ShortAnswer
 	*/
-	public $shorAnswer;
+	public $shortAnswer;
 
 	public function __construct(){
 		$this->qtype = "shortanswer";
 	}
 
+	public function __clone(){
+		parent::__clone();
+	
+		$this->answers = array_merge_recursive(array(),$this->answers);
+		$this->shortAnswer = clone $this->shortAnswer;
+	}
+	
 	/* (non-PHPdoc)
 	 * @see Question::toXMLFile()
 	*/
@@ -255,7 +278,7 @@ class ShortAnswerQuestion extends Question {
 			parent::toXMLFile($writer);
 	
 			$writer->startElement('plugin_qtype_shortanswer_question');
-				$this->shorAnswer->toXMLFile($writer);
+				$this->shortAnswer->toXMLFile($writer);
 				$writer->startElement('answers');
 				foreach ($this->answers as $answer){
 					$answer->toXMLFile($writer);
@@ -294,7 +317,11 @@ class MultiAnswerQuestion extends Question {
 		$this->qtype = "multianswer";
 	}
 
+	public function __clone(){
+		parent::__clone();
 	
+		$this->multiAnswer = clone $this->multiAnswer;
+	}
 	/**
 	 * @param Question $question
 	 */
@@ -351,6 +378,10 @@ class MultiAnswer {
 	 */
     public $sequence = array();//        <sequence>3606,3607,3608,3609,3610</sequence>
 
+    public function __clone(){
+    	$this->sequence = array_merge_recursive(array(), $this->sequence);
+    }
+    
 	public function toXMLFile(&$writer){
 		$writer->startElement('multianswer');
 			$writer->writeAttribute('id',$this->id);
@@ -387,6 +418,11 @@ class MatchingQuestion extends Question {
 		$this->qtype = "match";
 	}
 	
+	public function __clone(){
+		parent::__clone();
+	
+		$this->matches = clone $this->matches;
+	}
 
 	/* (non-PHPdoc)
 	 * @see Question::toXMLFile()
@@ -419,6 +455,11 @@ class Matches {
 	public $matches = array();
 	
 
+	public function __clone(){
+		$this->matchOptions = clone $this->matchOptions;		
+		$this->matches = array_merge_recursive(array(), $this->matches);
+	}
+	
 	public function toXMLFile(&$writer){
 		$writer->startElement('matchoptions');
 			$writer->writeAttribute('id',$this->matchOptions->id);
@@ -482,7 +523,12 @@ class ParagraphQuestion extends Question {
 		$this->qtype = "essay";
 	}
 
-
+	public function __clone(){
+		parent::__clone();
+	
+		$this->essay = clone $this->essay;
+	}
+	
 	/* (non-PHPdoc)
 	 * @see Question::toXMLFile()
 	*/
@@ -539,6 +585,13 @@ class TrueFalseQuestion extends Question {
 		$this->qtype = "truefalse";
 	}
 
+	
+	public function __clone(){
+		parent::__clone();
+	
+		$this->answers = array_merge_recursive(array(), $this->answers);
+		$this->trueFalseAnswer = clone $this->trueFalseAnswer;
+	}
 	/* (non-PHPdoc)
 	 * @see Question::toXMLFile()
 	*/
@@ -618,6 +671,17 @@ class CalculatedQuestion extends Question {
 		$this->qtype = "calculated";
 	}
 
+	public function __clone(){
+		parent::__clone();
+	
+		$this->answers = array_merge_recursive(array(), $this->answers);
+		$this->numericalUnits = array_merge_recursive(array(), $this->numericalUnits);
+		$this->numericalOptions = array_merge_recursive(array(), $this->numericalOptions);
+		$this->datasetDefinitions = array_merge_recursive(array(), $this->datasetDefinitions);
+		$this->calculatedRecords = array_merge_recursive(array(), $this->calculatedRecords);
+		$this->calculatedOptions = array_merge_recursive(array(), $this->calculatedOptions);
+	}
+	
 	/* (non-PHPdoc)
 	 * @see Question::toXMLFile()
 	*/
@@ -728,6 +792,11 @@ class DatasetDefinition {
 	 */
 	public $datasetItems = array();
 
+	public function __clone(){
+	
+		$this->datasetItems = array_merge_recursive(array(), $this->datasetItems);
+	}
+	
 	public function toXMLFile(&$writer){
 		$writer->startElement('dataset_definition');
 			$writer->writeAttribute('id',$this->id);
