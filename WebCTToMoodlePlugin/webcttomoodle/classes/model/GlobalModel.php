@@ -159,6 +159,12 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		$this->initializeSyllabusModel();
 		
+		if(is_dir($dir)){
+			rrmdir($dir);
+		}
+		mkdir($dir);
+		
+		$this->repository = $dir;
 	}
 	
 	
