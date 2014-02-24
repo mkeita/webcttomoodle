@@ -10,6 +10,24 @@ class WebCTModel extends \GlobalModel {
 	
 	private $deliveryContextId;
 		
+	
+	/**
+	 * Used to store all the questions for reusing...
+	 *
+	 * @var Question|Array
+	 */
+	public $allQuestions = array() ;
+	
+	
+	/**
+	 * Used to store all the files for reusing...
+	 *
+	 * @var FileBackup|Array
+	 */
+	public $allFiles = array() ;
+	
+	
+	
 	/* (non-PHPdoc)
 	 * @see GlobalModel::__construct()
 	 */
@@ -21,10 +39,6 @@ class WebCTModel extends \GlobalModel {
 		$this->retrieveGlossaries();
 
 		$this->retrieveQuestions();	
-
-		foreach($this->questions->allQuestions as $key=>$value){
-			error_log($key.'-->'.$value->name.'<br/>');
-		} 
 		
 		$this->retrieveQuizzes();
 		
@@ -86,7 +100,7 @@ class WebCTModel extends \GlobalModel {
 		$this->moodle_backup->original_course_id = $row['ID'];
 		$this->moodle_backup->original_course_fullname = $row['NAME'];//WebCt Course 0";
 		$this->moodle_backup->original_course_shortname = $shortName;//WEBCT-0";
-		$this->moodle_backup->name = "backup-".$this->moodle_backup->original_course_shortname.".mbz"; //test_backup.mbz
+		$this->moodle_backup->name = "backup-".$this->moodle_backup->original_course_shortname."_".time().".mbz"; //test_backup.mbz
 		$this->moodle_backup->settings[0] = new MoodleBackupBasicSetting("root","filename",$this->moodle_backup->name);
 	}
 	
@@ -443,12 +457,15 @@ class WebCTModel extends \GlobalModel {
 		$file->timemodified=time();// 		<timemodified>1390818869</timemodified>
 		$file->source=$row['NAME'];// 		<source>$@NULL@$</source>
 		
-		$file->content = $row["CONTENT"]->load();
+		$content = $row["CONTENT"]->load();
 		
-		$file->contenthash=md5($file->content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
+		$file->contenthash=md5($content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
 		
 		$file->mimetype=$row['MIMETYPE'];// 		<mimetype>document/unknown</mimetype>
 		
+		
+		//Create the real file		
+		$file->createFile($content, $this->repository);
 		
 		//REFERENCE IN THE COURSE FILES
 		$this->files->files[]=$file;		
@@ -640,7 +657,7 @@ class WebCTModel extends \GlobalModel {
 				
 				$this->fillQuestion($question, $row1['FILE_CONTENT_ID']);
 				
-				$this->questions->allQuestions[(string)$question->id]=$question;
+				$this->allQuestions[(string)$question->id]=$question;
 				
 				//break;
 			}
@@ -1088,7 +1105,7 @@ class WebCTModel extends \GlobalModel {
 					echo 'PROBLEMATIC SHORT ANSWER = '.$shortAnswerQuestion->name."---".$shortAnswerQuestion->id. " <br/>";
 				}
 				
-				$this->questions->allQuestions[(string)$shortAnswerQuestion->id]=$shortAnswerQuestion;
+				$this->allQuestions[(string)$shortAnswerQuestion->id]=$shortAnswerQuestion;
 				
 			}
 			$finalText = $finalText."</ol>";
@@ -1279,7 +1296,7 @@ class WebCTModel extends \GlobalModel {
 				$question->category->addQuestion($shortAnswerQuestion);
 				$multiAnswer->sequence[]=$shortAnswerQuestion->id;
 				
-				$this->questions->allQuestions[(string)$shortAnswerQuestion->id]=$shortAnswerQuestion;
+				$this->allQuestions[(string)$shortAnswerQuestion->id]=$shortAnswerQuestion;
 				
 			}
 		}
@@ -1911,7 +1928,7 @@ class WebCTModel extends \GlobalModel {
 			$question->category->addQuestion($multiChoiceQuestion);
 			$multiAnswer->sequence[]=$multiChoiceQuestion->id;
 			
-			$this->questions->allQuestions[(string)$multiChoiceQuestion->id]=$multiChoiceQuestion;
+			$this->allQuestions[(string)$multiChoiceQuestion->id]=$multiChoiceQuestion;
 				
 		}
 				
@@ -2449,8 +2466,8 @@ class WebCTModel extends \GlobalModel {
 			oci_execute($stid1);
 			$row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
 						
-			echo 'QUESTION ID = '.$row1['QUESTION_ID']."<br/>";
-			$this->addCloneQuestionToCategory($this->questions->allQuestions[(string)$row1['QUESTION_ID']], $questionCategory);				
+			//echo 'QUESTION ID = '.$row1['QUESTION_ID']."<br/>";
+			$this->addCloneQuestionToCategory($this->allQuestions[(string)$row1['QUESTION_ID']], $questionCategory);				
 				
 			$request = "SELECT * FROM ASSMT_SECTION_ELEMENT
 						WHERE SECTION_PARENT_ID='".$sectionId."' AND PREVIOUS_ELEMENT_ID='".$row['ID']."'";
@@ -2470,12 +2487,6 @@ class WebCTModel extends \GlobalModel {
 	 * @return Question
 	 */
 	public function addCloneQuestionToCategory($question,&$questionCategory){
-		if($question->id=='3785530001'){
-			echo '<br/>------------------------------------------------------- <br/>';
-			echo $question->multiAnswer->sequence;
-			echo '<br/>------------------------------------------------------- <br/>';
-		
-		}
 		
 		$cloneQuestion = clone $question;
 		
@@ -2498,21 +2509,9 @@ class WebCTModel extends \GlobalModel {
 
 			$sequence = array();
 			
-			echo $question->name.' - '.$question->id.'<br/>' ;
-			
-			if($question->id=='3785530001'){
-				echo '------------------------------------------------------- <br/>';
-				echo var_dump($question->multiAnswer->sequence);
-				echo '------------------------------------------------------- <br/>';
-				echo var_dump($cloneQuestion->multiAnswer->sequence);
-				echo '------------------------------------------------------- <br/>';
-				echo  var_dump($this->questions->allQuestions["3785530001"]->multiAnswer->sequence);
-				echo '------------------------------------------------------- <br/>';
-				
-			}
 			foreach ($cloneQuestion->multiAnswer->sequence as $questionId){
 				
-				$originalSubQuestion = $this->questions->allQuestions[(string)$questionId];
+				$originalSubQuestion = $this->allQuestions[(string)$questionId];
 				$subQuestion = clone $originalSubQuestion;
 				$subQuestion->id = $this->getNextId();
 				$subQuestion->parent = $cloneQuestion->id;
@@ -2535,15 +2534,6 @@ class WebCTModel extends \GlobalModel {
 			
 			$cloneQuestion->multiAnswer->sequence = $sequence;
 			
-			if($question->id=='3785530001'){
-				echo '------------------------------------------------------- <br/>';
-				echo var_dump($question->multiAnswer->sequence);
-				echo '------------------------------------------------------- <br/>';
-				echo var_dump($cloneQuestion->multiAnswer->sequence);
-				echo '------------------------------------------------------- <br/>';
-				echo  var_dump($this->questions->allQuestions["3785530001"]->multiAnswer->sequence);
-				echo '------------------------------------------------------- <br/>';
-			}
 		}
 		
 		$questionCategory->addQuestion($cloneQuestion);
@@ -2893,13 +2883,16 @@ class WebCTModel extends \GlobalModel {
 		$file->timecreated=time();// 		<timecreated>1390818824</timecreated>
 		$file->timemodified=time();// 		<timemodified>1390818869</timemodified>
 		$file->source=$fileName;// 		<source>$@NULL@$</source>
-		$file->content = $fileContent;
+		//$file->content = $fileContent;
 	
-		$file->contenthash=md5($file->content);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
+		$file->contenthash=md5($fileContent);// 		<contenthash>da39a3ee5e6b4b0d3255bfef95601890afd80709</contenthash>
 	
 		$file->mimetype=$fileMimeType;// 		<mimetype>document/unknown</mimetype>
 	
-				
+
+		//Create the real file
+		$file->createFile($fileContent, $this->repository);
+		
 		switch ($mode){
 			case 1 :
 				$item->filesIds[]=$repository->id;

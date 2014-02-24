@@ -123,6 +123,11 @@ abstract class GlobalModel implements \IBackupModel {
 	public $activities = array();
 	
 	
+	
+	/**
+	 * @var string
+	 */
+	public $repository;
 
 	protected $idCount = 1;
 	
@@ -149,6 +154,14 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		$this->initializeGradeBookModel();
 		
+		$dir = sys_get_temp_dir().mb_substr($this->moodle_backup->name, 0, -4);
+		
+		if(is_dir($dir)){
+			rrmdir($dir);
+		}
+		mkdir($dir);
+		
+		$this->repository = $dir;
 	}
 	
 	
@@ -1015,6 +1028,9 @@ abstract class GlobalModel implements \IBackupModel {
 	
 	
 	public function toXMLFile($repository){
+		
+		$repository = $this->repository;
+		
 		$this->moodle_backup->toXMLFile($repository);
 		$this->roles->toXMLFile($repository);
 		$this->users->toXMLFile($repository);
@@ -1128,6 +1144,18 @@ abstract class GlobalModel implements \IBackupModel {
 		}
 		
 		
+	}
+	
+	public function toMBZArchive($directory){
+		
+		echo '<br/>REPOSITORY = '.$this->repository."<br/>";
+		
+		$this->toXMLFile($this->repository);
+		
+		//zip the repertory to .mbz
+		$packer = get_file_packer('application/vnd.moodle.backup');
+		
+		$packer->archive_to_pathname(array(null=>$this->repository), $directory."/".$this->moodle_backup->name);
 	}
 	
 	

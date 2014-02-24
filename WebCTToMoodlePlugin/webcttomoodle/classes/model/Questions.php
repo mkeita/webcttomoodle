@@ -7,13 +7,7 @@ class Questions implements \IBackupModel {
 	 * @var QuestionCategory|Array
 	 */
 	public $question_categories = array() ;
-	
-	
-	/**
-	 * @var Question|Array
-	 */
-	public $allQuestions = array() ;
-	
+		
 	
 	public function toXMLFile($repository) {
 		$writer = new XMLWriter();

@@ -89,4 +89,18 @@ class FileBackup {
 	
 	public $content; //Binary Content
 
+	public function createFile($content,$repository){
+
+		$dir = $repository.'/files/'.substr($this->contenthash,0,2);
+		if(!is_dir($dir)){
+			mkdir($dir,0777, true);
+		}
+		$filename = $dir.'/'.$this->contenthash;
+		if(!is_file($filename)){
+			$fileContent = fopen($filename,'x');
+			fwrite($fileContent, $content);
+			fclose($fileContent);
+		}
+	}
+	
 }
