@@ -1345,6 +1345,8 @@ class AssignmentModel extends ActivityModel {
 }
 
 class FolderModel extends ActivityModel {
+	public $folder;
+}
 
 class PageModel extends ActivityModel{
 	/**
