@@ -46,6 +46,7 @@ class WebCTModel extends \GlobalModel {
 		
 		$this->retrieveFolders();
 		
+		$this->retrieveWebLinks();
 		
 		oci_close($this->connection);
 	}
@@ -3026,6 +3027,150 @@ class WebCTModel extends \GlobalModel {
 		
 		}		
 		
+	}
+	
+	/***************************************************************************************************************
+	 * WEB LINKS
+	*/
+	
+	public function retrieveWebLinks(){
+	
+		
+		global $USER;
+		
+		$bookId = $this->getNextId(); 
+		
+		//Glossary
+		$bookModel = new BookModel();
+		$bookModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$bookModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$bookModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$bookModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+		$bookModel->grades = new ActivityGradeBook();
+		$bookModel->calendar = new Events();
+		
+		$bookModel->module = $this->createModule($bookId,"book","2013110500");
+		
+		$bookModel->book = $this->createWebLinksActivityBook($bookId, $bookModel->module);
+		
+		
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$bookModel->module->id;
+		$activity->sectionid=$this->sections[0]->section->id;
+		$activity->modulename=$bookModel->module->modulename;
+		$activity->title=$bookModel->book->name;
+		$activity->directory="activities/book_".$bookModel->book->bookId;
+		
+		$this->moodle_backup->contents->activities[] = $activity;
+		
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","book_".$bookModel->book->bookId,"book_".$bookModel->book->bookId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","book_".$bookModel->book->bookId,"book_".$bookModel->book->bookId."_userinfo",1);
+		
+		$inforRef = new InfoRef();
+		$inforRef->userids[]=$USER->id;
+		//$inforRef->fileids=$bookModel->folder->filesIds;
+		
+		$bookModel->inforef = $inforRef;
+		
+		$this->activities[] = $bookModel;
+		
+		$this->sections[0]->section->sequence[]= $bookModel->book->bookId;
+	}
+	
+	
+	
+	
+	/**
+	 * @param unknown $bookId
+	 * @param Module $module
+	 * 
+	 * @return ActivityBook
+	 * 
+	 */
+	public function createWebLinksActivityBook($bookId, $module){
+		$book  = new ActivityBook();
+		$book->id = $bookId;
+		$book->moduleid =$module->id;
+		$book->modulename =$module->modulename;
+		$book->contextid=$this->getNextId();
+		$book->bookId = $bookId;
+		
+		$book->name= utf8_encode("Liens Webs");
+		$book->intro = utf8_encode("Liens Webs classifié");
+		
+		$book->introformat=1;
+		$book->numbering=0;//1 = number
+		$book->customtitles=0;
+		$book->timecreated=time();
+		$book->timemodified=time();
+		
+		$request = "SELECT CMS_CONTENT_ENTRY.ID, CMS_CONTENT_ENTRY.NAME, CMS_CONTENT_ENTRY.DESCRIPTION FROM CMS_CONTENT_ENTRY LEFT JOIN CO_INVENTORY_ORDER ON CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID=CO_INVENTORY_ORDER.OBJECT_ID WHERE CMS_CONTENT_ENTRY.CE_TYPE_NAME='WEBLINKSCATEGORY' AND CMS_CONTENT_ENTRY.DELETED_FLAG=0 AND CMS_CONTENT_ENTRY.DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' ORDER BY CO_INVENTORY_ORDER.INVENTORY_ORDER";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		
+		$count = 0;
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+			$count++;
+			$webLinksCategoryId = $row['ID'];
+			$chapter = new Chapter();
+			$chapter->id=$count;
+			$chapter->pagenum = $count;
+			$chapter->subchapter=0;
+			$chapter->title = $row['NAME'];
+			
+			
+			$content ="";
+			$description = $row['DESCRIPTION'];
+			if(empty($description)){
+				$content ="";
+			}else {
+				$content =$description->load().'<br/><br/>';
+			}
+
+			$request1 = "SELECT CMS_CONTENT_ENTRY.NAME, CMS_CONTENT_ENTRY.DESCRIPTION, CO_URL.LINK, CO_URL.OPENINNEWWINDOWFLAG 
+						FROM CMS_CONTENT_ENTRY 
+							LEFT JOIN CO_URL ON CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID=CO_URL.ID 
+						WHERE CE_TYPE_NAME='URL_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' AND PARENT_ID='".$row['ID']."'";
+			$stid1 = oci_parse($this->connection,$request1);
+			oci_execute($stid1);
+			
+			$content .="<table>";
+			//Retrieve All the links..
+			while ($row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)){
+				$urlDescription ="";
+				if(!empty($row['DESCRIPTION'])){
+					$urlDescription =$row['DESCRIPTION']->load();
+				}
+				
+				$target="_self";
+				if($row1['OPENINNEWWINDOWFLAG']==1){
+					$target="_blank";
+				}
+				
+				$urlRow = "<tr>"
+					."<td>"."</td>"
+					."<td valign='top' width='50%'>"
+						."<label><b><a target='".$target."' href='".$row1['LINK']."'>".$row1['NAME']."</a></b></label><br/>"
+						."<div>".$urlDescription."</div>"
+					."</td>"
+					."<td valign='top' width='50%'>".$row1['LINK']."</td>"
+				."</tr>";
+				$content .= $urlRow.'<br/>';
+						
+			}
+			$content .="</table>";
+			
+			$chapter->content = $content;
+			$chapter->contentformat=1;
+			$chapter->hidden=0;
+			$chapter->timemodified=time();
+			$chapter->importsrc="";
+			
+			$book->chapters[]=$chapter;
+		}
+		
+		return $book;
 	}
 	
 	
