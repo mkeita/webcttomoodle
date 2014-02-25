@@ -3093,7 +3093,10 @@ class WebCTModel extends \GlobalModel {
 		$book->timecreated=time();
 		$book->timemodified=time();
 		
-		$request = "SELECT CMS_CONTENT_ENTRY.ID, CMS_CONTENT_ENTRY.NAME, CMS_CONTENT_ENTRY.DESCRIPTION FROM CMS_CONTENT_ENTRY LEFT JOIN CO_INVENTORY_ORDER ON CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID=CO_INVENTORY_ORDER.OBJECT_ID WHERE CMS_CONTENT_ENTRY.CE_TYPE_NAME='WEBLINKSCATEGORY' AND CMS_CONTENT_ENTRY.DELETED_FLAG=0 AND CMS_CONTENT_ENTRY.DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' ORDER BY CO_INVENTORY_ORDER.INVENTORY_ORDER";
+		$request = "SELECT CMS_CONTENT_ENTRY.ID, CMS_CONTENT_ENTRY.NAME, CMS_CONTENT_ENTRY.DESCRIPTION 
+					FROM CMS_CONTENT_ENTRY 
+						LEFT JOIN CO_INVENTORY_ORDER ON CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID=CO_INVENTORY_ORDER.OBJECT_ID 
+					WHERE CMS_CONTENT_ENTRY.CE_TYPE_NAME='WEBLINKSCATEGORY' AND CMS_CONTENT_ENTRY.DELETED_FLAG=0 AND CMS_CONTENT_ENTRY.DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' ORDER BY CO_INVENTORY_ORDER.INVENTORY_ORDER";
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
 		
@@ -3119,13 +3122,15 @@ class WebCTModel extends \GlobalModel {
 			$request1 = "SELECT CMS_CONTENT_ENTRY.NAME, CMS_CONTENT_ENTRY.DESCRIPTION, CO_URL.LINK, CO_URL.OPENINNEWWINDOWFLAG 
 						FROM CMS_CONTENT_ENTRY 
 							LEFT JOIN CO_URL ON CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID=CO_URL.ID 
-						WHERE CE_TYPE_NAME='URL_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' AND PARENT_ID='".$row['ID']."'";
+						WHERE CE_TYPE_NAME='URL_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' AND PARENT_ID='".$row['ID']."' AND CO_URL.LINK!='/importexport/alertObject.jsp?type=0'";
 			$stid1 = oci_parse($this->connection,$request1);
 			oci_execute($stid1);
 			
 			$content .="<table>";
+			
 			//Retrieve All the links..
 			while ($row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)){
+	
 				$urlDescription ="";
 				if(!empty($row['DESCRIPTION'])){
 					$urlDescription =$row['DESCRIPTION']->load();
@@ -3154,8 +3159,9 @@ class WebCTModel extends \GlobalModel {
 			$chapter->hidden=0;
 			$chapter->timemodified=time();
 			$chapter->importsrc="";
-			
+						
 			$book->chapters[]=$chapter;
+			
 		}
 		
 		return $book;
