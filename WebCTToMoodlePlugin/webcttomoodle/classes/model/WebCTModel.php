@@ -476,6 +476,7 @@ class WebCTModel extends \GlobalModel {
 	 * MODE 7 = Question file - Match subquestion
 	 * MODE 8 = Question file - Essay grader info
 	 * MODE 9 = Assignment file - Assignment description
+	 * MODE 10 = Ressource file
 	 * @param unknown $item
 	 * @param unknown $parent
 	 */
@@ -543,6 +544,13 @@ class WebCTModel extends \GlobalModel {
 				$itemId=0;
 				$contextId=$item->contextid;
 				break;
+			case 10:
+				$component = "mod_resource";
+				$fileArea = "content";
+				$itemId = 0;
+				$contextId = $item->contextid;
+				break;
+				
 				
 		}
 				
@@ -564,6 +572,10 @@ class WebCTModel extends \GlobalModel {
 				$item->filesIds[] = $repository->id;
 				$item->filesIds[] = $file->id;
 			break;
+			case 10:
+				$item->filesIds[] = $repository->id;
+				$item->filesIds[] = $file->id;
+				break;
 		}		
 				
 	}
