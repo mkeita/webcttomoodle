@@ -20,21 +20,23 @@ class WebCTModel extends \GlobalModel {
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
 		$this->retrieveGlossaries();
 
-//		$this->retrieveQuestions();	
+		$this->retrieveQuestions();	
 
 // 		foreach($this->questions->allQuestions as $key=>$value){
 // 			error_log($key.'-->'.$value->name.'<br/>');
 // 		} 
 		
-//		$this->retrieveQuizzes();
+		$this->retrieveQuizzes();
 		
-//		$this->retrieveAssignments();
+		$this->retrieveAssignments();
 		
-//		$this->retrieveFolders();
+		$this->retrieveFolders();
 		
-//		$this->retrieveWebLinks();
+		$this->retrieveWebLinks();
 
-//		$this->retrieveSyllabus();
+		$this->retrieveSyllabus();
+	
+		$this->retrieveForum();
 		
 		oci_close($this->connection);
 	}
@@ -3200,9 +3202,174 @@ class WebCTModel extends \GlobalModel {
 		
 		return $book;
 	}
+	/***************************************************************************************************************
+	 * Forum (Folder)
+	*/
+	
+	public function retrieveForum(){
+		$this->addForum($this->getNextId());
+	}
+	
+	public function addForum($idForum){
+		global $USER;
+		
+		//Glossary
+		$folderModel = new FolderModel();
+		$folderModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->grades = new ActivityGradeBook();
+		$folderModel->calendar = new Events();
+		
+		$folderModel->module = $this->createModule($idForum,"folder","2013110500");
+		$folderModel->folder = $this->createActivityForum($idForum, $folderModel->module);
+		
+		
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$folderModel->module->id;
+		$activity->sectionid=$this->sections[0]->section->id;
+		$activity->modulename=$folderModel->module->modulename;
+		$activity->title=$folderModel->folder->name;
+		$activity->directory="activities/folder_".$folderModel->folder->folderId;
+		
+		$this->moodle_backup->contents->activities[] = $activity;
+		
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","folder_".$folderModel->folder->folderId,"folder_".$folderModel->folder->folderId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","folder_".$folderModel->folder->folderId,"folder_".$folderModel->folder->folderId."_userinfo",1);
+		
+		$inforRef = new InfoRef();
+		$inforRef->userids[]=$USER->id;
+		$inforRef->fileids=$folderModel->folder->filesIds;
+		
+		$folderModel->inforef = $inforRef;
+		
+		$this->activities[] = $folderModel;
+		
+		$this->sections[0]->section->sequence[]= $folderModel->folder->folderId;
+		
+		
+	}
+	
+	public function createActivityForum($idForum,$module){
+		$folder = new ActivityFolder();
+		$folder->id = $idForum;
+		$folder->moduleid =$module->id;
+		$folder->modulename =$module->modulename;
+		$folder->contextid=$this->getNextId();
+		$folder->folderId = $idForum;
+		
+		//Ici on choisit le nom de notre folder
+		$folder->name =utf8_encode("Forum 2013-2014");
+		$folder->intro=utf8_encode("Ensemble de toute les discussion de 2013-2014.");
+		$folder->introformat=1;
+		$folder->revision=0;
+		$folder->timemodified=time();
+		$folder->display=0;
+		$folder->showexpanded=0;
+		
+		$this->fillForum($folder->contextid , $folder->filesIds);
+		
+		return $folder;
+	}
+	
+	public function fillForum($contextid , &$filesIds){
+		$request = "Select cm1.ID as ID_TOPIC , cm2.NAME as NAME_CATEGORIE , cm1.NAME as NAME_TOPIC , 
+				msg.SUBJECT , msg.SHORT_MESSAGE ,msg.LONG_MESSAGE, msg.POSTDATE ,
+				msg.ROOT_MESSAGE_ID, msg.FILE_GROUP_ID , p.WEBCT_ID
+				from CMS_CONTENT_ENTRY cm1
+				JOIN CMS_CONTENT_ENTRY cm2 on cm2.ID = cm1.PARENT_ID
+				JOIN DIS_MESSAGE msg on msg.TOPIC_ID = cm1.ID
+				JOIN PERSON p on msg.AUTHOR_ID = p.ID
+				WHERE cm1.DELIVERY_CONTEXT_ID = '" . $this->deliveryContextId . "'and 
+						cm1.CE_TYPE_NAME = 'DISCUSSION_TOPIC_TYPE'
+				order by NAME_CATEGORIE , NAME_TOPIC , msg.ROOT_MESSAGE_ID, msg.POSTDATE";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		$nom_categorie = ' ';
+		$nomFichier = ' ';
+		$path = '/';
+		$pathFichier ="";
+		$rootId = "";
+		$file = NULL;
+		$style = $this->creationCssForum();
+		$content = $style;
+		while($res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS )){
+			if($nom_categorie != $res["NAME_CATEGORIE"]){
+				$nom_categorie = (($res["NAME_CATEGORIE"] == "Vide") ? utf8_encode("Thèmes non catégorisés") : $res["NAME_CATEGORIE"]);
+				$path =  '/' . $nom_categorie . '/';
+				$this->createFolderInterne($nom_categorie , $contextid, $filesIds, $path);
+				$pathFichier = $path . utf8_encode('Fichier de la catégorie/');
+				$this->createFolderInterne( utf8_encode('Fichier de la catégorie'), $contextid, $filesIds, $pathFichier);	
+			}
+
+			 if($nomFichier != $res["NAME_TOPIC"]){		 	
+			 	if($file != NULL){
+			 		$content = $content . '</div>';
+			 		$file->contenthash=md5($content);
+			 		$file->createFile($content, $this->repository);
+			 		$this->files->files[]=$file;
+			 		$filesIds[] = $file->id;
+			 		$content = $style;
+			 	}
+				$nomFichier = $res["NAME_TOPIC"];
+				$content = $content . '<body> ';
+				$content = $content . '<h1 style="text-align:center">'. $nomFichier . '</h1>';
+				$content = $content . $this->creationTableMatiere($nomFichier);
+				$file = $this->createFichierInterne($nomFichier,$contextid ,$path );
+			}
+			
+			if($rootId != $res["ROOT_MESSAGE_ID"]){
+				$rootId = $res["ROOT_MESSAGE_ID"];
+				$content = $content . '<h3 id ="' . $res["SUBJECT"] . '" > ' . $res["SUBJECT"] . ':</h3>';
+			}
+			
+			$message = $res["SHORT_MESSAGE"];
+			if( $message == NULL){
+				$message = $res["LONG_MESSAGE"]->load();
+			}
+			
+			if($res["FILE_GROUP_ID"] !=NULL){
+				$file2 = $this->createFichierAssocie($contextid, $pathFichier, $filesIds, $res["FILE_GROUP_ID"]);
+				$message = $message . '</br> <b> Fichier associé au message :  '.$pathFichier. $file2->filename . '</b>';
+			}
+			
+			$timestamp = substr($res["POSTDATE"],0 , -3 );
+			$date = date("D ,d F Y H:i:s",$timestamp);
+			$content = $content . '<div class="entrydiv">
+  							<table width="100%" cellspacing="0" summary="">
+  								<tr>
+  									<td width="50%"><strong>Objet :</strong>  ' .$res["SUBJECT"] .'</td>
+  									<td width="50%" class="rightcolumn"><b>Thème :</b>  ' .$res["NAME_TOPIC"]. '</td>
+  								</tr>
+  								<tr>
+  									<td><b>Auteur :</b>  ' .$res["WEBCT_ID"] .'</td>
+  									<td class="rightcolumn"><b>Date :</b>  ' .$date.' </td>
+  								</tr>
+ 							 </table>
+ 							 <div class="entrytext">' . $message .  '</div>
+						</div>';		
+		}
+		
+		if($file != NULL){
+			echo '</br> FichierInterne </br>';
+			$file->contenthash=md5($content);
+			$file->createFile($content, $this->repository);
+			$this->files->files[]=$file;
+			$filesIds[] = $file->id;
+			$content = "";
+		}
+		
+		
+	}
 	
 	
-public function retrieveSyllabus(){
+	/***************************************************************************************************************
+	 * Syllabus
+	*/
+	
+	public function retrieveSyllabus(){
 		$this->initializeSyllabus();
 		$pageId = $this->syllabusManager->syllabus->id;
 		if($this->syllabusManager->syllabus->use_source_file_fl == 1){			
@@ -3213,7 +3380,7 @@ public function retrieveSyllabus(){
 				error_log("Programme : " . $this->syllabusManager->courseInfo->nomCours .' --> Incohérence BD <br/>');
 			}		
 		}else if($this->verifierCreerProgramme($pageId)){
-			echo 'Création du cour </br>';
+		//	echo 'Création du cour </br>';
 			$this->addPage($pageId,"syllabus");
 		}else{
 			error_log("Programme : " . $this->syllabusManager->courseInfo->nomCours .' --> Seulement des formateurs donc pas de création de page <br/>');
@@ -3257,7 +3424,7 @@ public function retrieveSyllabus(){
 	
 	public function createResource($resourceId , $module){
 		
-		$name = "File: " . $this->syllabusManager->courseInfo->nomCours;
+		$name = "Plan de cour: " . $this->syllabusManager->courseInfo->nomCours;
 		
 		$resourceActivity = new ActivityRessource();
 		$resourceActivity->id = $resourceId ;
@@ -3362,6 +3529,8 @@ public function retrieveSyllabus(){
 		$res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS );
 		return $res ["ID"];
 	}
+	
+	
 	
 	private function initializeSyllabus() {
 		$res = $this->recupererInfo_TableSyllabus ();
@@ -3647,4 +3816,160 @@ public function retrieveSyllabus(){
 		return $res["ORIGINAL_CONTENT_ID"];
 	}
 	
+	private function creationCssForum(){
+		$style = "<style>
+  .entrydiv {
+      background: none repeat scroll 0% 0% #EDEDED;
+      padding: 3px 6px 6px;
+      clear: both;
+      overflow: visible;
+      margin-bottom: 9px;
+      border: 1px solid #AAA;
+      
+  }
+  .entrydiv table tr td.rightcolumn {
+      width: 100% !important;
+      text-align: right !important;
+  }
+  .rightcolumn {
+      float: right;
+      padding: 1px 0px;
+      width: 100%;
+      overflow: visible;
+      text-align: left;
+      font-size: 85%;
+  }
+  .entrydiv table {
+      border-collapse: collapse;
+      font-size: 100%;
+  }
+  .entrydiv table tr td {
+      
+      padding: 2px 1px;
+      font-size: 85%;
+  }
+  .entrytext {
+      background: none repeat scroll 0% 0% #FFF;
+      padding: 6px;
+      margin-bottom: 6px;
+      clear: both;
+  }
+body {
+    color: #000;
+	background-color:  #BBD2E1
+}
+body {
+    font-family: Verdana,Arial,Helvetica,sans-serif;
+    font-size: 0.8em;
+}
+  </style>";
+		return $style;		
+	}
+	
+
+	private function createFolderInterne($nom_categorie, $contextid, &$filesIds, $path) {
+		$component = "mod_folder";
+		$fileArea = "content";
+		$itemId = 0;
+		$repository = $this->addCMSRepository ( $contextid, $component, $fileArea, $itemId, $path );
+		$filesIds [] = $repository->id;
+	}
+	private function createFichierAssocie($contextid, $path, &$filesIds , $fileGroupId) {
+		$req = "SELECT  sf.NAME,sf.FILESIZE,cms.CONTENT,CMS_MIMETYPE.MIMETYPE
+						from DIS_MESSAGE msg
+						JOIN SIMPLE_FILE sf on msg.FILE_GROUP_ID = sf.GROUP_ID
+						JOIN CMS_FILE_CONTENT cms on sf.FILE_CONTENT_ID = cms.ID
+						JOIN CMS_MIMETYPE  ON CMS_MIMETYPE.ID = cms.MIMETYPE_ID
+						where  msg.FILE_GROUP_ID = '" . $fileGroupId . "'";
+		$stid2 = oci_parse ( $this->connection, $req );
+		oci_execute ( $stid2 );
+		$res = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
+		
+		global $USER;
+		$component = "mod_folder";
+		$fileArea = "content";
+		$itemId = 0;
+		
+		$file = new FileBackup ();
+		$file->id = $this->getNextId ();
+		$file->contextid = $contextid;
+		$file->component = $component;
+		$file->filearea = $fileArea;
+		$file->itemid = $itemId;
+		$file->filepath = $path;
+		$file->filename = $res ["NAME"];
+		$file->userid = $USER->id;
+		$file->filesize = $res ["FILESIZE"];
+		$file->author = "Admin User";
+		$file->license = "allrightsreserved";
+		$file->sortorder = 0;
+		$file->repositorytype = "$@NULL@$";
+		$file->repositoryid = "$@NULL@$";
+		$file->reference = "$@NULL@$";
+		$file->status = 0;
+		$file->timecreated = time ();
+		$file->timemodified = time ();
+		$file->source = $res ["NAME"];
+		$file->mimetype = $res["MIMETYPE"];
+		
+		$content =  $res["CONTENT"]->load();
+		$file->contenthash = md5( $content);
+		$file->createFile ( $content, $this->repository );
+		$this->files->files [] = $file;
+		$filesIds [] = $file->id;
+		return $file;
+	}
+	private function createFichierInterne($nomFichier, $contextid, $path) {
+		global $USER;
+		$component = "mod_folder";
+		$fileArea = "content";
+		$itemId = 0;
+		
+		$file = new FileBackup ();
+		$file->id = $this->getNextId ();
+		$file->contextid = $contextid;
+		$file->component = $component;
+		$file->filearea = $fileArea;
+		$file->itemid = $itemId;
+		$file->filepath = $path;
+		$file->filename = $nomFichier . '.html';
+		$file->userid = $USER->id;
+		$file->filesize = 0;
+		$file->author = "Admin User";
+		$file->license = "allrightsreserved";
+		$file->sortorder = 0;
+		$file->repositorytype = "$@NULL@$";
+		$file->repositoryid = "$@NULL@$";
+		$file->reference = "$@NULL@$";
+		$file->status = 0;
+		$file->timecreated = time ();
+		$file->timemodified = time ();
+		$file->source = $nomFichier;
+		$file->mimetype = 'text/html';
+		return $file;
+	}
+	
+
+	private function creationTableMatiere($nameTopic){
+		$request = "Select cm2.NAME as NAME_CATEGORIE , cm1.NAME as NAME_TOPIC, msg.ROOT_MESSAGE_ID , msg.SUBJECT
+				from CMS_CONTENT_ENTRY cm1
+				JOIN CMS_CONTENT_ENTRY cm2 on cm2.ID = cm1.PARENT_ID
+				JOIN DIS_MESSAGE msg on msg.TOPIC_ID = cm1.ID
+				WHERE cm1.DELIVERY_CONTEXT_ID = '" . $this->deliveryContextId . "'and
+						cm1.NAME = '" .$nameTopic. "' and cm1.CE_TYPE_NAME = 'DISCUSSION_TOPIC_TYPE'
+				order by NAME_CATEGORIE , NAME_TOPIC , msg.ROOT_MESSAGE_ID, msg.POSTDATE";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		$rootMsgId = "";
+		$content = "<h2> Table des matières </h2> <ul>";
+		while($res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS )){
+			if($rootMsgId != $res["ROOT_MESSAGE_ID"]){
+				$rootMsgId = $res["ROOT_MESSAGE_ID"];
+				$content = $content . "<li> <a href=\"#".$res["SUBJECT"] . "\"> " . $res["SUBJECT"] . "</a></li>";
+			}
+		}
+	
+		$content = $content . '</ul>';
+		return $content;
+	}
 }
