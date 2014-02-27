@@ -210,7 +210,7 @@ abstract class GlobalModel implements \IBackupModel {
 		//TODO MUST BE OVERRIDE BY CONCRETE CLASS - WEBCT-0";
 		$moodleBackup->original_course_shortname = "";
 		//TODO MUST BE OVERRIDE BY CONCRETE CLASS - test_backup.mbz
-		$moodleBackup->name = "backup-".$moodleBackup->original_course_shortname.".mbz"; 
+		$moodleBackup->name = $moodleBackup->original_course_shortname."#backup_".time().".mbz"; 
 		
 		$detail = new MoodleBackupDetail();
 		$detail->type=backup::TYPE_1COURSE;
@@ -792,6 +792,16 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		$glossaryModel->glossary = $this->createGlossary($glossaryId, $glossaryModel->module);
 		
+		if($glossaryModel->glossary->name == "mediaLibrary.defaultCollection.name"){
+			if(sizeof($glossaryModel->glossary->entries)<=0){
+				return;
+			}else {
+				$glossaryModel->glossary->name =utf8_encode("Glossaire par défaut");
+				$glossaryModel->glossary->intro=utf8_encode("Glossaire par défaut");
+			}
+				
+		}
+		
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$glossaryModel->module->id;
@@ -1205,7 +1215,11 @@ abstract class GlobalModel implements \IBackupModel {
 		//zip the repertory to .mbz
 		$packer = get_file_packer('application/vnd.moodle.backup');
 		
-		$packer->archive_to_pathname(array(null=>$this->repository), $directory."/".$this->moodle_backup->name);
+		$archiveName = $directory."/".$this->moodle_backup->name;
+		
+		$packer->archive_to_pathname(array(null=>$this->repository), $archiveName);
+		
+		return $archiveName;
 	}
 	
 	

@@ -10,21 +10,45 @@ require_once($CFG->libdir.'/formslib.php');
  */
 class CourseSelectionForm extends \moodleform {
 	
+	/**
+	 * @var FtpConnexion
+	 */
+	public $ftpConnexion;
+	
+	public function __construct($ftpConnexion){
+		$this->ftpConnexion = $ftpConnexion;
+		parent::__construct();
+	
+	}
+	
 	/*
 	 * (non-PHPdoc) @see moodleform::definition()
 	 */
-	protected function definition() {
+	function definition() {
+		
 		// TODO Auto-generated method stub
 		$mform = $this->_form;
 		
 		$mform->addElement('header', 'course_selection_hdr', get_string('course_selection_form_header','tool_webcttomoodle'));
 		
-		$mform->addElement('text', 'courseId', get_string('course_id','tool_webcttomoodle'));
-		$mform->setType('courseId', PARAM_INT);
+		$ftp = ftp_connect($this->ftpConnexion->ip, 21);
 		
-		$mform->addElement('text', 'learningContextId', get_string('webct_learning_context_id','tool_webcttomoodle'),"366249217001");
-		$mform->setType('learningContextId', PARAM_TEXT);
+		if(!$ftp){
+			$mform->addElement('html',get_string("no_ftp_connexion","tool_webcttomoodle"). '<br/>');
+			return;
+		}
+		
+		$mform->addElement('html', get_string("backup_instructions","tool_webcttomoodle"). '<br/><br/>');
+		
+		$mform->addElement('textarea', 'learningContextIds', get_string('webct_learning_context_id','tool_webcttomoodle'),'wrap="virtual" rows="15" cols="50"');
+		$mform->setType('learningContextIds', PARAM_TEXT);
 		
 		$this->add_action_buttons(false, get_string('backup_course_button', 'tool_webcttomoodle'));
+	}
+	
+	function definition_after_data() {
+		$mform = $this->_form;
+	
+		$mform->addElement('hidden', 'isBackup', true);
 	}
 }

@@ -20,21 +20,21 @@ class WebCTModel extends \GlobalModel {
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
 		$this->retrieveGlossaries();
 
-		$this->retrieveQuestions();	
+//		$this->retrieveQuestions();	
 
 // 		foreach($this->questions->allQuestions as $key=>$value){
 // 			error_log($key.'-->'.$value->name.'<br/>');
 // 		} 
 		
-		$this->retrieveQuizzes();
+//		$this->retrieveQuizzes();
 		
-		$this->retrieveAssignments();
+//		$this->retrieveAssignments();
 		
-		$this->retrieveFolders();
+//		$this->retrieveFolders();
 		
-		$this->retrieveWebLinks();
+//		$this->retrieveWebLinks();
 
-		$this->retrieveSyllabus();
+//		$this->retrieveSyllabus();
 		
 		oci_close($this->connection);
 	}
@@ -80,16 +80,16 @@ class WebCTModel extends \GlobalModel {
 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 		
 		$shortName = $row['SOURCE_ID'];		
-		if(substr($shortName,-7,7)!=".default"){ //On en
+		if(substr($shortName,-8,8)!=".default"){ //On en
 			$shortName = $row['ID'];
 		}else {
-			$shortName =substr($shortName,0,-7);
+			$shortName =substr($shortName,0,-8);
 		} 
 				
 		$this->moodle_backup->original_course_id = $row['ID'];
 		$this->moodle_backup->original_course_fullname = $row['NAME'];//WebCt Course 0";
 		$this->moodle_backup->original_course_shortname = $shortName;//WEBCT-0";
-		$this->moodle_backup->name = "backup-".$this->moodle_backup->original_course_shortname."_".time().".mbz"; //test_backup.mbz
+		$this->moodle_backup->name = $this->moodle_backup->original_course_shortname."#backup_".time().".mbz"; //test_backup.mbz
 		$this->moodle_backup->settings[0] = new MoodleBackupBasicSetting("root","filename",$this->moodle_backup->name);
 	}
 	
@@ -3096,14 +3096,24 @@ class WebCTModel extends \GlobalModel {
 		$book->contextid=$this->getNextId();
 		$book->bookId = $bookId;
 		
-		$book->name= utf8_encode("Liens Webs");
-		$book->intro = utf8_encode("Liens Webs classifié");
+		$book->name= utf8_encode("Liens WEB");
+		$book->intro = utf8_encode("Liens web classifiés");
 		
 		$book->introformat=1;
 		$book->numbering=0;//1 = number
 		$book->customtitles=0;
 		$book->timecreated=time();
 		$book->timemodified=time();
+
+		
+// 		$request = "SELECT COUNT(*)
+// 					FROM CMS_CONTENT_ENTRY
+// 						LEFT JOIN CO_INVENTORY_ORDER ON CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID=CO_INVENTORY_ORDER.OBJECT_ID
+// 					WHERE CMS_CONTENT_ENTRY.CE_TYPE_NAME='WEBLINKSCATEGORY' AND CMS_CONTENT_ENTRY.DELETED_FLAG=0 AND CMS_CONTENT_ENTRY.DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' ORDER BY CO_INVENTORY_ORDER.INVENTORY_ORDER";
+// 		$stid = oci_parse($this->connection,$request);
+// 		oci_execute($stid);
+// 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+// 		$categoryCount = $row["COUNT(*)"];
 		
 		$request = "SELECT CMS_CONTENT_ENTRY.ID, CMS_CONTENT_ENTRY.NAME, CMS_CONTENT_ENTRY.DESCRIPTION 
 					FROM CMS_CONTENT_ENTRY 
@@ -3125,11 +3135,19 @@ class WebCTModel extends \GlobalModel {
 			
 			$content ="";
 			$description = $row['DESCRIPTION'];
+						
 			if(empty($description)){
 				$content ="";
 			}else {
 				$content =$description->load().'<br/><br/>';
 			}
+			
+			$isDefaultCategory = false;
+			if($chapter->title=="Default"){
+				$chapter->title = utf8_encode("Catégorie par défaut");
+				$isDefaultCategory = true;
+			}
+				
 
 			$request1 = "SELECT CMS_CONTENT_ENTRY.NAME, CMS_CONTENT_ENTRY.DESCRIPTION, CO_URL.LINK, CO_URL.OPENINNEWWINDOWFLAG 
 						FROM CMS_CONTENT_ENTRY 
@@ -3138,14 +3156,16 @@ class WebCTModel extends \GlobalModel {
 			$stid1 = oci_parse($this->connection,$request1);
 			oci_execute($stid1);
 			
-			$content .="<table>";
+			$content .="<table><tbody>";
 			
 			//Retrieve All the links..
+			$hasLink = false;
 			while ($row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)){
-	
+				$hasLink = true;
+				
 				$urlDescription ="";
-				if(!empty($row['DESCRIPTION'])){
-					$urlDescription =$row['DESCRIPTION']->load();
+				if(!empty($row1['DESCRIPTION'])){
+					$urlDescription =$row1['DESCRIPTION']->load();
 				}
 				
 				$target="_self";
@@ -3161,10 +3181,10 @@ class WebCTModel extends \GlobalModel {
 					."</td>"
 					."<td valign='top' width='50%'>".$row1['LINK']."</td>"
 				."</tr>";
-				$content .= $urlRow.'<br/>';
+				$content .= $urlRow;
 						
 			}
-			$content .="</table>";
+			$content .="</tbody></table>";
 			
 			$chapter->content = $content;
 			$chapter->contentformat=1;
@@ -3172,7 +3192,9 @@ class WebCTModel extends \GlobalModel {
 			$chapter->timemodified=time();
 			$chapter->importsrc="";
 						
-			$book->chapters[]=$chapter;
+			if(!($hasLink==false && $isDefaultCategory==true)){
+				$book->chapters[]=$chapter;
+			}
 			
 		}
 		
