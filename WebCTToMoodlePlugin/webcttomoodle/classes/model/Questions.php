@@ -508,6 +508,8 @@ class Match {
 	public $questiontext;
 	public $questiontextformat;
 	public $answertext;
+	
+	public $contextid;
 }
 
 

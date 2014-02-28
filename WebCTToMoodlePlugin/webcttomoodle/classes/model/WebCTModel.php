@@ -532,7 +532,7 @@ class WebCTModel extends \GlobalModel {
 				$component = "qtype_match";
 				$fileArea = "subquestion";
 				$itemId=$item->id;
-				$contextId=$item->category->contextid;
+				$contextId=$item->contextid;
 				break;				
 			case 8:
 				$component = "qtype_essay";
@@ -1348,6 +1348,7 @@ class WebCTModel extends \GlobalModel {
 			
 			$match = new Match();
 			$match->id = $count++;
+			$match->contextid = $question->category->contextid;
 			
 			$filesName = array();
 			$convertedText = $this->convertTextAndCreateAssociedFiles((string)$response_grp->material->mattext,7, $match); 
