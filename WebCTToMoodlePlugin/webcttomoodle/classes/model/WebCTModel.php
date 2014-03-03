@@ -38,6 +38,8 @@ class WebCTModel extends \GlobalModel {
 	
 		$this->retrieveForum();
 		
+		$this->retrieveEmail();
+		
 		oci_close($this->connection);
 	}
 
@@ -3515,6 +3517,170 @@ class WebCTModel extends \GlobalModel {
 	
 		return $pageActivity;
 	
+	}
+	/***************************************************************************************************************
+	 * EMAIL
+	*/
+	public function retrieveEmail(){
+		$this->addEmail($this->getNextId());
+	}
+	
+	public function addEmail($idEmail){
+		global $USER;
+	
+		//Glossary
+		$folderModel = new FolderModel();
+		$folderModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->grades = new ActivityGradeBook();
+		$folderModel->calendar = new Events();
+	
+		$folderModel->module = $this->createModule($idEmail,"folder","2013110500");
+		$folderModel->folder = $this->createActivityEmail($idEmail, $folderModel->module);
+	
+	
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$folderModel->module->id;
+		$activity->sectionid=$this->sections[0]->section->id;
+		$activity->modulename=$folderModel->module->modulename;
+		$activity->title=$folderModel->folder->name;
+		$activity->directory="activities/folder_".$folderModel->folder->folderId;
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+	
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","folder_".$folderModel->folder->folderId,"folder_".$folderModel->folder->folderId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","folder_".$folderModel->folder->folderId,"folder_".$folderModel->folder->folderId."_userinfo",1);
+	
+		$inforRef = new InfoRef();
+		$inforRef->userids[]=$USER->id;
+		$inforRef->fileids=$folderModel->folder->filesIds;
+	
+		$folderModel->inforef = $inforRef;
+	
+		$this->activities[] = $folderModel;
+	
+		$this->sections[0]->section->sequence[]= $folderModel->folder->folderId;
+	
+	
+	}
+	
+	public function createActivityEmail($idForum,$module){
+		$folder = new ActivityFolder();
+		$folder->id = $idForum;
+		$folder->moduleid =$module->id;
+		$folder->modulename =$module->modulename;
+		$folder->contextid=$this->getNextId();
+		$folder->folderId = $idForum;
+	
+		//Ici on choisit le nom de notre folder
+		$folder->name =utf8_encode("Courrier");
+		$folder->intro=utf8_encode("Ensemble de toute les email de 2013-2014.");
+		$folder->introformat=1;
+		$folder->revision=0;
+		$folder->timemodified=time();
+		$folder->display=0;
+		$folder->showexpanded=0;
+	
+		$this->fillEmail($folder->contextid , $folder->filesIds);
+	
+		return $folder;
+	}
+	
+	public function fillEmail($contextid , &$filesIds){
+		$request = "Select pers.WEBCT_ID as NAME_POSSESSEUR_EMAIL , folder.TYPE as FOLDER_TYPE, folder.NAME
+						as FOLDER_NAME , mes.SUBJECT , mes.SHORT_MESSAGE ,
+					CONCAT (pers2.NAME_N_GIVEN ,pers2.NAME_N_FAMILY) as EXPEDITEUR ,target.NAME as DESTINATAIRE ,
+									mes.DATE_SENT ,mes.LONG_MESSAGE , mes.FILE_GROUP_ID
+					from Mail_BOX box
+					JOIN PERSON pers on box.PERSON_ID = pers.ID
+					JOIN MAIL_FOLDER folder on box.ID = folder.MAIL_BOX_ID
+					JOIN MAIL_RECEIPT rec on folder.ID = rec.MAIL_FOLDER_ID
+					JOIN MAIL_MESSAGE mes on rec.MAIL_MESSAGE_ID = mes.ID
+					JOIN PERSON pers2 on mes.PERSON_ID = pers2.ID
+					JOIN MAIL_TARGET target on mes.ID = target.MAIL_MESSAGE_ID
+					where box.LEARNING_CONTEXT_ID = '366249217001' and box.ID != '368132341001'
+						 and folder.TYPE != 1 and folder.TYPE != 3
+					order by pers.WEBCT_ID ,  folder.TYPE , folder.NAME";
+		$stid = oci_parse ( $this->connection, $request );
+		oci_execute ( $stid );
+		$mailBox = ' ';
+		$folderType = ' ';
+		$folder = ' ';
+		$nomFichier = ' ';
+		$path = '/';
+		$pathFolder = ' ';
+		$pathFichier ="";
+		$file = NULL;
+		$style = $this->creationCssForum();
+		$content = $style;
+		while($res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS )){
+			if($mailBox != $res["NAME_POSSESSEUR_EMAIL"]){
+				$mailBox = $res["NAME_POSSESSEUR_EMAIL"];
+				$path =  '/' . $mailBox . '/';
+				$this->createFolderInterne($mailBox , $contextid, $filesIds, $path);
+				$pathFichier = $path . utf8_encode('Fichiers récupérés/');
+				$this->createFolderInterne( utf8_encode('Fichiers récupérés'), $contextid, $filesIds, $pathFichier);
+			}
+	
+			if($folderType != $res["FOLDER_TYPE"] || $folderType == '4'){
+				$folderType = $res["FOLDER_TYPE"];
+				if($folderType != '4'){
+					$folder = (($folderType == 0) ? utf8_encode("Boîte de réception") : utf8_encode("Elément envoyé") );
+				}else{
+					$folder =  $res["FOLDER_NAME"];
+				}
+				$pathFolder = $path . $folder . '/';
+				$this->createFolderInterne($folder , $contextid, $filesIds, $pathFolder);
+				if($file != NULL){
+					$content = $content . '</div>';
+					$file->contenthash=md5($content);
+					$file->createFile($content, $this->repository);
+					$this->files->files[]=$file;
+					$filesIds[] = $file->id;
+					$content = $style;
+				}
+				$nomFichier = "Email";
+				$file = $this->createFichierInterne($nomFichier,$contextid ,$pathFolder );
+			}
+	
+			$message = $res["SHORT_MESSAGE"];
+			if( $message == NULL){
+				$message = $res["LONG_MESSAGE"]->load();
+			}
+	
+			if($res["FILE_GROUP_ID"] !=NULL){
+				$file2 = $this->createFichierAssocie($contextid, $pathFichier, $filesIds, $res["FILE_GROUP_ID"]);
+				$message = $message . '</br> <b> Fichier associé au message :  '.$pathFichier. $file2->filename . '</b>';
+			}
+	
+			$timestamp = substr($res["DATE_SENT"],0 , -3 );
+			$date = date("D ,d F Y H:i:s",$timestamp);
+			$content = $content . '<div class="entrydiv">
+  							<table width="100%" cellspacing="0" summary="">
+  								<tr>
+  									<td width="50%"><strong>Objet :</strong>  ' .$res["SUBJECT"] .'</td>
+  									<td width="50%" class="rightcolumn"><b>A :</b>  ' .utf8_encode($res["DESTINATAIRE"]). '</td>
+  								</tr>
+  								<tr>
+  									<td><b>DE :</b> ' .utf8_decode($res["EXPEDITEUR"]) .'</td>
+  									<td class="rightcolumn"><b>Envoyé :</b>  ' .$date.' </td>
+  								</tr>
+ 							 </table>
+ 							 <div class="entrytext">' . utf8_encode($message) .  '</div>
+						</div>';
+		}
+	
+		if($file != NULL){
+			$file->contenthash=md5($content);
+			$file->createFile($content, $this->repository);
+			$this->files->files[]=$file;
+			$filesIds[] = $file->id;
+			$content = "";
+		}
+	
 	
 	}
 	/**
@@ -3875,17 +4041,18 @@ body {
 		$repository = $this->addCMSRepository ( $contextid, $component, $fileArea, $itemId, $path );
 		$filesIds [] = $repository->id;
 	}
-	private function createFichierAssocie($contextid, $path, &$filesIds , $fileGroupId) {
+private function createFichierAssocie($contextid, $path, &$filesIds , $fileGroupId) {
+		var_dump($fileGroupId);
 		$req = "SELECT  sf.NAME,sf.FILESIZE,cms.CONTENT,CMS_MIMETYPE.MIMETYPE
-						from DIS_MESSAGE msg
-						JOIN SIMPLE_FILE sf on msg.FILE_GROUP_ID = sf.GROUP_ID
+						 from SIMPLE_FILE sf 
 						JOIN CMS_FILE_CONTENT cms on sf.FILE_CONTENT_ID = cms.ID
 						JOIN CMS_MIMETYPE  ON CMS_MIMETYPE.ID = cms.MIMETYPE_ID
-						where  msg.FILE_GROUP_ID = '" . $fileGroupId . "'";
+						where  sf.GROUP_ID = '" . $fileGroupId . "'";
 		$stid2 = oci_parse ( $this->connection, $req );
 		oci_execute ( $stid2 );
+		echo '</br> ' . $req . '</br>';
 		$res = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
-		
+		var_dump($res);
 		global $USER;
 		$component = "mod_folder";
 		$fileArea = "content";
