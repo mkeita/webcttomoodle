@@ -232,6 +232,8 @@ class Answer {
 	public $feedback;// 	<feedback>&lt;p&gt;C'est exact.&lt;/p&gt;</feedback>
 	public $feedbackformat;// 	<feedbackformat>1</feedbackformat>
 	
+	public $contextid;
+	
 	public function toXMLFile(&$writer){
 		$writer->startElement('answer');
 			$writer->writeAttribute('id',$this->id);

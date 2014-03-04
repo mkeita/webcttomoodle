@@ -18,7 +18,7 @@ class WebCTModel extends \GlobalModel {
 		parent::__construct();
 		
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
-		$this->retrieveGlossaries();
+// 		$this->retrieveGlossaries();
 
 		$this->retrieveQuestions();	
 
@@ -28,17 +28,17 @@ class WebCTModel extends \GlobalModel {
 		
 		$this->retrieveQuizzes();
 		
-		$this->retrieveAssignments();
+//  		$this->retrieveAssignments();
 		
-		$this->retrieveFolders();
+//  		$this->retrieveFolders();
 		
-		$this->retrieveWebLinks();
+// 		$this->retrieveWebLinks();
 
-		$this->retrieveSyllabus();
+// 		$this->retrieveSyllabus();
 	
-		$this->retrieveForum();
+// 		$this->retrieveForum();
 		
-		$this->retrieveEmail();
+// 		$this->retrieveEmail();
 		
 		oci_close($this->connection);
 	}
@@ -521,14 +521,14 @@ class WebCTModel extends \GlobalModel {
 				$component = "question";
 				$fileArea = "answer";
 				$itemId=$item->id;
-				$contextId=$item->category->contextid;
+				$contextId=$item->contextid;
 				break;
 				
 			case 6:
 				$component = "question";
 				$fileArea = "answerfeedback";
 				$itemId=$item->id;
-				$contextId=$item->category->contextid;
+				$contextId=$item->contextid;
 				break;
 			case 7:
 				$component = "qtype_match";
@@ -835,13 +835,14 @@ class WebCTModel extends \GlobalModel {
 		$question->multiChoice = $multichoice;
 		
 		
-		$count = 0;
+		
 		foreach ($xmlContent->presentation->flow->response_lid->render_choice->flow_label->response_label as $response_label){
 
 			$webctAnswerId = $response_label['ident'];
 			
 			$answer = new Answer();
-			$answer->id=$count++;// 		id="4">
+			$answer->contextid = $question->category->contextid;
+			$answer->id=$this->getNextId();// 		id="4">
 			$answerText = $response_label->material->mattext;
 			$convertedDescription =  $this->convertTextAndCreateAssociedFiles($answerText,5, $answer);
 			$answer->answertext=$convertedDescription;// 		<answertext>&lt;p&gt;1,05 10&amp;lt;SUP&amp;gt;-22&amp;lt;/SUP&amp;gt; g&lt;/p&gt;</answertext>
@@ -922,7 +923,6 @@ class WebCTModel extends \GlobalModel {
 		if($isShortAnswer){ //On crée vraiment une short Answer
 			//UNIQUEMENT AVEC REPONSE UNIQUE...
 		
-			$count = 0;
 			
 			//$xmlContent->registerXPathNamespace("n", "http://www.imsglobal.org/xsd/ims_qtiasiv1p2");
 			//$xmlContent->registerXPathNamespace("webct", "http://www.webct.com/vista/assessment");
@@ -949,7 +949,8 @@ class WebCTModel extends \GlobalModel {
 				}
 				
 				$answer = new Answer();
-				$answer->id=$count++;// 		id="4"				
+				$answer->contextid = $question->category->contextid;
+				$answer->id=$this->getNextId();// 		id="4"				
 				$answer->answertext=$answerText;// 		<answertext>&lt;p&gt;1,05 10&amp;lt;SUP&amp;gt;-22&amp;lt;/SUP&amp;gt; g&lt;/p&gt;</answertext>
 				$answer->answerformat="1";// 		<answerformat>1</answerformat>
 			
@@ -1018,7 +1019,6 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswerQuestion->shortAnswer = $shortAnswer;
 				
 				//Answers
-				$count2 = 0;
 					
 				//$xmlContent->registerXPathNamespace("n", "http://www.imsglobal.org/xsd/ims_qtiasiv1p2");
 				//$xmlContent->registerXPathNamespace("webct", "http://www.webct.com/vista/assessment");
@@ -1056,7 +1056,8 @@ class WebCTModel extends \GlobalModel {
 					}
 				
 					$answer = new Answer();
-					$answer->id=$count2++;// 		id="4"
+					$answer->contextid = $question->category->contextid;
+					$answer->id=$this->getNextId();// 		id="4"
 					$answer->answertext=$answerText;// 		<answertext>&lt;p&gt;1,05 10&amp;lt;SUP&amp;gt;-22&amp;lt;/SUP&amp;gt; g&lt;/p&gt;</answertext>
 					$answer->answerformat="0";// 		<answerformat>1</answerformat>
 						
@@ -1251,7 +1252,8 @@ class WebCTModel extends \GlobalModel {
 					}
 				
 					$answer = new Answer();
-					$answer->id=$count2++;// 		id="4"
+					$answer->contextid = $question->category->contextid;
+					$answer->id=$this->getNextId();// 		id="4"
 					$answer->answertext=$answerText;// 		<answertext>&lt;p&gt;1,05 10&amp;lt;SUP&amp;gt;-22&amp;lt;/SUP&amp;gt; g&lt;/p&gt;</answertext>
 					$answer->answerformat="0";// 		<answerformat>1</answerformat>
 				
@@ -1332,7 +1334,7 @@ class WebCTModel extends \GlobalModel {
 		
 		//IDEM MULTICHOICE
 		$matchOptions = new MatchOptions();
-		$matchOptions->id=1;
+		$matchOptions->id=$this->getNextId();
 		$matchOptions->shuffleanswers=1;// 		<shuffleanswers>1</shuffleanswers>
 		$matchOptions->correctfeedback=utf8_encode('Votre réponse est correcte.');// 		<correctfeedback>&lt;p&gt;Your answer is correct.&lt;/p&gt;</correctfeedback>
 		$matchOptions->correctfeedbackformat=1;// 		<correctfeedbackformat>1</correctfeedbackformat>
@@ -1344,12 +1346,12 @@ class WebCTModel extends \GlobalModel {
 		
 		$matches->matchOptions = $matchOptions;		
 		
-		$count=0;
+		
 		$lastAnswerText ="";
 		foreach ($xmlContent->xpath('//ims:response_grp') as $response_grp){
 			
 			$match = new Match();
-			$match->id = $count++;
+			$match->id = $this->getNextId();
 			$match->contextid = $question->category->contextid;
 			
 			$filesName = array();
@@ -1375,7 +1377,7 @@ class WebCTModel extends \GlobalModel {
 		}
 		//ADD the last answer, one more time but without the question..
 		$lastMatch = new Match();
-		$lastMatch->id = $count++;
+		$lastMatch->id = $this->getNextId();
 		$lastMatch->questiontext = "";
 		$lastMatch->questiontextformat = 1;
 		$lastMatch->answertext = $lastAnswerText;		
@@ -1395,7 +1397,7 @@ class WebCTModel extends \GlobalModel {
 	
 		$essay = new Essay();
 		
-		$essay->id=1;
+		$essay->id=$this->getNextId();
 		$essay->responseformat="editor";
 		$essay->attachments=0;
 		
@@ -1438,17 +1440,19 @@ class WebCTModel extends \GlobalModel {
 	public function fillTrueFalseQuestion(&$question, $xmlContent){
 	
 		$trueFalseAnswer = new TrueFalseAnswer();
-		$trueFalseAnswer->id = 1;
+		$trueFalseAnswer->id = $this->getNextId();
 		
 		$trueAnswer = new Answer();
-		$trueAnswer->id="1";
+		$trueAnswer->contextid = $question->category->contextid;
+		$trueAnswer->id=$this->getNextId();
 		$trueAnswer->answertext="True";
 		$trueAnswer->answerformat="0";
 		$trueAnswer->feedback="";
 		$trueAnswer->feedbackformat="1";
 
 		$falseAnswer = new Answer();
-		$falseAnswer->id="2";
+		$falseAnswer->contextid = $question->category->contextid;
+		$falseAnswer->id=$this->getNextId();
 		$falseAnswer->answertext="False";
 		$falseAnswer->answerformat="0";
 		$falseAnswer->feedback="";
@@ -1518,7 +1522,8 @@ class WebCTModel extends \GlobalModel {
 
 		
 		$answer = new Answer();
-		$answer->id="1";
+		$answer->contextid = $question->category->contextid;
+		$answer->id=$this->getNextId();
 		
 		$matExtension = $xmlContent->presentation->flow->material->mat_extension;
 
@@ -1532,11 +1537,11 @@ class WebCTModel extends \GlobalModel {
 
 		$question->answers[]=$answer;
 		$countItem = 0;
-		$countDataset=0;
+		
 		foreach ($calulatedChild->calculated->var as $var){
 			$name = $var['name'];
 			$datasetDefinition = new DatasetDefinition();
-			$datasetDefinition->id = $countDataset++;
+			$datasetDefinition->id = $this->getNextId();
 			$datasetDefinition->category=0;
 			$datasetDefinition->name=$name;
 			$datasetDefinition->type=1;
@@ -1575,7 +1580,7 @@ class WebCTModel extends \GlobalModel {
 		$precision = $calculatedAnswer->calculated_answer['precision'];
 		
 		$numericalOption = new NumericalOption();
-		$numericalOption->id=1;
+		$numericalOption->id=$this->getNextId();
 		if(empty($numericalUnit->unit)){
 			$numericalOption->showunits=3;
 			$numericalOption->unitgradingtype=0;
@@ -1590,7 +1595,7 @@ class WebCTModel extends \GlobalModel {
 		
 		
 		$calculatedRecord = new CalculatedRecord();
-		$calculatedRecord->id=1;
+		$calculatedRecord->id=$this->getNextId();
 		$calculatedRecord->answer=$answer->id;
 		if((string)$toleranceType=="Unit"){
 			$calculatedRecord->tolerancetype=2;
@@ -1613,7 +1618,7 @@ class WebCTModel extends \GlobalModel {
 		$question->calculatedRecords[]=$calculatedRecord;
 		
 		$calculatedOption = new CalculatedOption();
-		$calculatedOption->id=1;
+		$calculatedOption->id=$this->getNextId();
 		$calculatedOption->synchronize=0;
 		$calculatedOption->single=0;
 		$calculatedOption->shuffleanswers=1;
@@ -1744,14 +1749,13 @@ class WebCTModel extends \GlobalModel {
 	
 		$question->multiChoice = $multichoice;
 	
-	
-		$count = 0;
 		foreach ($xmlContent->presentation->flow->response_lid->render_choice->flow_label->response_label as $response_label){
 	
 			$webctAnswerId = $response_label['ident'];
 	
 			$answer = new Answer();
-			$answer->id=$count++;// 		id="4">
+			$answer->contextid = $question->category->contextid;
+			$answer->id=$this->getNextId();// 		id="4">
 			
 			$answerText = "";
 			foreach ($response_label->material->mattext as $mattext){
@@ -1903,11 +1907,12 @@ class WebCTModel extends \GlobalModel {
 				
 			//On crée le text des multichoice
 			$multiChoiceText = "{1:MULTICHOICE:";
-			$answerCount = 0;
+			
 			foreach ($correctAnswers as $correctAnswer2){
 				
 				$answer = new Answer();
-				$answer->id=$answerCount++;
+				$answer->contextid = $question->category->contextid;
+				$answer->id=$this->getNextId();
 				$answer->answertext=$multiChoiceAnswers[$correctAnswer2];
 				$answer->answerformat="1";
 				$answer->feedback="";
@@ -3132,7 +3137,7 @@ class WebCTModel extends \GlobalModel {
 			$count++;
 			$webLinksCategoryId = $row['ID'];
 			$chapter = new Chapter();
-			$chapter->id=$count;
+			$chapter->id=$this->getNextId();
 			$chapter->pagenum = $count;
 			$chapter->subchapter=0;
 			$chapter->title = $row['NAME'];

@@ -25,7 +25,7 @@ class HtmlContentClass {
 	
 	public function replaceAllLinks($htmlContent){
 		
-		$pattern = "/((?<=href=(\"|'))|(?<=src=(\"|')))[^\"']+(?=(\"|'))/";
+		$pattern = "/(?i)((?<=href=(\"|'))|(?<=src=(\"|')))[^\"']+(?=(\"|'))/";
 		$this->fileNames = array();
 		
 		return 	preg_replace_callback(

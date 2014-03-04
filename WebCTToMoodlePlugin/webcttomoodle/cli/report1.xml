@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<report>
+ <category name="Institut d'&#xE9;tudes europ&#xE9;ennes">
+  <course name="Europe in the Twentieth Century (P.Lagrou)" code="HIST-B-5015">
+   <section name="Europe in the Twentieth Century (P.Lagrou)" code="HIST-B-5015.default" number_learning_module_links="0"/>
+  </course>
+  <course name="Union europ&#xE9;enne et droits fondamentaux (E. Bribosia)" code="DROI105">
+   <section name="Union europ&#xE9;enne et droits fondamentaux (E. Bribosia)" code="DROI105.default" number_learning_module_links="0"/>
+  </course>
+  <course name="Union &#xE9;conomique et mon&#xE9;taire (P. Vigneron)" code="POLI-O-406">
+   <section name="Union &#xE9;conomique et mon&#xE9;taire (P. Vigneron)" code="POLI-O-406.default" number_learning_module_links="0"/>
+  </course>
+ </category>
+ <category name="Interfacultaire">
+  <course name="Micro-informatique (F. D&#xBF;Hautcourt)" code="CAPORDI001">
+   <section name="Micro-informatique (F. D&#xBF;Hautcourt)" code="CAPORDI001.default" number_learning_module_links="222"/>
+  </course>
+  <course name="Test d&#xBF;anglais" code="TEST003">
+   <section name="Test d&#xBF;anglais" code="TEST003.default" number_learning_module_links="0"/>
+  </course>
+  <course name="CAP ORDI (F. D&#xBF;Hautcourt)" code="CAPORDI002">
+   <section name="CAP ORDI (F. D&#xBF;Hautcourt)" code="CAPORDI002.default" number_learning_module_links="184"/>
+  </course>
+ </category>
+ <category name="Institut des sciences de la motricit&#xE9;">
+  <course name="Anatomie humaine (1&#xE8;re partie) (V. Feipel &amp; M. Rooze)" code="BIME-I-101">
+   <section name="Anatomie humaine (1&#xE8;re partie) (V. Feipel &amp; M. Rooze)" code="BIME-I-101.default" number_learning_module_links="204"/>
+  </course>
+  <course name="Physiologie cardio-respiratoire  - hydromin&#xE9;rale (J.J. Moraine)" code="BIME-I-201">
+   <section name="Physiologie cardio-respiratoire  - hydromin&#xE9;rale (J.J. Moraine)" code="BIME-I-201.default" number_learning_module_links="0"/>
+  </course>
+  <course name="Neurophysiologie sensorielle (A. Bengoetxea)" code="BIME-I-210">
+   <section name="Neurophysiologie sensorielle (A. Bengoetxea)" code="BIME-I-210.default" number_learning_module_links="37"/>
+  </course>
+ </category>
+</report>

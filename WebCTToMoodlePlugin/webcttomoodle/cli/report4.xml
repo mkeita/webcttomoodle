@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<report>
+ <category name="Institut d'études européennes">
+  <course name="Europe in the Twentieth Century (P.Lagrou)" code="HIST-B-5015">
+   <section name="Europe in the Twentieth Century (P.Lagrou)" code="HIST-B-5015.default" nb_learning_module="0"/>
+  </course>
+  <course name="Union européenne et droits fondamentaux (E. Bribosia)" code="DROI105">
+   <section name="Union européenne et droits fondamentaux (E. Bribosia)" code="DROI105.default" nb_learning_module="0"/>
+  </course>
+  <course name="Union économique et monétaire (P. Vigneron)" code="POLI-O-406">
+   <section name="Union économique et monétaire (P. Vigneron)" code="POLI-O-406.default" nb_learning_module="0"/>
+  </course>
+ </category>
+ <category name="Interfacultaire">
+  <course name="Micro-informatique (F. DHautcourt)" code="CAPORDI001">
+   <section name="Micro-informatique (F. DHautcourt)" code="CAPORDI001.default" nb_learning_module="10">
+    <learning_module name="Présentation assistée par ordinateur"/>
+    <learning_module name="Tableur"/>
+    <learning_module name="PAO"/>
+    <learning_module name="BDD"/>
+    <learning_module name="Premiers pas"/>
+    <learning_module name="Recherche d'information"/>
+    <learning_module name="E-mail et communication"/>
+    <learning_module name="Base de données"/>
+    <learning_module name="Traitement de texte"/>
+    <learning_module name="Accueil"/>
+   </section>
+  </course>
+  <course name="Test danglais" code="TEST003">
+   <section name="Test danglais" code="TEST003.default" nb_learning_module="0"/>
+  </course>
+  <course name="CAP ORDI (F. DHautcourt)" code="CAPORDI002">
+   <section name="CAP ORDI (F. DHautcourt)" code="CAPORDI002.default" nb_learning_module="8">
+    <learning_module name="Informations générales"/>
+    <learning_module name="Présentation générale des Bases de données"/>
+    <learning_module name="Présentation générale de la PAO"/>
+    <learning_module name="Premiers pas"/>
+    <learning_module name="Recherche d'information"/>
+    <learning_module name="Présentation générale du Tableur"/>
+    <learning_module name="E-mail et communication"/>
+    <learning_module name="Présentation générale sur le traitement de texte"/>
+   </section>
+  </course>
+ </category>
+ <category name="Institut des sciences de la motricité">
+  <course name="Anatomie humaine (1ère partie) (V. Feipel &amp; M. Rooze)" code="BIME-I-101">
+   <section name="Anatomie humaine (1ère partie) (V. Feipel &amp; M. Rooze)" code="BIME-I-101.default" nb_learning_module="9">
+    <learning_module name="Ostéologie"/>
+    <learning_module name="Anatomie de surface"/>
+    <learning_module name="Fiches récapitulatives illustrées"/>
+    <learning_module name="Illustrations des cours (NB: d'autres illustrations sont disponibles dans le cours UV ANAT019)"/>
+    <learning_module name="Cours BIME-I-101"/>
+    <learning_module name="Travaux pratiques de dissection"/>
+    <learning_module name="Travaux pratiques BA2"/>
+    <learning_module name="Auto-évaluation et exemples d'examens"/>
+    <learning_module name="Cours multimédia - Ostéologie"/>
+   </section>
+  </course>
+  <course name="Physiologie cardio-respiratoire  - hydrominérale (J.J. Moraine)" code="BIME-I-201">
+   <section name="Physiologie cardio-respiratoire  - hydrominérale (J.J. Moraine)" code="BIME-I-201.default" nb_learning_module="0"/>
+  </course>
+  <course name="Neurophysiologie sensorielle (A. Bengoetxea)" code="BIME-I-210">
+   <section name="Neurophysiologie sensorielle (A. Bengoetxea)" code="BIME-I-210.default" nb_learning_module="1">
+    <learning_module name="Contenu"/>
+   </section>
+  </course>
+ </category>
+</report>

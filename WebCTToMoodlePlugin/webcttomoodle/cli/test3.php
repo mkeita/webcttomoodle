@@ -34,9 +34,11 @@ class TestClass{
 	public function replaceCaracter(){
 		$htmlContent = "Vous devez faire cette tâche avec le fichier attaché.
 <a href=\"/webct/RelativeResourceManager/Template/Theorie/Tables/TableMassesatomiques.html\">TEST</a>
-		testtsdsd <a href=\"test.doc\" >test.doc</a> encore du text <a src=\"http://www.google.com\" >test.doc</a>
+		testtsdsd <a HREF=\"test.doc\" >test.doc</a> encore du text <a src=\"http://www.google.com\" >test.doc</a>
+				<IMG SRC=\"test.doc\" />
 		";
-		$pattern = "/((?<=href=(\"|'))|(?<=src=(\"|')))[^\"']+(?=(\"|'))/";
+	//	$pattern = "/((?<=href=(\"|'))|(?<=src=(\"|')))[^\"']+(?=(\"|'))/";
+		$pattern = "/(?i)((?<=href=(\"|'))|(?<=src=(\"|')))[^\"']+(?=(\"|'))/";
 		$fileNames = array();
 		$test = preg_replace_callback(
 				$pattern, array($this, 'replace'),
