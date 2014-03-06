@@ -72,7 +72,7 @@ if($isBackup){
 	}
 
 }elseif($isRestore){
-	
+	set_time_limit(0);
 	global $USER;
 	
 	//ON EFFECTUE LA RESTAURATION DES COURS...

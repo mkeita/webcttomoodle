@@ -18,7 +18,7 @@ class WebCTModel extends \GlobalModel {
 		parent::__construct();
 		
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
- 		$this->retrieveGlossaries();
+  		$this->retrieveGlossaries();
 
 		$this->retrieveQuestions();	
 
@@ -28,7 +28,7 @@ class WebCTModel extends \GlobalModel {
 		
      	$this->retrieveQuizzes();
 		
- 		$this->retrieveAssignments();
+  		$this->retrieveAssignments();
 		
   		$this->retrieveFolders();
 		
@@ -40,11 +40,12 @@ class WebCTModel extends \GlobalModel {
 		
  		$this->retrieveEmail();
 		
+ 		$this->retrieveCourseContent();
+ 		
   		/*******
   		 * retrieveRapportMigration() doit toujour être en derniére position.
   		 */
   		$this->retrieveRapportMigration();
-  		
 		
 		oci_close($this->connection);
 	}
@@ -660,18 +661,17 @@ class WebCTModel extends \GlobalModel {
 				if(empty($question)){
 					continue;					
 				}
-				
 				$question->id = $row1['ORIGINAL_CONTENT_ID'];
 				$question->parent= 0;//$questionCategory->id;
 				$question->name=$row1['NAME'];
+				
+				$question->category = $questionCategory;
+				
+				$this->fillQuestion($question, $row1['FILE_CONTENT_ID']);
 
 				$questionCategory->addQuestion($question);
 				
-				$this->fillQuestion($question, $row1['FILE_CONTENT_ID']);
-				
-				$this->allQuestions[(string)$question->id] = $question;
-				
-				
+				$this->allQuestions[(string)$question->id] = $question;		
 				$this->rapportMigration->add("question", $question->id, $question->name,
 						null, 0);
 				
@@ -714,8 +714,7 @@ class WebCTModel extends \GlobalModel {
 			$questionText ="";
 			
 			if(strlen($question->name)>255){
-				//TODO Vérifier si remarque ou pas
-				//echo 'QUESTION NAME TOO LONG - '.$question->name;
+				echo 'QUESTION NAME TOO LONG - '.$question->name;
 				$questionText .= $question->name."<br/>";
 
 				$question->name = substr($question->name, 252)."...";
@@ -981,7 +980,6 @@ class WebCTModel extends \GlobalModel {
 			}
 			
 		}else {
-			//echo "MULTI ANSWERS";
 			$newQuestion = new MultiAnswerQuestion();
 			$newQuestion->fillWith($question);
 			
@@ -997,6 +995,8 @@ class WebCTModel extends \GlobalModel {
 			//We're going to find all the questions part
 			$responseStrList =$xmlContent->xpath('//ims:response_str');
 			$responseCount = count($responseStrList);
+			
+			$responseMaxSize = 0;
 			foreach ($responseStrList as $response_str){
 				$responseId = $response_str['ident'];				
 				$count++;
@@ -1109,6 +1109,13 @@ class WebCTModel extends \GlobalModel {
 					if($maxScore!=0){
 						$answer->fraction = $answer->fraction/$maxScore;
 					}
+
+					//get the max size
+					$answerlength = strlen($answer->answertext);
+					if($responseMaxSize<$answerlength){
+						$responseMaxSize=$answerlength;
+					}
+					
 					$shortAnswerQuestionText=$shortAnswerQuestionText."%".round($answer->fraction*100,0)."%".$answer->answertext."#~";						
 				}
 								
@@ -1118,15 +1125,31 @@ class WebCTModel extends \GlobalModel {
 				//Add the short question to the current category..
 				$question->category->addQuestion($shortAnswerQuestion);
 				$multiAnswer->sequence[]=$shortAnswerQuestion->id;
-				
-				if($question->id=='3785530001'){
-					echo 'PROBLEMATIC SHORT ANSWER = '.$shortAnswerQuestion->name."---".$shortAnswerQuestion->id. " <br/>";
-				}
-				
+					
 				$this->allQuestions[(string)$shortAnswerQuestion->id]=$shortAnswerQuestion;
 				
 			}
 			$finalText = $finalText."</ol>";
+
+			
+			//Add some JAVASCRIPT after the question to force the input
+			if($responseMaxSize>500){
+				$responseMaxSize = 500;
+			}
+			$javascript = "<!---DON'T TOUCH THIS CODE, IT ALLOW THE INPUT FIELD TO HAVE THE SAVE SIZE --->
+			<div id='inputResizingDiv".$question->id."'> </div>
+			<script type='text/javascript'>
+			// <![CDATA[
+				var parent = document.getElementById('inputResizingDiv".$question->id."').parentNode;
+				var inputs = parent.querySelectorAll('input');
+				for (var i=0, max=inputs.length; i < max; i++) {
+					inputs[i].setAttribute('size',".$responseMaxSize.");
+				}
+			// ]]>
+			</script>";
+			
+			$finalText .= $javascript;
+			
 			$question->questiontext =$finalText;
 			
 			$question->multiAnswer = $multiAnswer;
@@ -1342,6 +1365,27 @@ class WebCTModel extends \GlobalModel {
 			}
 		}
 		
+
+		
+		$hasPreview = false;
+		$questionsList = array();
+		$responsesList = array();
+		$materialTable = $xmlContent->xpath("//ims:material_table[@label='tableLabel']");
+		if(!empty($materialTable)){	
+			$hasPreview = true;
+			$materialTableChildren = $materialTable[0]->children('http://www.webct.com/vista/assessment');
+			$extFlows = $materialTableChildren->matching_ext_flow;
+
+			foreach ($extFlows[0]->matching_text_ext as $extMattext){
+				$matText=$extMattext->children("http://www.imsglobal.org/xsd/ims_qtiasiv1p2");
+				$questionsList[]=(string)$matText->mattext;
+			}
+			foreach ($extFlows[1]->matching_text_ext as $extMattext){
+				$matText = $extMattext->children("http://www.imsglobal.org/xsd/ims_qtiasiv1p2");
+				$responsesList[]=(string)$matText->mattext;
+			}
+		}
+		
 		$matches = new Matches();
 		
 		//IDEM MULTICHOICE
@@ -1360,32 +1404,89 @@ class WebCTModel extends \GlobalModel {
 		
 		
 		$lastAnswerText ="";
-		foreach ($xmlContent->xpath('//ims:response_grp') as $response_grp){
+		if($hasPreview){
+			$questionsNumber = count($questionsList);
+			$responsesNumber = count($responsesList);
 			
-			$match = new Match();
-			$match->id = $this->getNextId();
-			$match->contextid = $question->category->contextid;
-			
-			$filesName = array();
-			$convertedText = $this->convertTextAndCreateAssociedFiles((string)$response_grp->material->mattext,7, $match); 
-			$match->questiontext = $convertedText;
-			
-			$match->questiontextformat =1 ;
-
-			$machtText = "";
-			foreach ($response_grp->render_choice->flow_label->response_label as $response_label){
-				if(substr($response_label['ident'],0,2)!="NO"){
-					$machtText = $response_label->material->mattext;
-					break;
-				}
+			$maxNumber = $questionsNumber;
+			if($questionsNumber<$responsesNumber){
+				$maxNumber = $responsesNumber;
 			}
-					
-			$filesName = array();
-			$convertedText = $this->convertTextAndCreateAssociedFiles($machtText,7, $match);				
-			$lastAnswerText = $convertedText;
-			$match->answertext = $convertedText;
+			for ($i=0; $i<$maxNumber; $i++){
+				$match = new Match();
+				$match->id = $this->getNextId();
+				$match->contextid = $question->category->contextid;
+				if($i<$questionsNumber){
+					$convertedText = $this->convertTextAndCreateAssociedFiles($questionsList[$i],7, $match);
+				}else {
+					$convertedText="";
+				}
+				$match->questiontext = $convertedText;
+				
+				$match->questiontextformat =1 ;
+
+				if($i<$responsesNumber){				
+					$convertedText = $this->convertTextAndCreateAssociedFiles($responsesList[$i],7, $match);
+				}else {
+					$convertedText = "aucune correspondance";
+				}
+				$lastAnswerText = $convertedText;
+				$match->answertext = $convertedText;
+				
+				$matches->matches[]=$match;
+			}	
+		}else {
+			$extraAnswers = array();
+			$extraAnswersFilled = false;
+			foreach ($xmlContent->xpath('//ims:response_grp') as $response_grp){
+				
+				$match = new Match();
+				$match->id = $this->getNextId();
+				$match->contextid = $question->category->contextid;
+				
+				$convertedText = $this->convertTextAndCreateAssociedFiles((string)$response_grp->material->mattext,7, $match); 
+				$match->questiontext = $convertedText;
+				
+				$match->questiontextformat =1 ;
+	
+				$machtText = "";
+				foreach ($response_grp->render_choice->flow_label->response_label as $response_label){
+					if(substr($response_label['ident'],0,2)!="NO"){
+						$machtText = $response_label->material->mattext;
+						if(!empty($extraAnswers)){
+							break;
+						}
+					}elseif($extraAnswersFilled==false && $response_label->material->mattext['label']=="EXTRA"){
+						$extraAnswers[]=(string)$response_label->material->mattext;
+					}
+				}
+				
+				if(!empty($extraAnswers)){
+					$extraAnswersFilled = true;
+				}
+						
+				$convertedText = $this->convertTextAndCreateAssociedFiles($machtText,7, $match);				
+				$lastAnswerText = $convertedText;
+				$match->answertext = $convertedText;
+				
+				$matches->matches[]=$match;
+			}
 			
-			$matches->matches[]=$match;
+			//We must add the extra answers
+			foreach ($extraAnswers as $extraAnswer){
+				$match = new Match();
+				$match->id = $this->getNextId();
+				$match->contextid = $question->category->contextid;
+				
+				$match->questiontext = "";
+				$match->questiontextformat =1 ;
+				
+				$convertedText = $this->convertTextAndCreateAssociedFiles($extraAnswer,7, $match);
+				$lastAnswerText = $convertedText;
+				$match->answertext = $convertedText;
+				
+				$matches->matches[]=$match;
+			}
 		}
 		//ADD the last answer, one more time but without the question..
 		$lastMatch = new Match();
@@ -1987,7 +2088,7 @@ class WebCTModel extends \GlobalModel {
 	
 	public function retrieveQuizzes(){
 	
-		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='ASSESSMENT_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='ASSESSMENT_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' ORDER BY NAME";
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
 		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
@@ -2364,26 +2465,28 @@ class WebCTModel extends \GlobalModel {
 		//Find the root section
 		//echo "------------------------------------<br/>";
 		
-		$request = "SELECT * FROM ASSMT_SECTION_ELEMENT 
-						WHERE SECTION_PARENT_ID=(SELECT ID FROM ASSMT_SECTION_ELEMENT WHERE SECTION_PARENT_ID IS NULL AND ASSESSMENT_ID='".$quiz->quizId."')
+		$request = "SELECT ASSMT_SECTION_ELEMENT.ID AS SECTION_ID,ASSMT_QUESTION_SET.ID AS SET_ID 
+					FROM ASSMT_SECTION_ELEMENT
+						LEFT JOIN ASSMT_QUESTION_SET ON ASSMT_QUESTION_SET.ID = ASSMT_SECTION_ELEMENT.ID 
+					WHERE SECTION_PARENT_ID=(SELECT ID FROM ASSMT_SECTION_ELEMENT WHERE SECTION_PARENT_ID IS NULL AND ASSESSMENT_ID='".$quiz->quizId."')
 								AND PREVIOUS_ELEMENT_ID IS NULL";
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
 		$count = 0;
 		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
-			if(empty($row['NAME'])){
-				$this->addSimpleQuestionToQuiz($count++, $quiz, $row['ID']);
+			if(empty($row['SET_ID'])){
+				$this->addSimpleQuestionToQuiz($count++, $quiz, $row['SECTION_ID']);
 			}else {
-				$this->addQuestionSetToQuiz($count++, $quiz, $row['ID']);
+				$this->addQuestionSetToQuiz($count++, $quiz, $row['SECTION_ID']);
 			}
 			
 			//echo 'ROW '.$row['ID'] . ' - '. $row['PREVIOUS_ELEMENT_ID'].'<br/>';
 			
-			
-			
-			$request = "SELECT * FROM ASSMT_SECTION_ELEMENT
+			$request = "SELECT ASSMT_SECTION_ELEMENT.ID AS SECTION_ID,ASSMT_QUESTION_SET.ID AS SET_ID 
+						FROM ASSMT_SECTION_ELEMENT
+							LEFT JOIN ASSMT_QUESTION_SET ON ASSMT_QUESTION_SET.ID = ASSMT_SECTION_ELEMENT.ID 
 						WHERE SECTION_PARENT_ID=(SELECT ID FROM ASSMT_SECTION_ELEMENT WHERE SECTION_PARENT_ID IS NULL AND ASSESSMENT_ID='".$quiz->quizId."')
-								AND PREVIOUS_ELEMENT_ID='".$row['ID']."'";
+								AND PREVIOUS_ELEMENT_ID='".$row['SECTION_ID']."'";
 			$stid = oci_parse($this->connection,$request);
 			oci_execute($stid);
 		}
@@ -3227,6 +3330,65 @@ class WebCTModel extends \GlobalModel {
 		
 		return $book;
 	}
+	
+	
+	
+	/***************************************************************************************************************
+	 * COURSE CONTENT
+	*/
+	public function retrieveCourseContent(){
+		
+		//$this->addSections();
+		//$this->addSections();
+		//$this->addSections();
+
+	}
+	
+	/**
+	 * Initialize SectionModel
+	 */
+	public function addSections(){
+	
+		$sectionModels = array();	
+	
+		//SECTION DES EVALUATIONS
+		$sectionModel = new SectionModel();
+	
+		//Default section used to put all the activities (for now)
+		$section = new Section();
+		$section->id=$this->getNextId();
+		$section->number=$this->getNextId();
+		$section->name="Nouvelle section";
+		$section->summary="Nouvelle Section description";
+		$section->summaryformat=1;
+		$section->visible=0;
+		$section->availablefrom=0;
+		$section->availableuntil=0;
+		$section->showavailability=0;
+		$section->groupingid=0;
+	
+		$sectionModel->section = $section;
+	
+		$infoRef = new InfoRef();
+		$sectionModel->inforef = $infoRef;
+	
+		$this->sections[] = $sectionModel;
+			
+		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
+	
+		//moodle_backup settings
+		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
+	
+		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
+	
+		$this->course->course->numsections = $this->course->course->numsections+1; 
+	
+	}
+	
+	
+	
+	
 	/***************************************************************************************************************
 	 * Forum (Folder)
 	*/
