@@ -18,7 +18,7 @@ class WebCTModel extends \GlobalModel {
 		parent::__construct();
 		
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
-// 		$this->retrieveGlossaries();
+ 		$this->retrieveGlossaries();
 
 		$this->retrieveQuestions();	
 
@@ -26,19 +26,25 @@ class WebCTModel extends \GlobalModel {
 // 			error_log($key.'-->'.$value->name.'<br/>');
 // 		} 
 		
-		$this->retrieveQuizzes();
+     	$this->retrieveQuizzes();
 		
-//  		$this->retrieveAssignments();
+ 		$this->retrieveAssignments();
 		
-//  		$this->retrieveFolders();
+  		$this->retrieveFolders();
 		
-// 		$this->retrieveWebLinks();
+ 		$this->retrieveWebLinks();
 
-// 		$this->retrieveSyllabus();
+ 		$this->retrieveSyllabus();
 	
-// 		$this->retrieveForum();
+ 		$this->retrieveForum();
 		
-// 		$this->retrieveEmail();
+ 		$this->retrieveEmail();
+		
+  		/*******
+  		 * retrieveRapportMigration() doit toujour être en derniére position.
+  		 */
+  		$this->retrieveRapportMigration();
+  		
 		
 		oci_close($this->connection);
 	}
@@ -654,6 +660,7 @@ class WebCTModel extends \GlobalModel {
 				if(empty($question)){
 					continue;					
 				}
+				
 				$question->id = $row1['ORIGINAL_CONTENT_ID'];
 				$question->parent= 0;//$questionCategory->id;
 				$question->name=$row1['NAME'];
@@ -662,7 +669,11 @@ class WebCTModel extends \GlobalModel {
 				
 				$this->fillQuestion($question, $row1['FILE_CONTENT_ID']);
 				
-				$this->allQuestions[(string)$question->id]=$question;
+				$this->allQuestions[(string)$question->id] = $question;
+				
+				
+				$this->rapportMigration->add("question", $question->id, $question->name,
+						null, 0);
 				
 				//break;
 			}
@@ -703,7 +714,8 @@ class WebCTModel extends \GlobalModel {
 			$questionText ="";
 			
 			if(strlen($question->name)>255){
-				echo 'QUESTION NAME TOO LONG - '.$question->name;
+				//TODO Vérifier si remarque ou pas
+				//echo 'QUESTION NAME TOO LONG - '.$question->name;
 				$questionText .= $question->name."<br/>";
 
 				$question->name = substr($question->name, 252)."...";
@@ -2129,7 +2141,8 @@ class WebCTModel extends \GlobalModel {
 		$inforRef->gradeItemids[] = $gradeItem->id;
 		
 		$quizModel->inforef = $inforRef;
-	
+		$this->rapportMigration->add("evaluation", $quizModel->quiz->id, $quizModel->quiz->name,
+				null, count($quizModel->quiz->questions));
 		$this->activities[] = $quizModel;
 		
 		$this->sections[1]->section->sequence[]= $quizModel->quiz->quizId;
@@ -2559,15 +2572,13 @@ class WebCTModel extends \GlobalModel {
 	*/
 	
 	public function retrieveAssignments(){
-	
 		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='PROJECT_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
 		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
-	
+			
 			$assignmentId = $row['ORIGINAL_CONTENT_ID'];
 			$this->addAssignment($assignmentId);
-	
 		}
 	}
 	
@@ -2698,6 +2709,8 @@ class WebCTModel extends \GlobalModel {
 		$assignmentModel->inforef = $inforRef;
 	
 		$this->activities[] = $assignmentModel;
+		$this->rapportMigration->add("tache", $assignmentModel->assignment->id, $assignmentModel->assignment->name,
+				null, 0);
 	
 		$this->sections[2]->section->sequence[]= $assignmentModel->assignment->assignmentId;
 	}
@@ -2978,6 +2991,7 @@ class WebCTModel extends \GlobalModel {
 		$folderModel->inforef = $inforRef;
 	
 		$this->activities[] = $folderModel;
+		
 	
 		$this->sections[0]->section->sequence[]= $folderModel->folder->folderId;
 	}
@@ -3027,6 +3041,8 @@ class WebCTModel extends \GlobalModel {
 			if($row['CE_TYPE_NAME']=="ContentFile"){
 				$file = $this->addCMSSimpleFile($row["ORIGINAL_CONTENT_ID"], $contextId, $component, $fileArea, $itemId, $path);
 				$filesIds[] = $file->id;
+				$this->rapportMigration->add("gestionnaireFichier",$file->id, $file->filename,
+						null, 0);
 			}else {
 				$newPath = $path.$row['NAME']."/";
 				$repository = $this->addCMSRepository($contextId, $component, $fileArea, $itemId, $newPath);
@@ -3084,7 +3100,8 @@ class WebCTModel extends \GlobalModel {
 		$bookModel->inforef = $inforRef;
 		
 		$this->activities[] = $bookModel;
-		
+		$this->rapportMigration->add("lienWeb",$bookModel->book->bookId,$bookModel->book->name ,
+				null, count($bookModel->book->chapters));
 		$this->sections[0]->section->sequence[]= $bookModel->book->bookId;
 	}
 	
@@ -3303,6 +3320,7 @@ class WebCTModel extends \GlobalModel {
 		$file = NULL;
 		$style = $this->creationCssForum();
 		$content = $style;
+		$nbObject = 0;
 		while($res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS )){
 			if($nom_categorie != $res["NAME_CATEGORIE"]){
 				$nom_categorie = (($res["NAME_CATEGORIE"] == "Vide") ? utf8_encode("Thèmes non catégorisés") : $res["NAME_CATEGORIE"]);
@@ -3326,9 +3344,11 @@ class WebCTModel extends \GlobalModel {
 				$content = $content . '<h1 style="text-align:center">'. $nomFichier . '</h1>';
 				$content = $content . $this->creationTableMatiere($nomFichier);
 				$file = $this->createFichierInterne($nomFichier,$contextid ,$path );
+				$nbObject = 0;
 			}
 			
 			if($rootId != $res["ROOT_MESSAGE_ID"]){
+				$nbObject++;
 				$rootId = $res["ROOT_MESSAGE_ID"];
 				$content = $content . '<h3 id ="' . $res["SUBJECT"] . '" > ' . $res["SUBJECT"] . ':</h3>';
 			}
@@ -3357,7 +3377,9 @@ class WebCTModel extends \GlobalModel {
   								</tr>
  							 </table>
  							 <div class="entrytext">' . $message .  '</div>
-						</div>';		
+						</div>';	
+			$this->rapportMigration->add("discussion",$file->id, $file->filename,
+					null, $nbObject);
 		}
 		
 		if($file != NULL){
@@ -3384,20 +3406,22 @@ class WebCTModel extends \GlobalModel {
 			$originalContentId = $this->recupererOriginalContentId($this->deliveryContextId);
 			if($originalContentId != NULL){
 				$this->addResource($originalContentId);
+				$this->rapportMigration->add("programme", $pageId, "Plan de cours: " .$this->syllabusManager->courseInfo->nomCours,null, 0);
 			}else{
 				error_log("Programme : " . $this->syllabusManager->courseInfo->nomCours .' --> Incohérence BD <br/>');
+				$this->rapportMigration->add("programme", $pageId, "Plan de cours: " .$this->syllabusManager->courseInfo->nomCours, 
+						utf8_encode("Incohérence dans la base de donnée."), 0);
 			}		
 		}else if($this->verifierCreerProgramme($pageId)){
-		//	echo 'Création du cour </br>';
 			$this->addPage($pageId,"syllabus");
 		}else{
 			error_log("Programme : " . $this->syllabusManager->courseInfo->nomCours .' --> Seulement des formateurs donc pas de création de page <br/>');
+			$this->rapportMigration->add("programme", $pageId, "Plan de cours: " .$this->syllabusManager->courseInfo->nomCours,
+					utf8_encode("Seulement des formateurs donc pas de création du programme"), 0);
 		}
-		
 	}
 	
 	public function addResource($originalContentId){
-		echo 'OriginalContentId: ' . $originalContentId . '</br>';
 		$resourceModel = new RessourceModel();
 		$resourceModel->calendar = new Events(); //vide
 		$resourceModel->comments = new Comments(); //vide
@@ -3409,6 +3433,7 @@ class WebCTModel extends \GlobalModel {
 		
 		$resourceModel->module = $this->createModule($originalContentId,"resource","2013110500");
 		$resourceModel->ressource = $this->createResource($originalContentId, $resourceModel->module);
+		
 		
 		$this->addCMSFile($originalContentId, "10", $resourceModel->ressource);
 		$resourceModel->inforef->fileids = $resourceModel->ressource->filesIds ;	
@@ -3487,6 +3512,7 @@ class WebCTModel extends \GlobalModel {
 		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","page_".$pageModel->page->pageId,"page_".$pageModel->page->pageId."_userinfo",1);
 	
 		$this->activities[] = $pageModel;
+		$this->rapportMigration->add("programme", $pageId, $pageModel->page->name,null, 0);
 	
 		$this->sections[0]->section->sequence[]= $pageModel->page->pageId;
 	}
@@ -3688,6 +3714,64 @@ class WebCTModel extends \GlobalModel {
 	
 	
 	}
+	
+	/***************************************************************************************************************
+	 * Rapport Migration
+	*/
+	public function retrieveRapportMigration(){
+		$fileId = $this->getNextId();
+		$contextId = $this->getNextId();
+		$this->addRapportMigration($fileId , $contextId);
+	}
+	
+	public function addRapportMigration($fileId , $contextId){
+		$resourceModel = new RessourceModel();
+		$resourceModel->calendar = new Events(); //vide
+		$resourceModel->comments = new Comments(); //vide
+		$resourceModel->completion = new ActivityCompletion(); //vide
+		$resourceModel->filters = new Filters(); //vide
+		$resourceModel->grades = new ActivityGradeBook(); // Vide
+		$resourceModel->inforef = new InfoRef(); // A remplir
+		$resourceModel->roles = new RolesBackup(); //Vide
+		
+		$resourceModel->module = $this->createModule($fileId,"resource","2013110500");
+		$resourceModel->ressource = $this->createResource($fileId, $resourceModel->module);
+		$resourceModel->ressource->name = "Rapport de la migration";
+		$resourceModel->ressource->contextid = $contextId;
+		
+		$component = "mod_resource";
+		$fileArea = "content";
+		$itemId = 0;
+		$repository = $this->addCMSRepository($contextId, $component, $fileArea, $itemId, "/");	
+		$file = $this->createFichierInterne($resourceModel->ressource->name, $contextId, "/");
+		$file->id = $fileId;
+		$file->component = $component;
+		$content = $this->rapportMigration->toHtml();	
+		$file->contenthash=md5($content);
+		$file->createFile($content, $this->repository);
+		$this->files->files[]=$file;
+		$resourceModel->ressource->filesIds[] = $repository->id;
+		$resourceModel->ressource->filesIds[] = $file->id;
+		
+		$resourceModel->inforef->fileids = $resourceModel->ressource->filesIds ;
+		
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$resourceModel->module->id;
+		$activity->sectionid=0;
+		$activity->modulename=$resourceModel->module->modulename;
+		$activity->title=$resourceModel->ressource->name;
+		$activity->directory="activities/resource_".$resourceModel->ressource->ressourceId;
+		
+		
+		$this->moodle_backup->contents->activities[] = $activity;
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","resource_".$resourceModel->ressource->ressourceId,"resource_".$resourceModel->ressource->ressourceId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","resource_".$resourceModel->ressource->ressourceId,"resource_".$resourceModel->ressource->ressourceId."_userinfo",1);
+		
+		$this->activities[] = $resourceModel;
+		
+		$this->sections[0]->section->sequence[]= $resourceModel->ressource->ressourceId;	
+	}
+	
 	/**
 	 * Permet de récupérer le delivryContext du syllabus lié au cours.
 	 * 

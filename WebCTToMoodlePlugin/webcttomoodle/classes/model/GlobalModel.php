@@ -20,6 +20,7 @@ require_once 'classes/model/GradeBook.php';
 require_once 'classes/model/Groups.php';
 require_once 'classes/model/Outcomes.php';
 require_once 'classes/model/Scales.php';
+require_once 'classes/model/RapportMigration.php';
 
 require_once 'classes/model/sections/Section.php';
 
@@ -137,6 +138,10 @@ abstract class GlobalModel implements \IBackupModel {
 	 * @var string
 	 */
 	public $repository;
+	/**
+	 * @var RapportMigration
+	 */
+	public $rapportMigration;
 	
 	protected $idCount = 1;
 	
@@ -164,6 +169,8 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->initializeGradeBookModel();
 		
 		$this->initializeSyllabusModel();
+		
+		$this->initializeRapportMigration();
 		
 		$dir = sys_get_temp_dir().mb_substr($this->moodle_backup->name, 0, -4);
 		
@@ -264,6 +271,10 @@ abstract class GlobalModel implements \IBackupModel {
 // 		$roles->roles[] = $role; 
 		
 		$this->roles = $roles;
+	}
+	
+	public function initializeRapportMigration(){
+		$this->rapportMigration = new RapportMigration();
 	}
 	
 
@@ -794,6 +805,9 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		if($glossaryModel->glossary->name == "mediaLibrary.defaultCollection.name"){
 			if(sizeof($glossaryModel->glossary->entries)<=0){
+				$rem = utf8_encode("Le glossaire ne contenait aucune entré donc il n'a pas été récupéré");
+				$this->rapportMigration->add("glossaire", $glossaryModel->glossary->id, $glossaryModel->glossary->name, 
+						$rem, 0);
 				return;
 			}else {
 				$glossaryModel->glossary->name =utf8_encode("Glossaire par défaut");
@@ -821,7 +835,8 @@ abstract class GlobalModel implements \IBackupModel {
 		$glossaryModel->inforef = $inforRef;
 		
 		$this->activities[] = $glossaryModel;
-		
+		$this->rapportMigration->add("glossaire", $glossaryModel->glossary->id, $glossaryModel->glossary->name,
+				null, count($glossaryModel->glossary->entries));
 		$this->sections[0]->section->sequence[]= $glossaryModel->glossary->id;
 	}
 	
@@ -1127,6 +1142,7 @@ abstract class GlobalModel implements \IBackupModel {
 				mkdir($activityDir);
 				
 				$activityModel->glossary->toXMLFile($activityDir);
+
 				
 			}else if ($activityModel instanceof QuizModel) {
 				$activityDir = $dir.'/quiz_'.$activityModel->module->id;
@@ -1138,6 +1154,8 @@ abstract class GlobalModel implements \IBackupModel {
 			
 				$activityModel->quiz->toXMLFile($activityDir);
 				
+				
+				
 			}else if ($activityModel instanceof AssignmentModel) {
 				$activityDir = $dir.'/assign_'.$activityModel->module->id;
 				
@@ -1146,6 +1164,7 @@ abstract class GlobalModel implements \IBackupModel {
 					rrmdir($activityDir);
 				}
 				mkdir($activityDir);
+				
 			
 				$activityModel->assignment->toXMLFile($activityDir);
 				$activityModel->grading->toXMLFile($activityDir);
