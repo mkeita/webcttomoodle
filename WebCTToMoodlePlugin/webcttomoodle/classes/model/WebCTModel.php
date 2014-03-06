@@ -18,7 +18,7 @@ class WebCTModel extends \GlobalModel {
 		parent::__construct();
 		
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
- 		$this->retrieveGlossaries();
+  		$this->retrieveGlossaries();
 
 		$this->retrieveQuestions();	
 
@@ -28,17 +28,19 @@ class WebCTModel extends \GlobalModel {
 		
 		$this->retrieveQuizzes();
 		
- 		$this->retrieveAssignments();
+  		$this->retrieveAssignments();
 		
- 		$this->retrieveFolders();
+  		$this->retrieveFolders();
 		
-		$this->retrieveWebLinks();
+ 		$this->retrieveWebLinks();
 
-		$this->retrieveSyllabus();
+ 		$this->retrieveSyllabus();
 	
-		$this->retrieveForum();
+ 		$this->retrieveForum();
 		
-		$this->retrieveEmail();
+ 		$this->retrieveEmail();
+		
+ 		$this->retrieveCourseContent();
 		
 		oci_close($this->connection);
 	}
@@ -765,7 +767,6 @@ class WebCTModel extends \GlobalModel {
 			$this->fillMutipleChoiceQuestion($question, $xmlContent);
 		}else if($question instanceof ShortAnswerQuestion){
 			$this->fillShortAnswerQuestion($question, $xmlContent);
-			echo $question->name.' --- '.$question->qtype.'<br/>';
 		}else if($question instanceof FillInBlankQuestion){
 			$this->fillFillInBlankQuestion($question, $xmlContent);
 		}else if($question instanceof MatchingQuestion){
@@ -972,13 +973,10 @@ class WebCTModel extends \GlobalModel {
 			}
 			
 		}else {
-			echo "MULTI ANSWERS - " . $question->name."<br/>";
 			$newQuestion = new MultiAnswerQuestion();
 			$newQuestion->fillWith($question);
 			
 			$question = $newQuestion;
-			echo "TYPE".$question->qtype; 
-			
 			
 			$multiAnswer = new MultiAnswer();
 			$multiAnswer->question = $question->id;
@@ -1398,23 +1396,38 @@ class WebCTModel extends \GlobalModel {
 		$lastAnswerText ="";
 		if($hasPreview){
 			$questionsNumber = count($questionsList);
-			for ($i=0; $i<$questionsNumber; $i++){
+			$responsesNumber = count($responsesList);
+			
+			$maxNumber = $questionsNumber;
+			if($questionsNumber<$responsesNumber){
+				$maxNumber = $responsesNumber;
+			}
+			for ($i=0; $i<$maxNumber; $i++){
 				$match = new Match();
 				$match->id = $this->getNextId();
 				$match->contextid = $question->category->contextid;
-				
-				$convertedText = $this->convertTextAndCreateAssociedFiles($questionsList[$i],7, $match);
+				if($i<$questionsNumber){
+					$convertedText = $this->convertTextAndCreateAssociedFiles($questionsList[$i],7, $match);
+				}else {
+					$convertedText="";
+				}
 				$match->questiontext = $convertedText;
 				
 				$match->questiontextformat =1 ;
-				
-				$convertedText = $this->convertTextAndCreateAssociedFiles($responsesList[$i],7, $match);
+
+				if($i<$responsesNumber){				
+					$convertedText = $this->convertTextAndCreateAssociedFiles($responsesList[$i],7, $match);
+				}else {
+					$convertedText = "aucune correspondance";
+				}
 				$lastAnswerText = $convertedText;
 				$match->answertext = $convertedText;
 				
 				$matches->matches[]=$match;
 			}	
 		}else {
+			$extraAnswers = array();
+			$extraAnswersFilled = false;
 			foreach ($xmlContent->xpath('//ims:response_grp') as $response_grp){
 				
 				$match = new Match();
@@ -1430,11 +1443,35 @@ class WebCTModel extends \GlobalModel {
 				foreach ($response_grp->render_choice->flow_label->response_label as $response_label){
 					if(substr($response_label['ident'],0,2)!="NO"){
 						$machtText = $response_label->material->mattext;
-						break;
+						if(!empty($extraAnswers)){
+							break;
+						}
+					}elseif($extraAnswersFilled==false && $response_label->material->mattext['label']=="EXTRA"){
+						$extraAnswers[]=(string)$response_label->material->mattext;
 					}
+				}
+				
+				if(!empty($extraAnswers)){
+					$extraAnswersFilled = true;
 				}
 						
 				$convertedText = $this->convertTextAndCreateAssociedFiles($machtText,7, $match);				
+				$lastAnswerText = $convertedText;
+				$match->answertext = $convertedText;
+				
+				$matches->matches[]=$match;
+			}
+			
+			//We must add the extra answers
+			foreach ($extraAnswers as $extraAnswer){
+				$match = new Match();
+				$match->id = $this->getNextId();
+				$match->contextid = $question->category->contextid;
+				
+				$match->questiontext = "";
+				$match->questiontextformat =1 ;
+				
+				$convertedText = $this->convertTextAndCreateAssociedFiles($extraAnswer,7, $match);
 				$lastAnswerText = $convertedText;
 				$match->answertext = $convertedText;
 				
@@ -2417,24 +2454,28 @@ class WebCTModel extends \GlobalModel {
 		//Find the root section
 		//echo "------------------------------------<br/>";
 		
-		$request = "SELECT * FROM ASSMT_SECTION_ELEMENT 
-						WHERE SECTION_PARENT_ID=(SELECT ID FROM ASSMT_SECTION_ELEMENT WHERE SECTION_PARENT_ID IS NULL AND ASSESSMENT_ID='".$quiz->quizId."')
+		$request = "SELECT ASSMT_SECTION_ELEMENT.ID AS SECTION_ID,ASSMT_QUESTION_SET.ID AS SET_ID 
+					FROM ASSMT_SECTION_ELEMENT
+						LEFT JOIN ASSMT_QUESTION_SET ON ASSMT_QUESTION_SET.ID = ASSMT_SECTION_ELEMENT.ID 
+					WHERE SECTION_PARENT_ID=(SELECT ID FROM ASSMT_SECTION_ELEMENT WHERE SECTION_PARENT_ID IS NULL AND ASSESSMENT_ID='".$quiz->quizId."')
 								AND PREVIOUS_ELEMENT_ID IS NULL";
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
 		$count = 0;
 		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
-			if(empty($row['NAME'])){
-				$this->addSimpleQuestionToQuiz($count++, $quiz, $row['ID']);
+			if(empty($row['SET_ID'])){
+				$this->addSimpleQuestionToQuiz($count++, $quiz, $row['SECTION_ID']);
 			}else {
-				$this->addQuestionSetToQuiz($count++, $quiz, $row['ID']);
+				$this->addQuestionSetToQuiz($count++, $quiz, $row['SECTION_ID']);
 			}
 			
 			//echo 'ROW '.$row['ID'] . ' - '. $row['PREVIOUS_ELEMENT_ID'].'<br/>';
 			
-			$request = "SELECT * FROM ASSMT_SECTION_ELEMENT
+			$request = "SELECT ASSMT_SECTION_ELEMENT.ID AS SECTION_ID,ASSMT_QUESTION_SET.ID AS SET_ID 
+						FROM ASSMT_SECTION_ELEMENT
+							LEFT JOIN ASSMT_QUESTION_SET ON ASSMT_QUESTION_SET.ID = ASSMT_SECTION_ELEMENT.ID 
 						WHERE SECTION_PARENT_ID=(SELECT ID FROM ASSMT_SECTION_ELEMENT WHERE SECTION_PARENT_ID IS NULL AND ASSESSMENT_ID='".$quiz->quizId."')
-								AND PREVIOUS_ELEMENT_ID='".$row['ID']."'";
+								AND PREVIOUS_ELEMENT_ID='".$row['SECTION_ID']."'";
 			$stid = oci_parse($this->connection,$request);
 			oci_execute($stid);
 		}
@@ -3274,6 +3315,65 @@ class WebCTModel extends \GlobalModel {
 		
 		return $book;
 	}
+	
+	
+	
+	/***************************************************************************************************************
+	 * COURSE CONTENT
+	*/
+	public function retrieveCourseContent(){
+		
+		//$this->addSections();
+		//$this->addSections();
+		//$this->addSections();
+
+	}
+	
+	/**
+	 * Initialize SectionModel
+	 */
+	public function addSections(){
+	
+		$sectionModels = array();	
+	
+		//SECTION DES EVALUATIONS
+		$sectionModel = new SectionModel();
+	
+		//Default section used to put all the activities (for now)
+		$section = new Section();
+		$section->id=$this->getNextId();
+		$section->number=$this->getNextId();
+		$section->name="Nouvelle section";
+		$section->summary="Nouvelle Section description";
+		$section->summaryformat=1;
+		$section->visible=0;
+		$section->availablefrom=0;
+		$section->availableuntil=0;
+		$section->showavailability=0;
+		$section->groupingid=0;
+	
+		$sectionModel->section = $section;
+	
+		$infoRef = new InfoRef();
+		$sectionModel->inforef = $infoRef;
+	
+		$this->sections[] = $sectionModel;
+			
+		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
+	
+		//moodle_backup settings
+		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
+	
+		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
+	
+		$this->course->course->numsections = $this->course->course->numsections+1; 
+	
+	}
+	
+	
+	
+	
 	/***************************************************************************************************************
 	 * Forum (Folder)
 	*/

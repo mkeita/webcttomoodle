@@ -504,7 +504,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$course->enablecompletion = 0;
 		$course->completionnotify = 0;
 		$course->numsections = 2;
-		$course->hiddensections = 0;
+		$course->hiddensections = 1;
 		$course->coursedisplay = 0;
 	
 	
