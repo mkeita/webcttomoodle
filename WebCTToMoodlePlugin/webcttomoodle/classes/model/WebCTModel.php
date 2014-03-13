@@ -6,7 +6,6 @@ class WebCTModel extends \GlobalModel {
 	
 	private $connection;
 	
-	private $learningContextId = "366249217001";
 	
 	private $deliveryContextId;
 		
@@ -18,7 +17,7 @@ class WebCTModel extends \GlobalModel {
 		parent::__construct();
 		
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
-  		$this->retrieveGlossaries();
+  	//	$this->retrieveGlossaries();
 
 		$this->retrieveQuestions();	
 
@@ -28,19 +27,19 @@ class WebCTModel extends \GlobalModel {
 		
      	$this->retrieveQuizzes();
 		
-  		$this->retrieveAssignments();
+//   		$this->retrieveAssignments();
 		
-  		$this->retrieveFolders();
+//   		$this->retrieveFolders();
 		
- 		$this->retrieveWebLinks();
+//  		$this->retrieveWebLinks();
 
- 		$this->retrieveSyllabus();
+//  		$this->retrieveSyllabus();
 	
- 		$this->retrieveForum();
+//  		$this->retrieveForum();
 		
- 		$this->retrieveEmail();
+//  		$this->retrieveEmail();
 		
- 		$this->retrieveCourseContent();
+//  		$this->retrieveCourseContent();
  		
   		/*******
   		 * retrieveRapportMigration() doit toujour être en derniére position.
@@ -672,9 +671,10 @@ class WebCTModel extends \GlobalModel {
 				$questionCategory->addQuestion($question);
 				
 				$this->allQuestions[(string)$question->id] = $question;		
-				$this->rapportMigration->add("question", $question->id, $question->name,
-						null, 0);
 				
+				$this->rapportMigration->add("question", $question->id, $question->name . ' ('. $question->category->name . ')',
+						$this->remarque, 0);
+				$this->remarque = "";
 				//break;
 			}
 			
@@ -714,7 +714,7 @@ class WebCTModel extends \GlobalModel {
 			$questionText ="";
 			
 			if(strlen($question->name)>255){
-				echo 'QUESTION NAME TOO LONG - '.$question->name;
+				$this->remarque = $this->remarque . utf8_encode("Question trop longue donc limité à 255 caratéres </br>");
 				$questionText .= $question->name."<br/>";
 
 				$question->name = substr($question->name, 252)."...";
@@ -723,11 +723,6 @@ class WebCTModel extends \GlobalModel {
 			$questionText .= $xmlContent->presentation->flow->material->mattext;
 			$convertedDescription = $this->convertTextAndCreateAssociedFiles($questionText,3, $question);
 		
-			//TODO
-			//CAS PARTICULIER où la question est dans le nom !!!
-			//if(empty($convertedDescription)){
-			//	$convertedDescription = $question->name;
-			//}
 			
 			//Get the file attached if any and past it to the description
 			$imageName = $xmlContent->presentation->flow->material->matimage;
@@ -735,8 +730,6 @@ class WebCTModel extends \GlobalModel {
 			$findContentId   = '?contentID=';
 			$pos = strpos($imageURI, $findContentId);
 			if($pos>0){
-				// 			echo 'IMAGE NAME = '.$imageName."\n";
-				// 			echo 'IMAGE URI = '.$imageURI."\n";
 				$fileContentId = substr($imageURI, $pos+11);
 				$this->addCMSFile($fileContentId, 3, $question);
 		
@@ -924,6 +917,9 @@ class WebCTModel extends \GlobalModel {
 					//echo 'ANSWER BOX NUMBER = '.$qtimetadatafield->fieldentry ."<br/>";
 					if((int)$qtimetadatafield->fieldentry>1){
 						$isShortAnswer = false;
+						$this->remarque .= utf8_encode("La question courte a été transformée en question CLOZE.</br>
+								 Attention du code javascript a été rajouté 
+								à la fin de la description de la question afin que les champs de textes ont la même taille. </br> ");
 					}
 				}
 			}
@@ -938,7 +934,7 @@ class WebCTModel extends \GlobalModel {
 			//$xmlContent->registerXPathNamespace("n", "http://www.imsglobal.org/xsd/ims_qtiasiv1p2");
 			//$xmlContent->registerXPathNamespace("webct", "http://www.webct.com/vista/assessment");
 			//var_dump($xmlContent->xpath('/n:item'));
-			
+			$vide = false;
 			foreach ($xmlContent->xpath('//ims:respcondition') as $respcondition){
 					
 				$varEqual = $respcondition->conditionvar->varequal;
@@ -949,13 +945,19 @@ class WebCTModel extends \GlobalModel {
 					$answerText = $varEqual;
 				}else if(!empty($varExt)){
 					$answerText = $varExt->children('http://www.webct.com/vista/assessment');
-					echo "EXTENSION = ".$answerText."<br/>";
+					$this->remarque .= utf8_encode("Une réponse est évaluée à l'aide d'une expression réguliére(".
+							utf8_encode($answerText) ."). </br>");
 				}else if(!empty($varSubset)){
 					$answerText = "*".$varSubset."*";
-					echo "CONTAIN = ".$answerText."<br/>";
+					$this->remarque .= utf8_encode("Une réponse est valide si elle contient l'expression suivante :".
+							utf8_encode($varSubset).". </br>");
 				}
 				
 				if(empty($answerText)){
+					if(!$vide){
+						$vide = true;
+						$this->remarque .= utf8_encode("Une réponse n'a pas été prise en compte parce qu'elle était vide. </br>");
+					}
 					continue;
 				}
 				
@@ -1052,18 +1054,21 @@ class WebCTModel extends \GlobalModel {
 						$varExtChild = $varExt->children('http://www.webct.com/vista/assessment');
 						if((string)$varExtChild['respident']==(string)$responseId){
 							$answerText = $varExtChild;
-							echo "EXTENSION = ".$answerText."<br/>";
+							$this->remarque .= utf8_encode("Une réponse est évaluée à l'aide d'une expression réguliére(".
+							utf8_encode($answerText)."). </br>");
 						}						
 						
 					}else if(!empty($varSubset)){
 						if((string)$varSubset['respident']==(string)$responseId){
 							$answerText = "*".$varSubset."*";
-							echo "CONTAIN = ".$answerText."<br/>";
+							$this->remarque .= utf8_encode("Une réponse est valide si elle contient l'expression suivante :".
+							utf8_encode($varSubset).". </br>");
 						}						
 
 					}
 				
 					if(empty($answerText)){
+						$this->remarque = utf8_encode("Une réponse n'a pas été prise en compte parce qu'elle était vide. </br>");
 						continue;
 					}
 				
@@ -1096,7 +1101,7 @@ class WebCTModel extends \GlobalModel {
 				$ponderation = $maxScore *100;
 				if($ponderation<1){
 					$ponderation = 1;
-					echo 'PROBLEME AVEC PONDERATION DE '.$shortAnswerQuestion->name." -- ".$responseId."<br/>";
+					$this->remarque .= utf8_encode("Probléme de pondération rencontré. </br>");
 				}
 
 				$shortAnswerQuestionText="{".$ponderation.":SHORTANSWER";
@@ -1135,6 +1140,8 @@ class WebCTModel extends \GlobalModel {
 			//Add some JAVASCRIPT after the question to force the input
 			if($responseMaxSize>500){
 				$responseMaxSize = 500;
+				$this->remarque .= utf8_encode("La taille maximale des champs de texte a été limité à 500 malgré le fait 
+						que certaines réponses prennent plus de place. </br> "); 
 			}
 			$javascript = "<!---DON'T TOUCH THIS CODE, IT ALLOW THE INPUT FIELD TO HAVE THE SAVE SIZE --->
 			<div id='inputResizingDiv".$question->id."'> </div>
@@ -1187,7 +1194,7 @@ class WebCTModel extends \GlobalModel {
 		$questionFinalText="";		
 			
 		if(strlen($question->name)>255){
-			echo 'QUESTION NAME TOO LONG - '.$question->name, PHP_EOL;
+			$this->remarque = $this->remarque . utf8_encode("question trop longue donc limité à 255 caratéres </br>");
 			$questionFinalText .= $question->name."<br/>";
 			
 			$question->name = substr($question->name, 252)."...";
@@ -1271,18 +1278,21 @@ class WebCTModel extends \GlobalModel {
 						$varExtChild = $varExt->children('http://www.webct.com/vista/assessment');
 						if((string)$varExtChild['respident']==(string)$responseId){
 							$answerText = $varExtChild;
-							echo "EXTENSION = ".$answerText."<br/>";
+							$this->remarque .= utf8_encode("Une réponse est évaluée à l'aide d'une expression réguliére(".
+							utf8_encode($answerText)."). </br>");
 						}
 				
 					}else if(!empty($varSubset)){
 						if((string)$varSubset['respident']==(string)$responseId){
 							$answerText = "*".$varSubset."*";
-							echo "CONTAIN = ".$answerText."<br/>";
+							$this->remarque .= utf8_encode("Une réponse est valide si elle contient l'expression suivante :".
+							utf8_encode($varSubset).". </br>");
 						}
 				
 					}
 				
 					if(empty($answerText)){
+						$this->remarque .= utf8_encode("Une réponse n'a pas été prise en compte parce qu'elle était vide. </br>");
 						continue;
 					}
 				
@@ -1315,7 +1325,7 @@ class WebCTModel extends \GlobalModel {
 				$ponderation = $maxScore *100;
 				if($ponderation<1){
 					$ponderation = 1;
-					echo 'PROBLEME AVEC PONDERATION DE '.$shortAnswerQuestion->name." -- ".$responseId."<br/>";
+					$this->remarque .= utf8_encode("Probléme de pondération rencontré. </br>");
 				}
 				
 				$shortAnswerQuestionText="{".$ponderation.":SHORTANSWER";
@@ -1359,7 +1369,8 @@ class WebCTModel extends \GlobalModel {
 		foreach ($xmlContent->xpath('//ims:qtimetadatafield') as $qtimetadatafield){
 			if((string)$qtimetadatafield->fieldlabel=="wct_m_grading_scheme"){
 				if((string)$qtimetadatafield->fieldentry!="EQUALLY_WEIGHTED"){
-					echo "PROBLEME DE GRADE -> ICI  = ". $qtimetadatafield->fieldentry ." - Question = ".$question->name. "<br/>" ;
+					$this->remarque .= utf8_encode("Probléme au niveau du baréme de notation.
+							 " . $qtimetadatafield->fieldentry ." convertie en pondération équilibrée . </br>");
 				}
 				break;
 			}
@@ -1405,6 +1416,7 @@ class WebCTModel extends \GlobalModel {
 		
 		$lastAnswerText ="";
 		if($hasPreview){
+			$this->remarque .= utf8_encode("L'aperçu des colonnes a été supprimé et réintégré directement dans les réponses. </br>");
 			$questionsNumber = count($questionsList);
 			$responsesNumber = count($responsesList);
 			
@@ -1428,6 +1440,7 @@ class WebCTModel extends \GlobalModel {
 				if($i<$responsesNumber){				
 					$convertedText = $this->convertTextAndCreateAssociedFiles($responsesList[$i],7, $match);
 				}else {
+					$this->remarque .= utf8_encode("Réponce manquante alors le texte 'aucune correspondance' a été rajouté. </br>");
 					$convertedText = "aucune correspondance";
 				}
 				$lastAnswerText = $convertedText;
@@ -1507,7 +1520,7 @@ class WebCTModel extends \GlobalModel {
 	 * @param SimpleXMLElement $xmlContent
 	 */
 	public function fillParagraphQuestion(&$question, $xmlContent){
-	
+		$this->remarque .= utf8_encode("Seul le nombre de lignes a pu être pris en compte pour ce type de question. </br>");
 		$essay = new Essay();
 		
 		$essay->id=$this->getNextId();
@@ -1623,11 +1636,8 @@ class WebCTModel extends \GlobalModel {
 			$findContentId   = '?contentID=';
 			$pos = strpos($imageURI, $findContentId);
 			if($pos>0){
-				// 			echo 'IMAGE NAME = '.$imageName."\n";
-				// 			echo 'IMAGE URI = '.$imageURI."\n";
 				$fileContentId = substr($imageURI, $pos+11);
-				$this->addCMSFile($fileContentId, 3, $question);
-			
+				$this->addCMSFile($fileContentId, 3, $question);	
 				$convertedDescription .= "<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
 			}
 		}
@@ -1714,7 +1724,8 @@ class WebCTModel extends \GlobalModel {
 			$calculatedRecord->tolerancetype=2;
 			$calculatedRecord->tolerance=$tolerance;
 		}else {
-			echo " - SPECIAL TOLERANCE = ".$toleranceType. "-".$tolerance; 
+			$this->remarque .= utf8_encode("La tolérance a été mis en %.</br> Type tolérance: ".$toleranceType ." 
+					--> Valeur tolérance: ". $tolerance."</br>");
 			$calculatedRecord->tolerancetype=1;
 			$calculatedRecord->tolerance=$tolerance/100;
 		}
@@ -1723,7 +1734,8 @@ class WebCTModel extends \GlobalModel {
 			$calculatedRecord->correctanswerformat=1;		
 			$calculatedRecord->correctanswerlength=$precision;				
 		}else {
-			echo " - SPECIAL PRECISION = ".$precisionType. "-".$precision;
+			$this->remarque .= utf8_encode("La précision a été mise en chiffres significatifs.</br> Type précision: ".$precisionType ." 
+					--> Valeur précison: ". $precision."</br>");
 			$calculatedRecord->correctanswerformat=2;		
 			$calculatedRecord->correctanswerlength=$precision;
 		}
@@ -1790,8 +1802,8 @@ class WebCTModel extends \GlobalModel {
 		$moodleFormula=$tempFormula;
 		
 		//TODO Verification des formules
-		echo 'WEBCT FORMULA = '.$webCtFormula." -- MOODLE FORMULA = ".$moodleFormula."  ";
 		
+		$this->remarque .= utf8_encode("Formule WEBCT : ". $webCtFormula ." --> Formule MOODLE:  " .$moodleFormula . "</br>");
 		
 		return $moodleFormula;
 	}
@@ -1931,7 +1943,7 @@ class WebCTModel extends \GlobalModel {
 		$questionFinalText="";
 			
 		if(strlen($question->name)>255){
-			echo 'QUESTION NAME TOO LONG - '.$question->name, PHP_EOL;
+			$this->remarque = $this->remarque . utf8_encode("question trop longue donc limité à 255 caratéres </br>");
 			$questionFinalText .= $question->name."<br/>";
 				
 			$question->name = substr($question->name, 252)."...";
@@ -1968,7 +1980,7 @@ class WebCTModel extends \GlobalModel {
 					$correctAnswers[]=(string)$varequal;
 				}
 			}else if(!empty($respcondition->setvar)){
-				echo '<br/> REPONSE ALTERNATIVE DANS: '. $question->name. '<br/>';
+				$this->remarque = $this->remarque . utf8_encode("Les réponses alternatives n'ont pas pu être reprises </br>");
 			}
 		}
 		
@@ -2243,7 +2255,8 @@ class WebCTModel extends \GlobalModel {
 		
 		$quizModel->inforef = $inforRef;
 		$this->rapportMigration->add("evaluation", $quizModel->quiz->id, $quizModel->quiz->name,
-				null, count($quizModel->quiz->questions));
+				$this->remarque, count($quizModel->quiz->questions));
+		$this->remarque = "";
 		$this->activities[] = $quizModel;
 		
 		$this->sections[1]->section->sequence[]= $quizModel->quiz->quizId;
@@ -2421,6 +2434,7 @@ class WebCTModel extends \GlobalModel {
 		if(isset($row['MAXSCORE'])){
 			$quiz->grade = str_replace(',', '.', $row['MAXSCORE']);
 		}else {
+			$this->remarque .= utf8_encode("Pas de score maximum trouvé. Le grade a été mis à 0. </br>");
 			$quiz->grade = "0.00000";
 		}
 
@@ -3500,6 +3514,8 @@ class WebCTModel extends \GlobalModel {
 			 		$this->files->files[]=$file;
 			 		$filesIds[] = $file->id;
 			 		$content = $style;
+			 		$this->rapportMigration->add("discussion",$file->id, $file->filename,
+			 				null, $nbObject);
 			 	}
 				$nomFichier = $res["NAME_TOPIC"];
 				$content = $content . '<body> ';
@@ -3540,8 +3556,7 @@ class WebCTModel extends \GlobalModel {
  							 </table>
  							 <div class="entrytext">' . $message .  '</div>
 						</div>';	
-			$this->rapportMigration->add("discussion",$file->id, $file->filename,
-					null, $nbObject);
+			
 		}
 		
 		if($file != NULL){
@@ -3881,8 +3896,18 @@ class WebCTModel extends \GlobalModel {
 	 * Rapport Migration
 	*/
 	public function retrieveRapportMigration(){
+		$request1 = "Select NAME , SOURCE_ID FROM LEARNING_CONTEXT 
+		WHERE ID = '". $this->learningContextId ."' and TYPE_CODE = 'Section'";
+		$stid2 = oci_parse($this->connection,$request1);
+		oci_execute($stid2);
+		$row = oci_fetch_array($stid2, OCI_ASSOC+OCI_RETURN_NULLS);
+		$this->rapportMigration->fullName = $row["NAME"]  ;
+		$this->rapportMigration->shortName = $row["SOURCE_ID"];
+		$this->rapportMigration->nomFichier = 'rapportMigration_'. $this->rapportMigration->str_fichier($this->rapportMigration->shortName) .'.xml';
+		
 		$fileId = $this->getNextId();
 		$contextId = $this->getNextId();
+	
 		$this->addRapportMigration($fileId , $contextId);
 	}
 	

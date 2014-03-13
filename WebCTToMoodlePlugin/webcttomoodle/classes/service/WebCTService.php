@@ -40,9 +40,13 @@ class WebCTService {
 		$ftpConnexion = $this->settings->ftpConnection;
 		
 		$repository = $CFG->tempdir;
-				
+		
+		
+		$rapport = $repository.'/'.$model->rapportMigration->nomFichier;
+	
 		$archiveName = $model->toMBZArchive($repository);
 		$destination = $ftpConnexion->repository.$model->moodle_backup->name;
+		
 		
 		$ftp = ftp_connect($ftpConnexion->ip, 21);
 		ftp_login($ftp, $ftpConnexion->user, $ftpConnexion->password);
@@ -52,6 +56,9 @@ class WebCTService {
 		}
 
 		$file = ftp_put($ftp, $destination , $archiveName, FTP_BINARY);
+		
+		$file = ftp_put($ftp, $ftpConnexion->repository.$model->rapportMigration->nomFichier , $rapport , FTP_BINARY);
+		
 		ftp_close($ftp);
 		
 	}
@@ -93,10 +100,12 @@ class WebCTService {
 		$ftp = ftp_connect($ftpConnexion->ip, 21);
 		ftp_login($ftp, $ftpConnexion->user, $ftpConnexion->password);
 		ftp_chdir($ftp,$ftpConnexion->repository);
+		
 		$file = ftp_get($ftp, $source , $backupFile, FTP_BINARY);
 		ftp_close($ftp);
 		
 		$filepath = restore_controller::get_tempdir_name($courseId, $USER->id);
+		
 		$pathname = $tmpdir . $filepath.'/';
 		
 		$fb = get_file_packer('application/vnd.moodle.backup');

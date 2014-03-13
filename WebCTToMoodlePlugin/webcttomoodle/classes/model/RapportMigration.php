@@ -32,8 +32,34 @@ class RapportMigration {
 	 * @var Array d'InfoRapport
 	*/
 	public $question ;
+	/**
+	 * 
+	 * @var String
+	 */
+	public $shortName;
+	/**
+	 * 
+	 * @var String
+	 */
+	public $fullName;
+	/**
+	 * 
+	 * @var String
+	 */
+	public $nomFichier;
+	
+	private $tabType;
+	
+	//Contient toute les message d'erreur avec le code erreur
+	private $tabErreur;
+	/**
+	 * Contiendra les différents code d'erreur qu'un élément.
+	 * @var Array 
+	 */
+	private $codeErreur;
 	
 	function __construct(){
+		$this->codeErreur = array();
 		$this->glossaire = array();
 		$this->evaluation = array() ;
 		$this->tache = array();
@@ -42,6 +68,31 @@ class RapportMigration {
 		$this->lienWeb = array();
 		$this->discussion = array();
 		$this->question = array();
+		$this->tabType = array("glossaire" ,"evaluation" , "tache","gestionnaireFichier","programme","lienWeb","discussion",
+		 "question");
+		$this->tabErreur = array(
+				"erro1" =>	utf8_encode("Question trop longue donc limité à 255 caratéres </br>"),
+				"erro2" =>	utf8_encode("La question courte a été transformée en question CLOZE.Attention du code javascript a été rajouté
+        						à la fin de la description de la question afin que les champs de textes ont la même taille. "),
+				"erro3" =>	utf8_encode("Une réponse est évaluée à l'aide d'une expression réguliére"),
+				"erro4" =>	utf8_encode("Une réponse est valide si elle contient l'expression suivante : "),
+				"erro5"	=> utf8_encode("Une réponse n'a pas été prise en compte parce qu'elle était vide."),
+				"erro6" =>	utf8_encode("Probléme de pondération rencontré."),
+				"erro7" =>	utf8_encode("La taille maximale des champs de texte a été limité à 500 malgré le fait
+     						 que certaines réponses prennent plus de place."),
+				"erro8"	=> utf8_encode("La taille maximale des champs de texte a été limité à 500 malgré le fait
+      						que certaines réponses prennent plus de place."),
+				"erro9"	=> utf8_encode("L'aperçu des colonnes a été supprimé et réintégré directement dans les réponses."),
+				"erro10"=>	utf8_encode("Réponce manquante alors le texte 'aucune correspondance' a été rajouté."),
+				"erro11" =>	utf8_encode("Seul le nombre de lignes a pu être pris en compte pour ce type de question."),
+				"erro12" =>	utf8_encode("La tolérance a été mis en %.</br> Type tolérance:"),
+				"erro13" =>	utf8_encode("La précision a été mise en chiffres significatifs.</br> Type précision: " ),
+				"erro14" =>	utf8_encode("Formule WEBCT :") ,
+				"erro15" =>	utf8_encode("Les réponses alternatives n'ont pas pu être reprises"),
+				"erro16" =>	utf8_encode("Pas de score maximum trouvé. Le grade a été mis à 0."),
+				
+		);
+		
 	}
 	/**
 	 * MODE - glossaire
@@ -66,9 +117,62 @@ class RapportMigration {
 		}
 	}
 	
+	public function toXMLFile($repository,$learningContext){
+		$fichier = $repository.'/'. $this->nomFichier;
+		$writer = new XMLWriter();
+		// Dans le cas où le nom de fichier est incorrecte , le shortName est remplacé par le learningContextId
+		if(!$writer->openURI($fichier)){
+			$this->nomFichier = 'rapportMigration_'. $learningContext .'.xml' ;
+			$writer->openURI($repository.'/'.$this->nomFichier);
+		}
+		$writer->startDocument('1.0','UTF-8');
+		$writer->setIndent(true);
+		$writer->startElement('cour');
+		$writer->writeAttribute('learningContextId','.'.(string)$learningContext);
+		$writer->writeAttribute('fullName',utf8_encode($this->fullName));
+		$writer->writeAttribute('shortName',utf8_encode($this->shortName));
+		foreach ($this->tabType as $type){
+			if(property_exists($this , $type)){
+				foreach ($this->$type as $element){
+					$this->fillCodeErreur($element->rem);
+					foreach ($this->codeErreur as $erreur){
+						$writer->startElement('type');
+						$writer->writeAttribute('id','.'.(string)$element->id);
+						$writer->writeAttribute('nomType',utf8_encode($type));
+						$writer->writeElement('codeErreur',$erreur);
+						$writer->writeElement('titre',utf8_encode($element->nomFichier));
+						$writer->writeElement('nombreElement',$element->nbElem);
+						$writer->writeElement('remarque',utf8_encode($element->rem));
+						$writer->endElement();
+					}
+					unset($this->codeErreur);
+					$this->codeErreur = array();
+				}
+			}else{
+				echo '</br> Probléme xmlFile Rapport : ' . $type . '</br>';
+			}
+		}
+		$writer->endElement();
+	}
 	
+	/**
+	 * @param String $remarque
+	 */
+	private function fillCodeErreur($remarque){
+		if($remarque != null){
+			foreach($this->tabErreur as $cle => $valeur){
+				$trouve = strstr($remarque, $valeur);
+				if($trouve){
+					$this->codeErreur[] = $cle;
+				}
+			}	
+		}else if(count($this->codeErreur) == 0){
+			$this->codeErreur[] = "erro0";
+		}	
+	}
 	
 	public function toHtml(){
+		$html .=
 		$html = $this->style();
 		$html = $html . "<body><div class=\"panel-group\" id=\"accordion\">";
 		$html = $html . $this->createSection("Glossaire", $this->glossaire);
@@ -102,19 +206,23 @@ class RapportMigration {
 							<thead>
        						   <tr>
            						 <th>ID</th>
-          						 <th>Nom du fichier</th>
-								 <th> " . utf8_encode("Nombre") ."</th>
+          						 <th>Titre</th>
+								 <th> " . utf8_encode("Nombre d'éléments") ."</th>
 								 <th>Remarque</th>
          					 </tr>
         					</thead>	
-								";
+							";
+		$nombreRem = 0;
 		foreach($array as $info){
-			$tr = ($info->rem == null) ? "<tr>" : "<tr class=\"danger\">";
+			$nombreRem = ((($info->rem == null) || ($info->rem == "")) ? $nombreRem : $nombreRem +1 ); 
+		}
+		foreach($array as $info){
+			$tr = ((($info->rem == null) || ($info->rem == "") ) ? "<tr>" :  "<tr class=\"danger\">");
 			$content = $content . $tr .
-						"   <td>".$info->id ."</td>
-            				<td>".$info->nomFichier. "</td>
-            				<td>".$info->nbElem. "</td>
-            				<td>".$info->rem. "</td>
+						"   <td>".utf8_encode($info->id) ."</td>
+            				<td>".utf8_encode($info->nomFichier). "</td>
+            				<td>".utf8_encode($info->nbElem). "</td>
+            				<td>".utf8_encode($info->rem) . "</td>
          				 </tr>		
 						";
 		}
@@ -126,7 +234,8 @@ class RapportMigration {
 				    <div class="panel-heading">
 				      <h4 class="panel-title">
 				        <a data-toggle="collapse" data-parent="#accordion" href="#' . $mode  . '">
-				            ' . $mode  . '( ' .count($array) . utf8_encode(" éléments récupérés") . ' ) 
+				            ' . $mode  . '( ' .count($array) . utf8_encode(" éléments récupérés") . ' ) (
+				            		'. $nombreRem . utf8_encode(" remarques") . ' )
 				        </a>
 				      </h4>
 				    </div>
@@ -144,6 +253,7 @@ class RapportMigration {
 	
 	private function style(){
 		$style = "
+				<head> <meta charset=\"utf-8\" />
 <style media=\"print\">
     body {
   width: auto!important;
@@ -176,6 +286,7 @@ a {
 .cacherImprimer{
     display:none;
 }
+.table-striped>tbody>tr:nth-child(odd)>td,
 </style>
 
 <style media=\"screen\">
@@ -184,6 +295,7 @@ html{font-family:sans-serif;-ms-text-size-adjust:100%;-webkit-text-size-adjust:1
     margin-top: 5px;
     float : end;
 }
+</head>
 body{
     background: #E6E6FA
 }
@@ -191,6 +303,40 @@ body{
 				";
 	return $style;
 		
+	}
+	/**
+	 * Permet de modifier les carcatere qui ne sont pas accepté dans un nom de fichier.
+	 * @param String $text
+	 * @return String
+	 */
+	public function str_fichier($text) {
+		$separator = "-"; // Définition du séparateur
+	
+		// Lettre accentuées
+		$tofind = "ÀÁÂÃÄÅàáâãäåÇçÒÓÔÕÖØòóôõöøÈÉÊËèéêëÌÍÎÏìíî
+  ïÙÚÛÜùúûü¾İÿıÑñ";
+	
+		// Equivalent non accentué
+		$replac = "AAAAAAaaaaaaCcOOOOOOooooooEEEEeeeeIIIIiii
+  iUUUUuuuuYYyyNn";
+	
+		// Suppression des lettres accentuées par leur équivalent
+		$text = strtr(utf8_decode($text),utf8_decode($tofind),$replac);
+	
+		// Remplacement de caractère non alphanumérique et
+		// qui ne sont pas des '.', '_', '-' par un séparateur.
+		$text = preg_replace("#([^a-zA-Z0-9._-])#", $separator, $text);
+	
+		// Suppression des doubles séparateurs
+		while (strstr($text, $separator . $separator))
+			$text = str_replace($separator . $separator, $separator, $text);
+	
+		// Suppression du 1er et/ou du dernier caractère
+		// s'il est egal au separateur
+		$text = preg_replace(
+				"#(".$separator."$)|(^".$separator.")|(\.php$)#", "", $text);
+	
+		return $text;
 	}
 	
 }
@@ -222,6 +368,8 @@ class InfoRapport {
 		}
 		return $res . '</br>';
 	}
+	
+	
 	
 	
 }

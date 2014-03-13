@@ -53,7 +53,7 @@ require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 
 
 abstract class GlobalModel implements \IBackupModel {
-	
+	protected $learningContextId = "366249217001";
 	/**
 	 * @var MoodleBackup
 	 */
@@ -145,10 +145,13 @@ abstract class GlobalModel implements \IBackupModel {
 	
 	protected $idCount = 1;
 	
+	public $remarque = "";
+	
 	/**
 	 * @return GlobalModel
 	 */
 	public function __construct(){
+		global $CFG;
 		$this->preInitialization();		
 		$this->initializeMoodleBackupModel();
 		$this->initializeUsersModel();
@@ -172,7 +175,7 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		$this->initializeRapportMigration();
 		
-		$dir = sys_get_temp_dir().mb_substr($this->moodle_backup->name, 0, -4);
+		$dir = $CFG->tempdir.'/'.mb_substr($this->moodle_backup->name, 0, -4);
 		
 		if(is_dir($dir)){
 			rrmdir($dir);
@@ -805,7 +808,7 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		if($glossaryModel->glossary->name == "mediaLibrary.defaultCollection.name"){
 			if(sizeof($glossaryModel->glossary->entries)<=0){
-				$rem = utf8_encode("Le glossaire ne contenait aucune entré donc il n'a pas été récupéré");
+				$rem = utf8_encode("Le glossaire par défaut ne contenait aucune entré et donc il n'a pas été récupéré");
 				$this->rapportMigration->add("glossaire", $glossaryModel->glossary->id, $glossaryModel->glossary->name, 
 						$rem, 0);
 				return;
@@ -1083,6 +1086,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->groups->toXMLFile($repository);
 		$this->outcomes->toXMLFile($repository);
 		$this->scales->toXMLFile($repository);
+		$this->rapportMigration->toXMLFILE($repository.'/..',$this->learningContextId  );
 		
 		
 		//COURSE REPOSITORY
