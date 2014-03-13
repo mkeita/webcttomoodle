@@ -87,7 +87,7 @@ class RapportMigration {
 		$this->question = array();
 		$this->tabType = array("glossaire" ,"evaluation" , "tache","gestionnaireFichier","programme","lienWeb","discussion",
 		 "question");
-		$this->tabErreur = $this->getClassConstants();
+		$this->tabErreur = array_change_key_case($this->getClassConstants());
 		
 		
 	}
@@ -114,7 +114,7 @@ class RapportMigration {
 		}
 	}
 	
-	public function getClassConstants() {
+	private function getClassConstants() {
 		$oClass = new ReflectionClass(get_class());
 		return $oClass->getConstants();
 	}
@@ -141,7 +141,7 @@ class RapportMigration {
 						$writer->startElement('type');
 						$writer->writeAttribute('id','.'.(string)$element->id);
 						$writer->writeAttribute('nomType',$type);
-						$writer->writeElement('codeErreur',$erreur);
+						$writer->writeElement('codeRemarque',$erreur);
 						$writer->writeElement('titre',$element->nomFichier);
 						$writer->writeElement('nombreElement',$element->nbElem);
 						$writer->writeElement('remarque',$element->rem);
@@ -163,13 +163,14 @@ class RapportMigration {
 	private function fillCodeErreur($remarque){
 		if($remarque != null){
 			foreach($this->tabErreur as $cle => $valeur){
-				$trouve = strstr($remarque, $valeur);
+				$trouve = strstr($remarque, utf8_encode($valeur));
+				
 				if($trouve){
 					$this->codeErreur[] = $cle;
 				}
 			}	
 		}else if(count($this->codeErreur) == 0){
-			$this->codeErreur[] = "erro0";
+			$this->codeErreur[] = "pas_remarque";
 		}	
 	}
 	
@@ -221,10 +222,10 @@ class RapportMigration {
 		foreach($array as $info){
 			$tr = ((($info->rem == null) || ($info->rem == "") ) ? "<tr>" :  "<tr class=\"danger\">");
 			$content = $content . $tr .
-						"   <td>".utf8_encode($info->id) ."</td>
-            				<td>".utf8_encode($info->nomFichier). "</td>
-            				<td>".utf8_encode($info->nbElem). "</td>
-            				<td>".utf8_encode($info->rem) . "</td>
+						"   <td>". $info->id ."</td>
+            				<td>". $info->nomFichier. "</td>
+            				<td>".$info->nbElem. "</td>
+            				<td>".$info->rem . "</td>
          				 </tr>		
 						";
 		}
