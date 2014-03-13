@@ -4,7 +4,7 @@ class HtmlContentClass {
 	public $filesName = array();
 	
 
-	private function replace ($matches)
+	private function replaceAllLinksCallBack($matches)
 	{
 		$fileName = $matches[0];
 	
@@ -29,7 +29,25 @@ class HtmlContentClass {
 		$this->fileNames = array();
 		
 		return 	preg_replace_callback(
-				$pattern, array($this, 'replace'),
+				$pattern, array($this, 'replaceAllLinksCallBack'),
 				$htmlContent);
 	}
+	
+	private function removeGlossaryLinksCallBack($matches)
+	{
+		if(isset($matches[2])){
+			return $matches[2];
+		}
+		
+		return "";
+	}
+	
+	public function removeGlossaryLinks($htmlContent){
+	
+		$pattern = "/(?i)(<a href=\"\/webct\/mediadb\/viewEntryFrameset.jsp.*?>)(.+?)(<\/a>)/";
+		return 	preg_replace_callback(
+				$pattern, array($this, 'removeGlossaryLinksCallBack'),
+				$htmlContent);
+	}
+	
 }

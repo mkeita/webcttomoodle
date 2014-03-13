@@ -7,6 +7,7 @@ class WebCTModel extends \GlobalModel {
 	private $connection;
 	
 	
+	
 	private $deliveryContextId;
 		
 	/* (non-PHPdoc)
@@ -17,29 +18,31 @@ class WebCTModel extends \GlobalModel {
 		parent::__construct();
 		
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
-  	//	$this->retrieveGlossaries();
+   		$this->retrieveGlossaries();
 
-		$this->retrieveQuestions();	
+  		$this->retrieveQuestions();	
 
 // 		foreach($this->questions->allQuestions as $key=>$value){
 // 			error_log($key.'-->'.$value->name.'<br/>');
 // 		} 
 		
-     	$this->retrieveQuizzes();
+  		$this->retrieveQuizzes();
 		
-//   		$this->retrieveAssignments();
+    	$this->retrieveAssignments();
 		
-//   		$this->retrieveFolders();
+   		$this->retrieveFolders();
 		
-//  		$this->retrieveWebLinks();
+  		$this->retrieveWebLinks();
 
-//  		$this->retrieveSyllabus();
+  		$this->retrieveSyllabus();
 	
-//  		$this->retrieveForum();
+  		$this->retrieveForum();
 		
-//  		$this->retrieveEmail();
+  		$this->retrieveEmail();
+
+		$this->retrieveLearningModules();
 		
-//  		$this->retrieveCourseContent();
+ 		$this->retrieveCourseContent();
  		
   		/*******
   		 * retrieveRapportMigration() doit toujour être en derniére position.
@@ -350,7 +353,8 @@ class WebCTModel extends \GlobalModel {
 		$htmlContentClass = new HtmlContentClass();
 		
 		//$convertedText = $this->convertHTMLContentLinks($text,$filesName);
-		$convertedText = $htmlContentClass->replaceAllLinks($text);
+		$convertedText = $htmlContentClass->removeGlossaryLinks($text);
+		$convertedText = $htmlContentClass->replaceAllLinks($convertedText);
 		
 		foreach ($htmlContentClass->filesName as $fileName){
 			$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE NAME ='".$fileName."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
@@ -417,7 +421,7 @@ class WebCTModel extends \GlobalModel {
 	 * 
 	 * @return void|FileBackup
 	 */
-	public function addCMSSimpleFile($fileOriginalContentId, $contextId,$component,$fileArea,$itemId,$path){
+	public function addCMSSimpleFile($fileOriginalContentId, $contextId,$component,$fileArea,$itemId,$path,$name=NULL){
 	
 		global $USER;
 		
@@ -442,7 +446,25 @@ class WebCTModel extends \GlobalModel {
 		$file->filearea=$fileArea;// 		<filearea>attachment</filearea>
 		$file->itemid=$itemId;// 		<itemid>1</itemid>
 		$file->filepath=$path;// 		<filepath>/</filepath>
-		$file->filename= $row['NAME'];// 		<filename>.</filename>
+		
+		if(empty($name)){
+			$name = $row['NAME'];
+			if(!strrpos($name,'.')){
+				$name.='.html';
+			}
+		}else {
+			$pos1 = strrpos($row['NAME'],'.');
+			$ext1 = substr($row['NAME'], $pos1);
+				
+			$pos2 = strrpos($name,'.');
+			if($pos2){
+				$ext2 = substr($name, $pos2);
+				if($ext1!=$ext2){
+					$name .=$ext1;
+				}
+			}
+		}
+		$file->filename= $name;// 		<filename>.</filename>
 		$file->userid=$USER->id;// 		<userid>2</userid>
 		$file->filesize=$row['FILESIZE'];// 		<filesize>0</filesize>
 		$file->author=$USER->firstname." ".$USER->lastname;// 		<author>$@NULL@$</author>
@@ -487,8 +509,11 @@ class WebCTModel extends \GlobalModel {
 	 * MODE 8 = Question file - Essay grader info
 	 * MODE 9 = Assignment file - Assignment description
 	 * MODE 10 = Ressource file
+	 * MODE 11 = Book file - Chapter
 	 * @param unknown $item
 	 * @param unknown $parent
+	 * 
+	 * @return FileBackup
 	 */
 	public function addCMSFile($fileOriginalContentId, $mode, &$item){
 		
@@ -560,6 +585,12 @@ class WebCTModel extends \GlobalModel {
 				$itemId = 0;
 				$contextId = $item->contextid;
 				break;
+			case 11:
+				$component = "mod_book";
+				$fileArea = "chapter";
+				$itemId = $item->id;
+				$contextId = $item->book->contextid;
+				break;
 				
 				
 		}
@@ -586,7 +617,13 @@ class WebCTModel extends \GlobalModel {
 				$item->filesIds[] = $repository->id;
 				$item->filesIds[] = $file->id;
 				break;
-		}		
+			case 11:
+				$item->book->filesIds[] = $repository->id;
+				$item->book->filesIds[] = $file->id;
+				break;
+		}
+
+		return $file;
 				
 	}
 	
@@ -723,6 +760,11 @@ class WebCTModel extends \GlobalModel {
 			$questionText .= $xmlContent->presentation->flow->material->mattext;
 			$convertedDescription = $this->convertTextAndCreateAssociedFiles($questionText,3, $question);
 		
+			//TODO
+			//CAS PARTICULIER où la question est dans le nom !!!
+			//if(empty($convertedDescription)){
+			//	$convertedDescription = $question->name;
+			//}
 			
 			//Get the file attached if any and past it to the description
 			$imageName = $xmlContent->presentation->flow->material->matimage;
@@ -1637,7 +1679,8 @@ class WebCTModel extends \GlobalModel {
 			$pos = strpos($imageURI, $findContentId);
 			if($pos>0){
 				$fileContentId = substr($imageURI, $pos+11);
-				$this->addCMSFile($fileContentId, 3, $question);	
+				$this->addCMSFile($fileContentId, 3, $question);
+			
 				$convertedDescription .= "<br/><img src=\"@@PLUGINFILE@@/".$imageName."\"/>";
 			}
 		}
@@ -2129,7 +2172,7 @@ class WebCTModel extends \GlobalModel {
 		$quizModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
 
 		
-		$quizModel->module = $this->createModule($quizId,"quiz","2013110501");	
+		$quizModel->module = $this->createModule($quizId,"quiz","2013110501",1);	
 	
 		$quizModel->quiz = $this->createQuiz($quizId, $quizModel->module);
 	
@@ -2716,7 +2759,7 @@ class WebCTModel extends \GlobalModel {
 		$assignmentModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
 	
 	
-		$assignmentModel->module = $this->createModule($assignmentId,"assign","2013110500");
+		$assignmentModel->module = $this->createModule($assignmentId,"assign","2013110500",2);
 	
 		$assignmentModel->assignment = $this->createAssignment($assignmentId, $assignmentModel->module);
 	
@@ -3183,7 +3226,6 @@ class WebCTModel extends \GlobalModel {
 		
 		$bookId = $this->getNextId(); 
 		
-		//Glossary
 		$bookModel = new BookModel();
 		$bookModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
 		$bookModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
@@ -3345,6 +3387,505 @@ class WebCTModel extends \GlobalModel {
 		return $book;
 	}
 	
+	/***************************************************************************************************************
+	 * LEARNING MODULE
+	*/
+	public function retrieveLearningModules(){
+		
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='TOC_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)) {
+			
+			//TEST si le module d'apprentissage peut être créer sous forme de répertoire de fichiers
+			
+			$request = "SELECT COUNT(*) FROM CMS_LINK 
+  							WHERE LEFTOBJECT_ID IN (SELECT ID FROM CMS_CONTENT_ENTRY WHERE CMS_CONTENT_ENTRY.PARENT_ID='".$row['ID']."') AND CMS_LINK.NAME IS NOT NULL AND CMS_LINK.LINK_TYPE_ID='30003'";
+            $stid1 = oci_parse($this->connection,$request);
+            oci_execute($stid1);
+            $row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
+            $countExternalTotal = $row1['COUNT(*)'];
+            
+            //Récupère le nombre total de liens
+            $request = "SELECT COUNT(*) FROM CMS_CONTENT_ENTRY
+										  WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$row['ID']."' AND LINK_TYPE_ID='30002')";
+            $stid1 = oci_parse($this->connection,$request);
+            oci_execute($stid1);
+            $row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
+            $totalLinks=$row1['COUNT(*)'];
+			
+			//Récupère le total de pages (SANS LES PAGES HTML CREES DANS LE MODULE)
+            $request = "SELECT COUNT(*) FROM CMS_CONTENT_ENTRY
+						WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$row['ID']."' AND LINK_TYPE_ID='30002')
+							  AND ((CMS_CONTENT_ENTRY.CE_TYPE_NAME='PAGE_TYPE' AND CMS_CONTENT_ENTRY.FILE_CONTENT_ID IS NULL) OR CMS_CONTENT_ENTRY.CE_TYPE_NAME='HEADING_TYPE')";
+            $stid1 = oci_parse($this->connection,$request);
+            oci_execute($stid1);
+            $row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS);
+            $totalPageAndLinks=$row1['COUNT(*)'];
+            
+            $learningModuleDescription ="";
+            if(!empty($row['DESCRIPTION'])){
+            	$learningModuleDescription =$row['DESCRIPTION']->load();
+            }
+            
+            if($totalLinks==$totalPageAndLinks && $countExternalTotal==0){
+            	echo 'Le module "'.$row['NAME'].'" sera récupéré sous forme de répertoire de fichiers <br/>';
+            	$this->addLearningModuleAsFolder($row['ID'],$row['NAME'],$learningModuleDescription);
+            }else {
+            	echo 'Le module "'.$row['NAME'].'" sera récupéré sous forme de BOOK <br/>';
+            	if($countExternalTotal>0){
+            		//Ici on teste et on écrit dans le rapport s'il y a des actions links
+            		$request = "SELECT ID, NAME, CE_TYPE_NAME FROM CMS_CONTENT_ENTRY
+							WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK
+	                						WHERE LEFTOBJECT_ID IN (SELECT ID FROM CO_ACTIONMENU WHERE CO_ACTIONMENU.TOC_ID='".$row['ID']."') AND CMS_LINK.NAME IS NOT NULL AND CMS_LINK.LINK_TYPE_ID='30003')";
+	            	$stid1 = oci_parse($this->connection,$request);
+	            	oci_execute($stid1);
+	            	while($row1 = oci_fetch_assoc($stid1)){
+	            		echo 'Le module d\'apprentissage "'.$row['NAME'].'" possède un lien d\'action vers "'.$row1['NAME'].'"('.$row1['CE_TYPE_NAME'].').<br/>';
+	            	}
+            	}
+            	$this->addLearningModuleAsBook($row['ID'],$row['NAME'],$learningModuleDescription);
+                        	 
+            }
+		}
+		
+	}
+	
+	
+	/**
+	 * Add a learning module as a Folder (files)
+	 */
+	public function addLearningModuleAsFolder($learningModuleId,$name,$description){
+	
+		global $USER;
+	
+		//Glossary
+		$folderModel = new FolderModel();
+		$folderModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->grades = new ActivityGradeBook();
+		$folderModel->calendar = new Events();
+	
+		$folderModel->module = $this->createModule($learningModuleId,"folder","2013110500",3);
+	
+		$folderModel->folder = $this->createLearningModuleFolder($learningModuleId, $name,$description,$folderModel->module);
+	
+	
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$folderModel->module->id;
+		$activity->sectionid=$this->sections[3]->section->id;
+		$activity->modulename=$folderModel->module->modulename;
+		$activity->title=$folderModel->folder->name;
+		$activity->directory="activities/folder_".$folderModel->folder->folderId;
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+	
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","folder_".$folderModel->folder->folderId,"folder_".$folderModel->folder->folderId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","folder_".$folderModel->folder->folderId,"folder_".$folderModel->folder->folderId."_userinfo",1);
+	
+		$inforRef = new InfoRef();
+		$inforRef->userids[]=$USER->id;
+		$inforRef->fileids=$folderModel->folder->filesIds;
+	
+		$folderModel->inforef = $inforRef;
+	
+		$this->activities[] = $folderModel;
+	
+		$this->sections[3]->section->sequence[]= $folderModel->folder->folderId;
+	}
+	
+	
+	/**
+	 * @param unknown $folderId
+	 * @param Module $module
+	 * @return ActivityFolder
+	 */
+	public function createLearningModuleFolder($learningModuleId,$name,$description, $module){
+	
+		$folder = new ActivityFolder();
+		$folder->id = $learningModuleId;
+		$folder->moduleid =$module->id;
+		$folder->modulename =$module->modulename;
+		$folder->contextid=$this->getNextId();
+		$folder->folderId = $learningModuleId;
+	
+		$folder->name =$name;
+		$folder->intro=$description;
+		$folder->introformat=1;
+		$folder->revision=0;
+		$folder->timemodified=time();
+		$folder->display=0;
+		$folder->showexpanded=0;
+	
+	
+		//Recherche et récupére tous les fichiers et dossiers de WebCT
+		$this->addLearningModuleFolderFiles($learningModuleId, $folder->contextid, "/", $folder->filesIds);
+	
+		return $folder;
+	}
+	
+	public function addLearningModuleFolderFiles($learningModuleId, $contextId, $path, &$filesIds){
+	
+		$component = "mod_folder";
+		$fileArea = "content";
+		$itemId = 0;
+	
+		$request = "SELECT CMS_CONTENT_ENTRY.ID,CMS_CONTENT_ENTRY.NAME AS CMS_NAME, CMS_LINK.NAME AS LINK_NAME,CMS_CONTENT_ENTRY.CE_TYPE_NAME, CMS_CONTENT_ENTRY.DESCRIPTION,CO_TOC_LINK.INDENTLEVEL 
+					FROM CMS_LINK 
+					  LEFT JOIN CO_TOC_LINK ON CO_TOC_LINK.ID=CMS_LINK.ID
+					  LEFT JOIN CMS_CONTENT_ENTRY ON CMS_CONTENT_ENTRY.ID=CMS_LINK.RIGHTOBJECT_ID
+					WHERE CMS_LINK.LEFTOBJECT_ID='".$learningModuleId."' AND CMS_LINK.LINK_TYPE_ID='30002' ORDER BY CMS_LINK.DISPLAY_ORDER";
+		$stid = oci_parse($this->connection,$request);
+		
+		//PREMIERE exécution pour savoir qui sera un répertoire ou pas
+		oci_execute($stid);
+		$repertoriesStatus = array();
+		$index = 0;
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+			if($row['INDENTLEVEL']>0){
+				$repertoriesStatus[$index-1]=true;
+			}
+			$repertoriesStatus[$index]=false;
+			
+			$index++;
+		}
+		
+		var_dump($repertoriesStatus);
+		
+		$currentRepository=$path;
+		oci_execute($stid);
+		$index=0;
+		$puceLevel = 0;
+		$puce = array(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+		
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+			
+			//TEST IF there are action links on the element
+			$request = "SELECT COUNT(*) FROM CMS_LINK
+  							WHERE LEFTOBJECT_ID IN (SELECT ID FROM CMS_CONTENT_ENTRY WHERE CMS_CONTENT_ENTRY.PARENT_ID='".$row['ID']."') AND CMS_LINK.NAME IS NOT NULL AND CMS_LINK.LINK_TYPE_ID='30003'";
+			$stid1 = oci_parse($this->connection,$request);
+			oci_execute($stid1);
+			$row1 = oci_fetch_assoc($stid1);
+			$countExternalTotal = $row1['COUNT(*)'];
+			
+			$identLevel = $row['INDENTLEVEL'];
+
+			$puceLevel+=$identLevel;
+			$puceLevel=$puceLevel<0?$puceLevel=0:$puceLevel;
+			$puce[$puceLevel]=$puce[$puceLevel]+1;
+			
+			$puceName = "";
+			for($i=0;$i<count($puce); $i++){
+				if($i<=$puceLevel){
+					$puceName.=$puce[$i].".";
+				}else {
+					$puce[$i]=0;
+				}
+			}
+			
+			$name = $row['LINK_NAME'];
+			if(empty($name)){
+				$name = $row['CMS_NAME'];
+			}
+			
+			$name =$puceName." ".$name;
+			
+			
+			
+			if($identLevel<0){
+				$pos = strlen($currentRepository);
+				for($i=0;$i<=(-$identLevel);$i++){
+					$pos = strrpos($currentRepository, '/');
+					$currentRepository= substr($currentRepository, 0,$pos);
+					echo '$currentRepository ==' .$currentRepository.'    '.$pos.'<br/>';
+				}
+				
+				$currentRepository.='/';
+			}
+				
+			if($row['CE_TYPE_NAME']=='HEADING_TYPE'){
+				$newPath = $currentRepository.$name."/";
+				$repository = $this->addCMSRepository($contextId, $component, $fileArea, $itemId, $newPath);
+				$filesIds[] = $repository->id;
+				$repositories[]=$repository->filepath;
+				
+				if($repertoriesStatus[$index]){
+					$currentRepository =$newPath;
+				}
+				
+			}elseif($row['CE_TYPE_NAME']=='PAGE_TYPE'){
+				if($repertoriesStatus[$index]){
+					$currentRepository .= $name."/";
+					$repository = $this->addCMSRepository($contextId, $component, $fileArea, $itemId, $currentRepository);
+					$filesIds[] = $repository->id;
+					$repositories[]=$repository->filepath;
+					$currentLevel = count($repositories)-1;
+				}
+				
+				$request = "SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$row["ID"]."' AND LINK_TYPE_ID='30004'";
+				
+				$stid1 = oci_parse($this->connection,$request);
+				oci_execute($stid1);
+				$row1 = oci_fetch_assoc($stid1);
+				
+				$file = $this->addCMSSimpleFile($row1["RIGHTOBJECT_ID"], $contextId, $component, $fileArea, $itemId, $currentRepository,$name);
+				$filesIds[] = $file->id;
+			}
+			
+			echo 'CURRENT REPOSITORY = '.$currentRepository.'<br/>';
+			
+			$index++;	
+		}
+	
+	}
+	
+	
+
+	/** 
+	 * Add a learning module as a Book
+	 *
+	 * @param unknown $learningModuleId
+	 * @param unknown $name
+	 * @param unknown $description
+	 */
+	public function addLearningModuleAsBook($learningModuleId,$name,$description){
+	
+		global $USER;
+	
+		$bookModel = new BookModel();
+		$bookModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$bookModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$bookModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$bookModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+		$bookModel->grades = new ActivityGradeBook();
+		$bookModel->calendar = new Events();
+		
+		$bookModel->module = $this->createModule($learningModuleId,"book","2013110500",3);
+		
+		$bookModel->book = $this->createLearningModuleBook($learningModuleId,$name,$description, $bookModel->module);
+		
+		
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$bookModel->module->id;
+		$activity->sectionid=$this->sections[3]->section->id;
+		$activity->modulename=$bookModel->module->modulename;
+		$activity->title=$bookModel->book->name;
+		$activity->directory="activities/book_".$bookModel->book->bookId;
+		
+		$this->moodle_backup->contents->activities[] = $activity;
+		
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","book_".$bookModel->book->bookId,"book_".$bookModel->book->bookId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","book_".$bookModel->book->bookId,"book_".$bookModel->book->bookId."_userinfo",1);
+		
+		$inforRef = new InfoRef();
+		$inforRef->userids[]=$USER->id;
+		$inforRef->fileids=$bookModel->book->filesIds;
+		
+		$bookModel->inforef = $inforRef;
+		
+		$this->activities[] = $bookModel;
+
+		$this->sections[3]->section->sequence[]= $bookModel->book->bookId;
+			
+	}
+	
+	/**
+	 * @param unknown $bookId
+	 * @param Module $module
+	 *
+	 * @return ActivityBook
+	 *
+	 */
+	public function createLearningModuleBook($learningModuleId,$learningModuleName,$description, $module){
+		$book  = new ActivityBook();
+		$book->id = $learningModuleId;
+		$book->moduleid =$module->id;
+		$book->modulename =$module->modulename;
+		$book->contextid=$this->getNextId();
+		$book->bookId = $learningModuleId;
+	
+		$book->name= $learningModuleName;
+		$book->intro = $description;
+	
+		$book->introformat=1;
+		$book->numbering=3;//3 = Indented
+		$book->customtitles=0;
+		$book->timecreated=time();
+		$book->timemodified=time();
+		
+		$request = "SELECT CMS_CONTENT_ENTRY.ID,CMS_CONTENT_ENTRY.NAME AS CMS_NAME, CMS_LINK.NAME AS LINK_NAME,
+							CMS_CONTENT_ENTRY.CE_TYPE_NAME, CMS_CONTENT_ENTRY.DESCRIPTION,CO_TOC_LINK.INDENTLEVEL,
+							CMS_CONTENT_ENTRY.FILE_CONTENT_ID,CO_TOC_LINK.ID AS TOC_LINK_ID
+					FROM CMS_LINK
+					  LEFT JOIN CO_TOC_LINK ON CO_TOC_LINK.ID=CMS_LINK.ID
+					  LEFT JOIN CMS_CONTENT_ENTRY ON CMS_CONTENT_ENTRY.ID=CMS_LINK.RIGHTOBJECT_ID
+					WHERE CMS_LINK.LEFTOBJECT_ID='".$learningModuleId."' AND CMS_LINK.LINK_TYPE_ID='30002' ORDER BY CMS_LINK.DISPLAY_ORDER";
+		$stid = oci_parse($this->connection,$request);
+		
+		oci_execute($stid);
+		$puceLevel = 0;
+		$puce = array(0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+		$pageNum = 0;
+		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+			
+			$pageNum++;
+			$identLevel = $row['INDENTLEVEL'];
+		
+			$puceLevel+=$identLevel;
+			$puceLevel=$puceLevel<0?$puceLevel=0:$puceLevel;
+			$puce[$puceLevel]=$puce[$puceLevel]+1;
+				
+			$puceName = "";
+			for($i=0;$i<count($puce); $i++){
+				if($i<=$puceLevel){
+					$puceName.=$puce[$i].".";
+				}else {
+					$puce[$i]=0;
+				}
+			}
+				
+			$simpleName = $row['LINK_NAME'];
+			if(empty($simpleName)){
+				$simpleName = $row['CMS_NAME'];
+			}
+						
+			$name =$puceName." ".$simpleName;
+			
+			$isChapter=$puceLevel==0?true:false;
+		
+			
+			//Ici on test et on écrit dans le rapport s'il y a des actions links
+			$request = "SELECT ID, NAME, CE_TYPE_NAME FROM CMS_CONTENT_ENTRY
+						WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK
+                						WHERE LEFTOBJECT_ID IN (SELECT ID FROM CO_ACTIONMENU WHERE CO_ACTIONMENU.TOC_LINK_ID='".$row['TOC_LINK_ID']."') AND CMS_LINK.NAME IS NOT NULL AND CMS_LINK.LINK_TYPE_ID='30003')";
+			$stid1 = oci_parse($this->connection,$request);
+			oci_execute($stid1);
+			while($row1 = oci_fetch_assoc($stid1)){
+				echo 'La page "'.$name.'" ('.$learningModuleName.') possède un lien d\'action vers "'.$row1['NAME'].'"('.$row1['CE_TYPE_NAME'].').<br/>';
+			}
+			
+			
+			if($row['CE_TYPE_NAME']=='HEADING_TYPE'){				
+				$book->addChapter($this->addBookChapter($name,$row['LINK_NAME'], $isChapter,$pageNum));
+						
+			}elseif($row['CE_TYPE_NAME']=='PAGE_TYPE'){
+				$content = "";
+				$chapter=$this->addBookChapter($name,$content, $isChapter,$pageNum);
+				$chapter->book = $book;
+				
+				if(empty($row['FILE_CONTENT_ID'])){
+					$request = "SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$row["ID"]."' AND LINK_TYPE_ID='30004'";
+					
+					$stid1 = oci_parse($this->connection,$request);
+					oci_execute($stid1);
+					$row1 = oci_fetch_assoc($stid1);
+					
+					$file = $this->addCMSFile($row1["RIGHTOBJECT_ID"], 11, $chapter);
+					
+					//Récupère le dernier Id rajouté à la liste des fichiers du book
+					if(isset($file)){
+						//TODO METTRE DANS LE RAPPORT 
+						$more ='style="min-height:600px"';
+													
+ 						$content = '<object data="@@PLUGINFILE@@/'.$file->filename.'" type="'.$file->mimetype.'" height="100%" width="100%" '.$more.'>'.
+										utf8_encode('<p>Ce fichier ne peut pas directement être affiché dans votre navigateur.</p>
+		 								<p>Vous pouvez le télécharger via le lien suivant :').'<a href="@@PLUGINFILE@@/'.$file->filename.'">'.$file->filename.'</a></p>
+									</object>';
+ 						$chapter->content = $content;
+					}
+					
+				}else {
+					$request = "SELECT CMS_CONTENT_ENTRY.NAME,CMS_CONTENT_ENTRY.FILESIZE,CMS_FILE_CONTENT.CONTENT,CMS_MIMETYPE.MIMETYPE
+								FROM CMS_CONTENT_ENTRY
+									INNER JOIN CMS_FILE_CONTENT ON CMS_FILE_CONTENT.ID=CMS_CONTENT_ENTRY.FILE_CONTENT_ID
+									INNER JOIN CMS_MIMETYPE ON CMS_MIMETYPE.ID=CMS_FILE_CONTENT.MIMETYPE_ID
+								WHERE CMS_CONTENT_ENTRY.ID ='".$row['ID']."'";
+					$stid1 = oci_parse($this->connection,$request);
+					oci_execute($stid1);
+					$row1 = oci_fetch_assoc($stid1);
+					
+					$content = $row1["CONTENT"]->load();
+					
+					$content=$this->convertTextAndCreateAssociedFiles($content,11,$chapter);					
+					$chapter->content = $content;
+				}
+				$book->addChapter($chapter);
+				
+				
+			}elseif($row['CE_TYPE_NAME']=='ASSESSMENT_TYPE'){
+				$content = utf8_encode('Évaluation :').'<a href="$@QUIZVIEWBYID*'.$row['ID'].'@$">'.$simpleName.'</a>';
+				
+				$book->addChapter($this->addBookChapter($name,$content, $isChapter,$pageNum));
+			}elseif($row['CE_TYPE_NAME']=='PROJECT_TYPE'){
+				$content = utf8_encode('Tâche :').'<a href="$@ASSIGNVIEWBYID*'.$row['ID'].'@$">'.$simpleName.'</a>';
+				
+				$book->addChapter($this->addBookChapter($name,$content, $isChapter,$pageNum));
+			}elseif($row['CE_TYPE_NAME']=='URL_TYPE'){
+				
+				$request = "SELECT CMS_CONTENT_ENTRY.NAME,CMS_CONTENT_ENTRY.DESCRIPTION,CO_URL.LINK, CO_URL.OPENINNEWWINDOWFLAG FROM CMS_CONTENT_ENTRY
+					  LEFT JOIN CO_URL ON CO_URL.ID=CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID
+					WHERE CMS_CONTENT_ENTRY.ID='".$row['ID']."'";
+				$stid1 = oci_parse($this->connection,$request);
+				oci_execute($stid1);
+				$row1 = oci_fetch_assoc($stid1);
+				
+				$content ="<table><tbody>";
+								
+				$urlDescription ="";
+				if(!empty($row1['DESCRIPTION'])){
+					$urlDescription =$row1['DESCRIPTION']->load();
+				}
+			
+				$target="_self";
+				if($row1['OPENINNEWWINDOWFLAG']==1){
+					$target="_blank";
+				}
+				
+				$urlRow = "<tr>"
+							."<td>"."</td>"
+							."<td valign='top' width='50%'>"
+								."<label><b><a target='".$target."' href='".$row1['LINK']."'>".$row1['NAME']."</a></b></label><br/>"
+								."<div>".$urlDescription."</div>"
+							."</td>"
+							."<td valign='top' width='50%'>".$row1['LINK']."</td>"
+						."</tr>";
+					$content .= $urlRow;
+				
+				$content .="</tbody></table>";
+				
+				$book->addChapter($this->addBookChapter($name,$content, $isChapter,$pageNum));
+			}else {
+				echo 'Ce type d\'object n\'est pas traité : '.$row['CE_TYPE_NAME'].'<br/>';
+				$content = utf8_encode('Ici se trouvait un élément ('.$row['CE_TYPE_NAME'].') qui n\'a pu être migré depuis WebCT.');
+				$book->addChapter($this->addBookChapter($name,$content, $isChapter,$pageNum));
+			}
+			
+
+		}
+	
+		return $book;
+	}
+	
+	
+	public function addBookChapter($name,$content, $isChapter,$pageNum){
+		$chapter = new Chapter();
+		$chapter->id=$this->getNextId();
+		$chapter->pagenum = $pageNum;
+		$chapter->subchapter=$isChapter==true?0:1;
+		$chapter->title = $name;
+		$chapter->content = $content;
+		$chapter->contentformat=1;
+		$chapter->hidden=0;
+		$chapter->timemodified=time();
+		$chapter->importsrc="";
+		
+		return $chapter;
+	}
 	
 	
 	/***************************************************************************************************************
@@ -3352,28 +3893,278 @@ class WebCTModel extends \GlobalModel {
 	*/
 	public function retrieveCourseContent(){
 		
-		//$this->addSections();
-		//$this->addSections();
-		//$this->addSections();
-
+		//We get the defaut repository
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='ORGANIZER_PAGE_TYPE' AND DELETED_FLAG=0 AND PARENT_ID='".$this->deliveryContextId."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+		
+		if(!empty($row)){
+			$section = $this->addSections($row['ID'], utf8_encode("Section d'accueil"), utf8_encode("Section d'accueil (Racine dans WebCT)"));			
+			
+			//Retrieve the first level reposoitory
+			$request = "SELECT CMS_CONTENT_ENTRY.ID,CMS_CONTENT_ENTRY.NAME,CO_ORGANIZERLINK.LONG_DESCRIPTION
+						FROM CMS_CONTENT_ENTRY
+  							LEFT JOIN CMS_LINK ON CMS_LINK.RIGHTOBJECT_ID=CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID
+  							LEFT JOIN CO_ORGANIZERLINK ON CO_ORGANIZERLINK.ID=CMS_LINK.ID
+					 	WHERE CE_TYPE_NAME='ORGANIZER_PAGE_TYPE' AND DELETED_FLAG=0 AND PARENT_ID='".$row['ID']."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+			$stid1 = oci_parse($this->connection,$request);
+			oci_execute($stid1);
+				
+				
+			while ($row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)){
+				$description = $row1['LONG_DESCRIPTION'];
+				if(empty($description)){
+					$description ="";
+				}else {
+					$description =$description->load();
+				}
+				
+				$hasOnlyFiles = $this->contentRepositoryhasOnlyFiles($row1['ID']);
+				//TEST if there are only PAGE and FILE (not HTML)
+				$repositoryName = $row1['NAME'];
+				$repositoryId = $row1['ID'];
+				if($hasOnlyFiles){
+					$this->rapportMigration->add("course_content", $repositoryId, $repositoryName,'Contenu du répertoire "'.$repositoryName.'" a été migré comme réperoire de fichiers.', 0);
+					$this->addCourseContentAsFolder($repositoryId, $repositoryName, $description);
+				}else {
+					$this->rapportMigration->add("course_content", $repositoryId, $repositoryName,'Contenu du répertoire "'.$repositoryName.'" n\'a été pu être migré.', 0);
+				}
+				
+				//$this->addSections($row['ID'], $row['NAME'], $description,true);
+			}
+			
+			
+			//Add all the files of the repository.
+			$request = "SELECT * FROM CMS_CONTENT_ENTRY 
+  						WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$row['ID']."')
+  								AND CE_TYPE_NAME!='ORGANIZER_PAGE_TYPE'";
+			$stid1 = oci_parse($this->connection,$request);
+			oci_execute($stid1);
+			
+			while ($row1 = oci_fetch_assoc($stid1)){
+				$name = $row1['NAME'];
+				$description = $row1['DESCRIPTION'];
+				if(empty($description)){
+					$description ="";
+				}else {
+					$description =$description->load();
+				}
+				
+				if($row1['CE_TYPE_NAME']=='PAGE_TYPE'){
+					$contentId;
+						
+					if(empty($row1['FILE_CONTENT_ID'])){
+						$request = "SELECT * FROM CMS_CONTENT_ENTRY
+									WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$row1['ID']."' AND CMS_LINK.LINK_TYPE_ID='30004')";
+						$stid2 = oci_parse($this->connection,$request);
+						oci_execute($stid2);
+						$row2 = oci_fetch_assoc($stid2);
+						
+						$contentId=$row2['ORIGINAL_CONTENT_ID'];
+					}else {
+						$contentId=$row1['ORIGINAL_CONTENT_ID'];
+					}
+					
+					//echo $row['ID'].'--->'.$row1['ID'].' ---- ORIGINAL CONTENT ID == '.$contentId.'<br/>';
+					
+					$this->addResource($contentId,$name,$description,$section->section->id);
+						
+				}elseif($row1['CE_TYPE_NAME']=='URL_TYPE'){
+					$this->addURL($row1['ORIGINAL_CONTENT_ID'],$section->section->id);
+				}elseif($row1['CE_TYPE_NAME']=='ASSESSMENT_TYPE'){
+					$this->addInternalURL($name, $description, '$@QUIZVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->section->id);
+				}elseif($row1['CE_TYPE_NAME']=='PROJECT_TYPE'){
+					$this->addInternalURL($name, $description, '$@ASSIGNVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->section->id);
+				}elseif($row1['CE_TYPE_NAME']=='MEDIA_COLLECTION_TYPE'){
+					$this->addInternalURL($name, $description, '$@GLOSSARYVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->section->id);
+				}elseif($row1['CE_TYPE_NAME']=='SYLLABUS_TYPE'){
+					echo 'Cet élément n\'a pas pu être migré --> '.$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
+// 					if(isset($this->syllabusManager->syllabus->id)){
+// 						echo 'SYLLABUS--> '.$row1['NAME'].' -- '.$row1['ID'].'<br/>';
+// 						$name = "Plan de cour: " . $this->syllabusManager->courseInfo->nomCours;
+// 						PAGEVIEWBYID
+// 						RESOURCEVIEWBYID
+// 						$this->addInternalURL("LIEN VERS SYLLABUS", $name, '$@RESOURCEVIEWBYID*'.$this->syllabusManager->syllabus->id.'@$',$section->section->id);
+// 					}
+				}else {
+					$this->rapportMigration->add("course_content", $row1['ID'], $row1['NAME'],'L\'élément de type "'.$row1['CE_TYPE_NAME'].'" n\'a été pu être migré.', 0);
+					echo 'Cet élément n\'a pas pu être migré --> '.$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
+				}
+			}
+		
+		}	
 	}
 	
 	/**
-	 * Initialize SectionModel
+	 * @param unknown $repositoryId
+	 * @return boolean
 	 */
-	public function addSections(){
+	public function contentRepositoryhasOnlyFiles($repositoryId){
+		$hasOnlyFile = true;
+		
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$repositoryId."')";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		while($row = oci_fetch_assoc($stid)){
+			if($row['CE_TYPE_NAME']=='ORGANIZER_PAGE_TYPE'){
+				$hasOnlyFile =$this->contentRepositoryhasOnlyFiles($row['ID']) ;				
+			}elseif($row['CE_TYPE_NAME']!="PAGE_TYPE" || !empty($row['FILE_CONTENT_ID'])){
+				$hasOnlyFile =false;
+			}
+			if(!$hasOnlyFile){
+				return false;
+			}
+		}
+		
+		return $hasOnlyFile;
+	}
+	
+	
+	
+	/**
+	 * Add a learning module as a Folder (files)
+	 */
+	public function addCourseContentAsFolder($courseContentFolderId,$name,$description){
+	
+		global $USER;
+	
+		$folderModel = new FolderModel();
+		$folderModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+		$folderModel->grades = new ActivityGradeBook();
+		$folderModel->calendar = new Events();
+	
+		$folderModel->module = $this->createModule($courseContentFolderId,"folder","2013110500",4);
+	
+		$folderModel->folder = $this->createCourseContentFolder($courseContentFolderId, $name,$description,$folderModel->module);
+	
+	
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$folderModel->module->id;
+		$activity->sectionid=$this->sections[4]->section->id;
+		$activity->modulename=$folderModel->module->modulename;
+		$activity->title=$folderModel->folder->name;
+		$activity->directory="activities/folder_".$folderModel->folder->folderId;
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+	
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","folder_".$folderModel->folder->folderId,"folder_".$folderModel->folder->folderId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","folder_".$folderModel->folder->folderId,"folder_".$folderModel->folder->folderId."_userinfo",1);
+	
+		$inforRef = new InfoRef();
+		$inforRef->userids[]=$USER->id;
+		$inforRef->fileids=$folderModel->folder->filesIds;
+	
+		$folderModel->inforef = $inforRef;
+	
+		$this->activities[] = $folderModel;
+	
+		$this->sections[4]->section->sequence[]= $folderModel->folder->folderId;
+	}
+	
+	
+	
+	/**
+	 * @param unknown $folderId
+	 * @param Module $module
+	 * @return ActivityFolder
+	 */
+	public function createCourseContentFolder($courseContentFolderId,$name,$description, $module){
+	
+		$folder = new ActivityFolder();
+		$folder->id = $courseContentFolderId;
+		$folder->moduleid =$module->id;
+		$folder->modulename =$module->modulename;
+		$folder->contextid=$this->getNextId();
+		$folder->folderId = $courseContentFolderId;
+	
+		$folder->name =$name;
+		$folder->intro=$description;
+		$folder->introformat=1;
+		$folder->revision=0;
+		$folder->timemodified=time();
+		$folder->display=1;
+		$folder->showexpanded=0;
+	
+	
+		//Recherche et récupére tous les fichiers et dossiers de WebCT
+		$this->addCourseContentFolderFiles($courseContentFolderId, $folder->contextid, "/", $folder->filesIds);
+	
+		return $folder;
+	}
+	
+	
+	public function addCourseContentFolderFiles($courseContentFolderId, $contextId, $path, &$filesIds){
+	
+		$component = "mod_folder";
+		$fileArea = "content";
+		$itemId = 0;
+		
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$courseContentFolderId."')";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		while($row = oci_fetch_assoc($stid)){
+			if($row['CE_TYPE_NAME']=='ORGANIZER_PAGE_TYPE'){
+				
+				$request = "SELECT CMS_CONTENT_ENTRY.ID,CMS_CONTENT_ENTRY.NAME,CO_ORGANIZERLINK.LONG_DESCRIPTION
+						FROM CMS_CONTENT_ENTRY
+  							LEFT JOIN CMS_LINK ON CMS_LINK.RIGHTOBJECT_ID=CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID
+  							LEFT JOIN CO_ORGANIZERLINK ON CO_ORGANIZERLINK.ID=CMS_LINK.ID
+					 	WHERE CE_TYPE_NAME='ORGANIZER_PAGE_TYPE' AND DELETED_FLAG=0 AND CMS_CONTENT_ENTRY.ID='".$row['ID']."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+				$stid1 = oci_parse($this->connection,$request);
+				oci_execute($stid1);
+				
+				while ($row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)){
+					$description = $row1['LONG_DESCRIPTION'];
+					if(empty($description)){
+						$description ="";
+					}else {
+						$description =$description->load();
+					}
+					$newPath=$path.$row1['NAME'].'/';
+					$repository = $this->addCMSRepository($contextId, $component, $fileArea, $itemId, $newPath);
+					$filesIds[] = $repository->id;
+					$this->addCourseContentFolderFiles($row1['ID'], $contextId, $newPath, $filesIds);
+				}		
+			}elseif($row['CE_TYPE_NAME']=="PAGE_TYPE"){
+				
+				$request = "SELECT ORIGINAL_CONTENT_ID FROM CMS_CONTENT_ENTRY
+							WHERE ID=(SELECT CMS_LINK.RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$row['ID']."' AND LINK_TYPE_ID='30004')";
+				$stid1 = oci_parse($this->connection,$request);
+				oci_execute($stid1);
+				$row1 = oci_fetch_assoc($stid1);
+				
+				$file = $this->addCMSSimpleFile($row1["ORIGINAL_CONTENT_ID"], $contextId, $component, $fileArea, $itemId, $path);
+				$filesIds[] = $file->id;
+			}
+		}	
+	}
+	
+	
+
+	/**
+	 * @param unknown $id
+	 * @param unknown $name
+	 * @param unknown $description
+	 * @param string $includeChildrenRepository
+	 * @return SectionModel
+	 */
+	public function addSections($id,$name,$description,$includeChildrenRepository=false){
 	
 		$sectionModels = array();	
 	
-		//SECTION DES EVALUATIONS
 		$sectionModel = new SectionModel();
 	
-		//Default section used to put all the activities (for now)
 		$section = new Section();
-		$section->id=$this->getNextId();
-		$section->number=$this->getNextId();
-		$section->name="Nouvelle section";
-		$section->summary="Nouvelle Section description";
+		$section->id=$this->getNextSectionId();
+		$section->number=$section->id;
+		$section->name=$name;
+		$section->summary=$description;
 		$section->summaryformat=1;
 		$section->visible=0;
 		$section->availablefrom=0;
@@ -3386,7 +4177,9 @@ class WebCTModel extends \GlobalModel {
 		$infoRef = new InfoRef();
 		$sectionModel->inforef = $infoRef;
 	
-		$this->sections[] = $sectionModel;
+		$this->sections[$section->id] = $sectionModel;
+		
+		echo 'SECTION ID =='.$section->id.'<br/>';
 			
 		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
 	
@@ -3396,11 +4189,276 @@ class WebCTModel extends \GlobalModel {
 	
 		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
 	
-		$this->course->course->numsections = $this->course->course->numsections+1; 
+		$this->course->course->numsections++; 
+		
+		return $sectionModel;
+		
+// 		if($includeChildrenRepository){
+// 		//Add Sub section as Label 
+// 			//Retrieve the first level reposoitory
+// 			$request = "SELECT CMS_CONTENT_ENTRY.ID,CMS_CONTENT_ENTRY.NAME,CO_ORGANIZERLINK.LONG_DESCRIPTION
+// 						FROM CMS_CONTENT_ENTRY
+//   							LEFT JOIN CMS_LINK ON CMS_LINK.RIGHTOBJECT_ID=CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID
+//   							LEFT JOIN CO_ORGANIZERLINK ON CO_ORGANIZERLINK.ID=CMS_LINK.ID
+// 					 	WHERE CE_TYPE_NAME='ORGANIZER_PAGE_TYPE' AND DELETED_FLAG=0 AND PARENT_ID='".$id."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+// 			$stid = oci_parse($this->connection,$request);
+// 			oci_execute($stid);
+				
+// 			while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+// 				$description = $row['LONG_DESCRIPTION'];
+// 				if(empty($description)){
+// 					$description ="";
+// 				}else {
+// 					$description =$description->load();
+// 				}				
+// 				$this->addSubSection($section->id, $row['ID'],$row['NAME'],$description,0);				
+// 			}
+	
+// 		} 
+		
+	}
+	
+	public function addURL($urlOriginalId,$section=0){
+		
+		$urlModel = new URLModel();
+		$urlModel->calendar = new Events(); //vide
+		$urlModel->comments = new Comments(); //vide
+		$urlModel->completion = new ActivityCompletion(); //vide
+		$urlModel->filters = new Filters(); //vide
+		$urlModel->grades = new ActivityGradeBook(); // Vide
+		$urlModel->inforef = new InfoRef(); // A remplir
+		$urlModel->roles = new RolesBackup(); //Vide
+	
+		$urlModel->module = $this->createModule($urlOriginalId,"url","2013110500",$section);
+		$urlModel->url = $this->createURL($urlOriginalId,$urlModel->module);
+	
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$urlModel->module->id;
+		$activity->sectionid=$section;
+		$activity->modulename=$urlModel->module->modulename;
+		$activity->title=$urlModel->url->name;
+		$activity->directory="activities/url_".$urlModel->url->urlId;
+	
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","url_".$urlModel->url->urlId,"url_".$urlModel->url->urlId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","url_".$urlModel->url->urlId,"url_".$urlModel->url->urlId."_userinfo",1);
+	
+		$this->activities[] = $urlModel;
+	
+		$this->sections[$section]->section->sequence[]= $urlModel->url->urlId;
+	}
+	
+	/**
+	 * @param unknown $urlOriginalId
+	 * @param unknown $module
+	 * @return NULL|ResourceUrl
+	 */
+	public function createURL($urlOriginalId,$module){
+	
+		$request = "SELECT CMS_CONTENT_ENTRY.NAME,CMS_CONTENT_ENTRY.DESCRIPTION,CO_URL.LINK, CO_URL.OPENINNEWWINDOWFLAG FROM CMS_CONTENT_ENTRY
+					  LEFT JOIN CO_URL ON CO_URL.ID=CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID
+					WHERE CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID='".$urlOriginalId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_assoc($stid);
+		
+		if(empty($row)){
+			return null;
+		}
+		
+		$resourceUrl = new ResourceUrl();
+		$resourceUrl->id = $urlOriginalId ;
+		$resourceUrl->moduleid =$module->id;
+		$resourceUrl->modulename =$module->modulename;
+		$resourceUrl->contextid=$this->getNextId();
+		$resourceUrl->urlId = $urlOriginalId;
+		$resourceUrl->name = $row['NAME'];
+		
+		$description = $row['DESCRIPTION'];
+		if(empty($description)){
+			$description ="";
+		}else {
+			$description =$description->load();
+		}		
+		$resourceUrl->intro = $description;
+		$resourceUrl->introformat = "1";
+		$resourceUrl->externalurl = $row['LINK'];
+		
+		if($row['OPENINNEWWINDOWFLAG']==1){
+			$resourceUrl->display = "3";
+		}else {
+			$resourceUrl->display = "5";
+		}
+
+		$resourceUrl->displayoptions = 'a:0:{}';
+		$resourceUrl->parameters = 'a:0:{}';
+		$resourceUrl->timemodified =time();
+	
+		return $resourceUrl;
 	
 	}
 	
+	public function addInternalURL($name,$description,$url,$section=0){
 	
+		$urlModel = new URLModel();
+		$urlModel->calendar = new Events(); //vide
+		$urlModel->comments = new Comments(); //vide
+		$urlModel->completion = new ActivityCompletion(); //vide
+		$urlModel->filters = new Filters(); //vide
+		$urlModel->grades = new ActivityGradeBook(); // Vide
+		$urlModel->inforef = new InfoRef(); // A remplir
+		$urlModel->roles = new RolesBackup(); //Vide
+	
+		$id = $this->getNextId();
+		$urlModel->module = $this->createModule($id,"url","2013110500",$section);
+		$urlModel->url = $this->createInternalURL($id,$name,$description,$url,$urlModel->module);
+	
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$urlModel->module->id;
+		$activity->sectionid=$section;
+		$activity->modulename=$urlModel->module->modulename;
+		$activity->title=$urlModel->url->name;
+		$activity->directory="activities/url_".$urlModel->url->urlId;
+	
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","url_".$urlModel->url->urlId,"url_".$urlModel->url->urlId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","url_".$urlModel->url->urlId,"url_".$urlModel->url->urlId."_userinfo",1);
+	
+		$this->activities[] = $urlModel;
+	
+		$this->sections[$section]->section->sequence[]= $urlModel->url->urlId;
+	}
+	
+	/**
+	 * @param unknown $id
+	 * @param unknown $name
+	 * @param unknown $description
+	 * @param unknown $url
+	 * @param unknown $module
+	 * @return NULL|ResourceUrl
+	 */
+	public function createInternalURL($id,$name,$description,$url,$module){
+	
+		$resourceUrl = new ResourceUrl();
+		$resourceUrl->id = $id ;
+		$resourceUrl->moduleid =$module->id;
+		$resourceUrl->modulename =$module->modulename;
+		$resourceUrl->contextid=$this->getNextId();
+		$resourceUrl->urlId = $id;
+		$resourceUrl->name = $name;
+		$resourceUrl->intro = $description;
+		$resourceUrl->introformat = "1";
+		$resourceUrl->externalurl = $url;
+		$resourceUrl->display = "0";
+		$resourceUrl->displayoptions = 'a:0:{}';
+		$resourceUrl->parameters = 'a:0:{}';
+		$resourceUrl->timemodified =time();
+	
+		return $resourceUrl;
+	
+	}
+// 	/**
+// 	 * Add a sub section
+// 	 */
+// 	public function addSubSection($sectionId, $id,$name,$description,$indent=0){
+		
+// 		//Add Sub section Label
+		
+		
+		
+// 		//Add the current section sub section..
+// 		$request = "SELECT CMS_CONTENT_ENTRY.ID,CMS_CONTENT_ENTRY.NAME,CO_ORGANIZERLINK.LONG_DESCRIPTION
+// 						FROM CMS_CONTENT_ENTRY
+//   							LEFT JOIN CMS_LINK ON CMS_LINK.RIGHTOBJECT_ID=CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID
+//   							LEFT JOIN CO_ORGANIZERLINK ON CO_ORGANIZERLINK.ID=CMS_LINK.ID
+// 					 	WHERE CE_TYPE_NAME='ORGANIZER_PAGE_TYPE' AND DELETED_FLAG=0 AND PARENT_ID='".$id."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+// 		$stid = oci_parse($this->connection,$request);
+// 		oci_execute($stid);
+		
+// 		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
+// 			$description = $row['LONG_DESCRIPTION'];
+// 			if(empty($description)){
+// 				$description ="";
+// 			}else {
+// 				$description =$description->load();
+// 			}
+// 			$this->addSubSection($sectionId, $row['ID'],$row['NAME'],$description,$indent+1);
+// 		}
+		
+// 		//
+// 	}
+	
+	/**
+	 * Add files to a section
+	 */
+	public function addFillesToSection($sectionId, $id,$name,$description,$indent=0){
+	
+		//Add Sub section Label
+	
+	
+		//
+	}
+	
+	
+	/**
+	 * Add a Folder and all its content
+	 */
+	public function addLabel($name,$description,$sectionId){
+	
+		global $USER;
+	
+		//Glossary
+		$labelModel = new LabelModel();
+		$labelModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$labelModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$labelModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$labelModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+		$labelModel->grades = new ActivityGradeBook();
+		$labelModel->calendar = new Events();
+	
+		$labelModel->module = $this->createModule($labelId,"label","2013110500");
+	
+		$label = new ResourceLabel();
+		$label->id = $this->getNextId();
+		$label->moduleid =$labelModel->module->id;
+		$label->modulename =$labelModel->module->modulename;
+		$label->contextid=$this->getNextId();
+		$label->labelIdId = $label->id;
+		
+		//Ici on choisit le nom de notre folder
+		$label->name =$name;
+		$label->intro=$description;
+		$label->introformat=1;
+		$folder->timemodified=time();
+		
+		$labelModel->label = $label;
+		
+	
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$labelModel->module->id;
+		$activity->sectionid=$this->sections[0]->section->id;
+		$activity->modulename=$labelModel->module->modulename;
+		$activity->title=$labelModel->label->name;
+		$activity->directory="activities/label_".$labelModel->label->labelId;
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+	
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","label_".$labelModel->label->labelId,"label_".$labelModel->label->labelId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","label_".$labelModel->label->labelId,"label_".$labelModel->label->labelId."_userinfo",1);
+	
+		$inforRef = new InfoRef();
+		$inforRef->userids[]=$USER->id;
+		$inforRef->fileids=$labelModel->label->filesIds;
+	
+		$labelModel->inforef = $inforRef;
+	
+		$this->activities[] = $labelModel;
+	
+		$this->sections[0]->section->sequence[]= $labelModel->label->labelId;
+	}
 	
 	
 	/***************************************************************************************************************
@@ -3514,8 +4572,6 @@ class WebCTModel extends \GlobalModel {
 			 		$this->files->files[]=$file;
 			 		$filesIds[] = $file->id;
 			 		$content = $style;
-			 		$this->rapportMigration->add("discussion",$file->id, $file->filename,
-			 				null, $nbObject);
 			 	}
 				$nomFichier = $res["NAME_TOPIC"];
 				$content = $content . '<body> ';
@@ -3556,7 +4612,8 @@ class WebCTModel extends \GlobalModel {
  							 </table>
  							 <div class="entrytext">' . $message .  '</div>
 						</div>';	
-			
+			$this->rapportMigration->add("discussion",$file->id, $file->filename,
+					null, $nbObject);
 		}
 		
 		if($file != NULL){
@@ -3582,7 +4639,8 @@ class WebCTModel extends \GlobalModel {
 		if($this->syllabusManager->syllabus->use_source_file_fl == 1){			
 			$originalContentId = $this->recupererOriginalContentId($this->deliveryContextId);
 			if($originalContentId != NULL){
-				$this->addResource($originalContentId);
+				$name = "Plan de cour: " . $this->syllabusManager->courseInfo->nomCours;
+				$this->addResource($originalContentId,$name,"Description");
 				$this->rapportMigration->add("programme", $pageId, "Plan de cours: " .$this->syllabusManager->courseInfo->nomCours,null, 0);
 			}else{
 				error_log("Programme : " . $this->syllabusManager->courseInfo->nomCours .' --> Incohérence BD <br/>');
@@ -3598,7 +4656,7 @@ class WebCTModel extends \GlobalModel {
 		}
 	}
 	
-	public function addResource($originalContentId){
+	public function addResource($originalContentId,$name,$description,$section=0){
 		$resourceModel = new RessourceModel();
 		$resourceModel->calendar = new Events(); //vide
 		$resourceModel->comments = new Comments(); //vide
@@ -3608,16 +4666,15 @@ class WebCTModel extends \GlobalModel {
 		$resourceModel->inforef = new InfoRef(); // A remplir
 		$resourceModel->roles = new RolesBackup(); //Vide
 		
-		$resourceModel->module = $this->createModule($originalContentId,"resource","2013110500");
-		$resourceModel->ressource = $this->createResource($originalContentId, $resourceModel->module);
-		
-		
+		$resourceModel->module = $this->createModule($originalContentId,"resource","2013110500",$section);
+		$resourceModel->ressource = $this->createResource($originalContentId,$name,$description,$resourceModel->module);
+
 		$this->addCMSFile($originalContentId, "10", $resourceModel->ressource);
 		$resourceModel->inforef->fileids = $resourceModel->ressource->filesIds ;	
 		
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$resourceModel->module->id;
-		$activity->sectionid=0;
+		$activity->sectionid=$section;
 		$activity->modulename=$resourceModel->module->modulename;
 		$activity->title=$resourceModel->ressource->name;
 		$activity->directory="activities/resource_".$resourceModel->ressource->ressourceId;
@@ -3629,12 +4686,10 @@ class WebCTModel extends \GlobalModel {
 		
 		$this->activities[] = $resourceModel;
 		
-		$this->sections[0]->section->sequence[]= $resourceModel->ressource->ressourceId;			
+		$this->sections[$section]->section->sequence[]= $resourceModel->ressource->ressourceId;			
 	}
 	
-	public function createResource($resourceId , $module){
-		
-		$name = "Plan de cour: " . $this->syllabusManager->courseInfo->nomCours;
+	public function createResource($resourceId ,$name,$description, $module){
 		
 		$resourceActivity = new ActivityRessource();
 		$resourceActivity->id = $resourceId ;
@@ -3643,7 +4698,7 @@ class WebCTModel extends \GlobalModel {
 		$resourceActivity->contextid=$this->getNextId();
 		$resourceActivity->ressourceId = $resourceId;
 		$resourceActivity->name = $name;
-		$resourceActivity->intro = "Description";
+		$resourceActivity->intro = $description;
 		$resourceActivity->introformat = "1";
 		$resourceActivity->tobemigrated = "0";
 		$resourceActivity->legacyfiles = "0";
@@ -3904,10 +4959,8 @@ class WebCTModel extends \GlobalModel {
 		$this->rapportMigration->fullName = $row["NAME"]  ;
 		$this->rapportMigration->shortName = $row["SOURCE_ID"];
 		$this->rapportMigration->nomFichier = 'rapportMigration_'. $this->rapportMigration->str_fichier($this->rapportMigration->shortName) .'.xml';
-		
 		$fileId = $this->getNextId();
 		$contextId = $this->getNextId();
-	
 		$this->addRapportMigration($fileId , $contextId);
 	}
 	
@@ -3922,8 +4975,7 @@ class WebCTModel extends \GlobalModel {
 		$resourceModel->roles = new RolesBackup(); //Vide
 		
 		$resourceModel->module = $this->createModule($fileId,"resource","2013110500");
-		$resourceModel->ressource = $this->createResource($fileId, $resourceModel->module);
-		$resourceModel->ressource->name = "Rapport de la migration";
+		$resourceModel->ressource = $this->createResource($fileId, "Rapport de la migration","rapport" , $resourceModel->module);
 		$resourceModel->ressource->contextid = $contextId;
 		
 		$component = "mod_resource";

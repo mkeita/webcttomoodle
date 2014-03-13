@@ -118,11 +118,43 @@ while ($row = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)) {
 	            			$writer->writeAttribute('name', utf8_encode($row4['NAME']));
 
 							//ACTION MENU LINKS	            			
-	            			$request = "SELECT COUNT(*) FROM CMS_LINK WHERE LEFTOBJECT_ID=(SELECT ID FROM CO_ACTIONMENU WHERE TOC_ID='".$row4['ID']."') AND CMS_LINK.LINK_TYPE_ID='30003'";
+	            			$request = "SELECT * FROM CMS_LINK 
+  											WHERE LEFTOBJECT_ID IN (SELECT ID FROM CMS_CONTENT_ENTRY WHERE CMS_CONTENT_ENTRY.PARENT_ID='".$row4['ID']."') AND CMS_LINK.NAME IS NOT NULL AND CMS_LINK.LINK_TYPE_ID='30003'";
 	            			$stid5 = oci_parse($conn,$request);
 	            			oci_execute($stid5);
-	            			$row5 = oci_fetch_array($stid5, OCI_ASSOC+OCI_RETURN_NULLS);
-	            			$writer->writeAttribute('total_external_action_links', utf8_encode($row5['COUNT(*)']));
+	            			$countExternalTotal = 0;
+	            			
+	            			$countExternalAssessment= 0;
+	            			$countExternalProjects= 0;
+	            			$countExternalSinglePage= 0;
+	            			$countExternalURL= 0;
+	            			$countExternalMediaLibrary= 0;	            			
+	            			$countExternalChat= 0;
+	            			while ($row5 = oci_fetch_array($stid5, OCI_ASSOC+OCI_RETURN_NULLS)){
+	            				$countExternalTotal++;
+	            				if($row5['NAME']=='assessment'){
+	            					$countExternalAssessment++;
+	            				}elseif($row5['NAME']=='Projects'){
+	            					$countExternalProjects++;
+	            				}elseif($row5['NAME']=='SinglePage'){
+	            					$countExternalSinglePage++;
+	            				}elseif($row5['NAME']=='URL'){
+	            					$countExternalURL++;
+	            				}elseif($row5['NAME']=='MediaLibrary'){
+	            					$countExternalMediaLibrary++;
+	            				}elseif($row5['NAME']=='Chat/Whiteboard'){
+	            					$countExternalChat++;
+	            				}else{
+	            					echo '--------------------------->'.$row5['NAME'].PHP_EOL;
+	            				}
+	            			}
+	            			$writer->writeAttribute('total_external_action_links', $countExternalTotal);
+	            			$writer->writeAttribute('total_external_assessments', $countExternalAssessment);
+	            			$writer->writeAttribute('total_external_assignments', $countExternalProjects);
+	            			$writer->writeAttribute('total_external_pages', $countExternalSinglePage);
+	            			$writer->writeAttribute('total_external_url', $countExternalURL);
+	            			$writer->writeAttribute('total_external_glossary', $countExternalMediaLibrary);
+	            			$writer->writeAttribute('total_external_chat', $countExternalChat);
 	            			
 	            			
 	            			//ACTION ALL INTERNAL LINKS
@@ -218,6 +250,20 @@ while ($row = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)) {
 		            			
 		            		$writer->endElement();
 	            			
+		            		
+		            		//URL_TYPE INCLUDE IN WEB_CT
+		            		$request = "SELECT COUNT(*) FROM CMS_CONTENT_ENTRY
+										  WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$row4['ID']."' AND LINK_TYPE_ID='30002')
+										  AND CMS_CONTENT_ENTRY.CE_TYPE_NAME='URL_TYPE'";
+		            		$stid5 = oci_parse($conn,$request);
+		            		oci_execute($stid5);
+		            		
+		            		$countLinks = 0;
+		            		$row5 = oci_fetch_array($stid5, OCI_ASSOC+OCI_RETURN_NULLS);
+		            		
+		            		$writer->startElement('urls');
+		            		$writer->writeAttribute('urls_total', $row5['COUNT(*)']);
+		            		$writer->endElement();
 	            			
 		            		//ASSESSMENTS INCLUDE IN WEB_CT
 		            		$request = "SELECT * FROM CMS_CONTENT_ENTRY

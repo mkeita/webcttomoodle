@@ -1,5 +1,22 @@
 <?php
 class RapportMigration {
+	 const QUESTION_TROP_LONGUE = "Question trop longue donc limité à 255 caratéres </br>";
+	 const QUESTION_REMPLACE_CLOZE = "La question courte a été transformée en question CLOZE.Attention du code javascript
+	 	 a été rajouté à la fin de la description de la question afin que les champs de textes ont la même taille. </br>";
+	 const REPONCE_EVALUE_REGEX = "Une réponse est évaluée à l'aide d'une expression réguliére";
+	 const REPONCE_VIDE = "Une réponse n'a pas été prise en compte parce qu'elle était vide.";
+	 const PROBLEME_PONDERATION = "Probléme de pondération rencontré.";
+	 const TAILLE_LIMITE = "La taille maximale des champs de texte a été limité à 500 malgré le fait
+     						 que certaines réponses prennent plus de place.";
+	 const APERCU_COLONNE = "L'aperçu des colonnes a été supprimé et réintégré directement dans les réponses.";
+	 const REPONCE_MANQUANT = "Réponce manquante alors le texte 'aucune correspondance' a été rajouté.";
+	 const  NOMBRE_LIGNE = "Seul le nombre de lignes a pu être pris en compte pour ce type de question.";
+	 const TOLERANCE = "La tolérance a été mis en %.</br> Type tolérance:";
+	 const PRECISION = "La précision a été mise en chiffres significatifs.</br> Type précision:" ;
+	 const FORMULE = "Formule WEBCT :";
+	 const REPONCE_ALTERNATIVE = "Les réponses alternatives n'ont pas pu être reprises";
+	 const SCORE_MAXIMUM_INCONNU = "Pas de score maximum trouvé. Le grade a été mis à 0.";
+	 
 	/**
 	 * @var Array d'InfoRapport
 	 */
@@ -70,28 +87,8 @@ class RapportMigration {
 		$this->question = array();
 		$this->tabType = array("glossaire" ,"evaluation" , "tache","gestionnaireFichier","programme","lienWeb","discussion",
 		 "question");
-		$this->tabErreur = array(
-				"erro1" =>	utf8_encode("Question trop longue donc limité à 255 caratéres </br>"),
-				"erro2" =>	utf8_encode("La question courte a été transformée en question CLOZE.Attention du code javascript a été rajouté
-        						à la fin de la description de la question afin que les champs de textes ont la même taille. "),
-				"erro3" =>	utf8_encode("Une réponse est évaluée à l'aide d'une expression réguliére"),
-				"erro4" =>	utf8_encode("Une réponse est valide si elle contient l'expression suivante : "),
-				"erro5"	=> utf8_encode("Une réponse n'a pas été prise en compte parce qu'elle était vide."),
-				"erro6" =>	utf8_encode("Probléme de pondération rencontré."),
-				"erro7" =>	utf8_encode("La taille maximale des champs de texte a été limité à 500 malgré le fait
-     						 que certaines réponses prennent plus de place."),
-				"erro8"	=> utf8_encode("La taille maximale des champs de texte a été limité à 500 malgré le fait
-      						que certaines réponses prennent plus de place."),
-				"erro9"	=> utf8_encode("L'aperçu des colonnes a été supprimé et réintégré directement dans les réponses."),
-				"erro10"=>	utf8_encode("Réponce manquante alors le texte 'aucune correspondance' a été rajouté."),
-				"erro11" =>	utf8_encode("Seul le nombre de lignes a pu être pris en compte pour ce type de question."),
-				"erro12" =>	utf8_encode("La tolérance a été mis en %.</br> Type tolérance:"),
-				"erro13" =>	utf8_encode("La précision a été mise en chiffres significatifs.</br> Type précision: " ),
-				"erro14" =>	utf8_encode("Formule WEBCT :") ,
-				"erro15" =>	utf8_encode("Les réponses alternatives n'ont pas pu être reprises"),
-				"erro16" =>	utf8_encode("Pas de score maximum trouvé. Le grade a été mis à 0."),
-				
-		);
+		$this->tabErreur = $this->getClassConstants();
+		
 		
 	}
 	/**
@@ -117,6 +114,11 @@ class RapportMigration {
 		}
 	}
 	
+	public function getClassConstants() {
+		$oClass = new ReflectionClass(get_class());
+		return $oClass->getConstants();
+	}
+	
 	public function toXMLFile($repository,$learningContext){
 		$fichier = $repository.'/'. $this->nomFichier;
 		$writer = new XMLWriter();
@@ -129,8 +131,8 @@ class RapportMigration {
 		$writer->setIndent(true);
 		$writer->startElement('cour');
 		$writer->writeAttribute('learningContextId','.'.(string)$learningContext);
-		$writer->writeAttribute('fullName',utf8_encode($this->fullName));
-		$writer->writeAttribute('shortName',utf8_encode($this->shortName));
+		$writer->writeAttribute('fullName',$this->fullName);
+		$writer->writeAttribute('shortName',$this->shortName);
 		foreach ($this->tabType as $type){
 			if(property_exists($this , $type)){
 				foreach ($this->$type as $element){
@@ -138,11 +140,11 @@ class RapportMigration {
 					foreach ($this->codeErreur as $erreur){
 						$writer->startElement('type');
 						$writer->writeAttribute('id','.'.(string)$element->id);
-						$writer->writeAttribute('nomType',utf8_encode($type));
+						$writer->writeAttribute('nomType',$type);
 						$writer->writeElement('codeErreur',$erreur);
-						$writer->writeElement('titre',utf8_encode($element->nomFichier));
+						$writer->writeElement('titre',$element->nomFichier);
 						$writer->writeElement('nombreElement',$element->nbElem);
-						$writer->writeElement('remarque',utf8_encode($element->rem));
+						$writer->writeElement('remarque',$element->rem);
 						$writer->endElement();
 					}
 					unset($this->codeErreur);
