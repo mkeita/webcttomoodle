@@ -56,7 +56,7 @@ defined('MOODLE_INTERNAL') || die();
 require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 
 abstract class GlobalModel implements \IBackupModel {
-	
+	protected $learningContextId = "366249217001";
 	/**
 	 * @var MoodleBackup
 	 */
@@ -149,6 +149,7 @@ abstract class GlobalModel implements \IBackupModel {
 	protected $idCount = 1;
 	
 	protected $sectionId = 0;
+	public $remarque = "";
 	
 	/**
 	 * @return GlobalModel
@@ -1116,6 +1117,9 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->groups->toXMLFile($repository);
 		$this->outcomes->toXMLFile($repository);
 		$this->scales->toXMLFile($repository);
+		$this->rapportMigration->toXMLFILE($repository.'/..',$this->learningContextId,
+				"cour" , "cour"   );
+		
 		
 		
 		//COURSE REPOSITORY
