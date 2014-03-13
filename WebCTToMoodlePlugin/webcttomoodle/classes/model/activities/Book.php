@@ -30,6 +30,15 @@ class ActivityBook implements \IBackupModel {
 	 * @var int|Array
 	 */
 	public $filesIds = array();
+
+	
+	/**
+	 * @param Chapter $chapter
+	 */
+	public function addChapter($chapter){
+		$this->chapters[]=$chapter;
+		$chapter->book = $this;
+	}
 	
 	public function toXMLFile($repository) {
 		
@@ -81,6 +90,9 @@ class Chapter {
 	public $timemodified;
 	public $importsrc;
 
+	
+	public $book;
+	
 	/**
 	 * @param XMLWriter $writer
 	 */
