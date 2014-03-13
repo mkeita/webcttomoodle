@@ -9,6 +9,8 @@ class WebCTModel extends \GlobalModel {
 	
 	
 	private $deliveryContextId;
+	
+	private $allLearningModules = array();
 		
 	/* (non-PHPdoc)
 	 * @see GlobalModel::__construct()
@@ -18,27 +20,27 @@ class WebCTModel extends \GlobalModel {
 		parent::__construct();
 		
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
-   		$this->retrieveGlossaries();
+//    		$this->retrieveGlossaries();
 
-  		$this->retrieveQuestions();	
+//   		$this->retrieveQuestions();	
 
 // 		foreach($this->questions->allQuestions as $key=>$value){
 // 			error_log($key.'-->'.$value->name.'<br/>');
 // 		} 
 		
-  		$this->retrieveQuizzes();
+//   		$this->retrieveQuizzes();
 		
-    	$this->retrieveAssignments();
+//     	$this->retrieveAssignments();
 		
-   		$this->retrieveFolders();
+//    		$this->retrieveFolders();
 		
-  		$this->retrieveWebLinks();
+//   		$this->retrieveWebLinks();
 
-  		$this->retrieveSyllabus();
+   		$this->retrieveSyllabus();
 	
-  		$this->retrieveForum();
+//   		$this->retrieveForum();
 		
-  		$this->retrieveEmail();
+//   		$this->retrieveEmail();
 
 		$this->retrieveLearningModules();
 		
@@ -3981,13 +3983,16 @@ class WebCTModel extends \GlobalModel {
 					$this->addInternalURL($name, $description, '$@GLOSSARYVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->section->id);
 				}elseif($row1['CE_TYPE_NAME']=='SYLLABUS_TYPE'){
 					echo 'Cet élément n\'a pas pu être migré --> '.$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
-// 					if(isset($this->syllabusManager->syllabus->id)){
-// 						echo 'SYLLABUS--> '.$row1['NAME'].' -- '.$row1['ID'].'<br/>';
-// 						$name = "Plan de cour: " . $this->syllabusManager->courseInfo->nomCours;
-// 						PAGEVIEWBYID
-// 						RESOURCEVIEWBYID
-// 						$this->addInternalURL("LIEN VERS SYLLABUS", $name, '$@RESOURCEVIEWBYID*'.$this->syllabusManager->syllabus->id.'@$',$section->section->id);
-// 					}
+					if(isset($this->syllabusManager->syllabus->use_source_file_fl)){
+						if($this->syllabusManager->syllabus->use_source_file_fl==1){
+							$moduleId = $this->recupererOriginalContentId($this->deliveryContextId);
+							$this->addInternalURL($name, $description, '$@RESOURCEVIEWBYID*'.$moduleId.'@$',$section->section->id);						
+						}else {
+							$this->addInternalURL($name, $description, '$@PAGEVIEWBYID*'.$this->syllabusManager->syllabus->id.'@$',$section->section->id);						
+						}						
+					}
+				}elseif($row1['CE_TYPE_NAME']=='TOC_TYPE'){
+					$this->addInternalURL($name, $description, '$@GLOSSARYVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->section->id);
 				}else {
 					$this->rapportMigration->add("course_content", $row1['ID'], $row1['NAME'],'L\'élément de type "'.$row1['CE_TYPE_NAME'].'" n\'a été pu être migré.', 0);
 					echo 'Cet élément n\'a pas pu être migré --> '.$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
