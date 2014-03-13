@@ -156,7 +156,7 @@ while ($row = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)) {
 	            	while ($row4 = oci_fetch_array($stid4, OCI_ASSOC+OCI_RETURN_NULLS)) {
 	            		
 	            		$writer->startElement('repository');
-	            			$writer->writeAttribute('name', utf8_encode($row4['NAME']));	            			
+	            			$writer->writeAttribute('name', $row4['NAME']);	            			
 	            			
 	            			
 	            			$repositoryInfo = contentRepositoryhasOnlyFiles($row4['ID'], $conn,0);
