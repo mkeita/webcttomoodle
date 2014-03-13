@@ -36,7 +36,7 @@ class WebCTModel extends \GlobalModel {
 		
 //   		$this->retrieveWebLinks();
 
-//   		$this->retrieveSyllabus();
+   		$this->retrieveSyllabus();
 	
 //   		$this->retrieveForum();
 		
@@ -3983,13 +3983,14 @@ class WebCTModel extends \GlobalModel {
 					$this->addInternalURL($name, $description, '$@GLOSSARYVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->section->id);
 				}elseif($row1['CE_TYPE_NAME']=='SYLLABUS_TYPE'){
 					echo 'Cet élément n\'a pas pu être migré --> '.$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
-// 					if(isset($this->syllabusManager->syllabus->id)){
-// 						echo 'SYLLABUS--> '.$row1['NAME'].' -- '.$row1['ID'].'<br/>';
-// 						$name = "Plan de cour: " . $this->syllabusManager->courseInfo->nomCours;
-// 						PAGEVIEWBYID
-// 						RESOURCEVIEWBYID
-// 						$this->addInternalURL("LIEN VERS SYLLABUS", $name, '$@RESOURCEVIEWBYID*'.$this->syllabusManager->syllabus->id.'@$',$section->section->id);
-// 					}
+					if(isset($this->syllabusManager->syllabus->use_source_file_fl)){
+						if($this->syllabusManager->syllabus->use_source_file_fl==1){
+							$moduleId = $this->recupererOriginalContentId($this->deliveryContextId);
+							$this->addInternalURL($name, $description, '$@RESOURCEVIEWBYID*'.$moduleId.'@$',$section->section->id);						
+						}else {
+							$this->addInternalURL($name, $description, '$@PAGEVIEWBYID*'.$this->syllabusManager->syllabus->id.'@$',$section->section->id);						
+						}						
+					}
 				}elseif($row1['CE_TYPE_NAME']=='TOC_TYPE'){
 					$this->addInternalURL($name, $description, '$@GLOSSARYVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->section->id);
 				}else {
