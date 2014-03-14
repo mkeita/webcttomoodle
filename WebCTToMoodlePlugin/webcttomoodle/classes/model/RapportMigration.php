@@ -3,19 +3,21 @@ class RapportMigration {
 	 const QUESTION_TROP_LONGUE = "Question trop longue donc limité à 255 caratéres </br>";
 	 const QUESTION_REMPLACE_CLOZE = "La question courte a été transformée en question CLOZE.Attention du code javascript
 	 	 a été rajouté à la fin de la description de la question afin que les champs de textes ont la même taille. </br>";
-	 const REPONCE_EVALUE_REGEX = "Une réponse est évaluée à l'aide d'une expression réguliére";
-	 const REPONCE_VIDE = "Une réponse n'a pas été prise en compte parce qu'elle était vide.";
-	 const PROBLEME_PONDERATION = "Probléme de pondération rencontré.";
-	 const TAILLE_LIMITE = "La taille maximale des champs de texte a été limité à 500 malgré le fait
+	 const QUESTION_REPONCE_EVALUE_REGEX = "Une réponse est évaluée à l'aide d'une expression réguliére";
+	 const QUESTION_REPONCE_VIDE = "Une réponse n'a pas été prise en compte parce qu'elle était vide.";
+	 const QUESTION_PROBLEME_PONDERATION = "Probléme de pondération rencontré.";
+	 const QUESTION_TAILLE_LIMITE = "La taille maximale des champs de texte a été limité à 500 malgré le fait
      						 que certaines réponses prennent plus de place.";
-	 const APERCU_COLONNE = "L'aperçu des colonnes a été supprimé et réintégré directement dans les réponses.";
-	 const REPONCE_MANQUANT = "Réponce manquante alors le texte 'aucune correspondance' a été rajouté.";
-	 const  NOMBRE_LIGNE = "Seul le nombre de lignes a pu être pris en compte pour ce type de question.";
-	 const TOLERANCE = "La tolérance a été mis en %.</br> Type tolérance:";
-	 const PRECISION = "La précision a été mise en chiffres significatifs.</br> Type précision:" ;
-	 const FORMULE = "Formule WEBCT :";
-	 const REPONCE_ALTERNATIVE = "Les réponses alternatives n'ont pas pu être reprises";
-	 const SCORE_MAXIMUM_INCONNU = "Pas de score maximum trouvé. Le grade a été mis à 0.";
+	 const QUESTION_APERCU_COLONNE = "L'aperçu des colonnes a été supprimé et réintégré directement dans les réponses.";
+	 const QUESTION_REPONCE_MANQUANT = "Réponce manquante alors le texte 'aucune correspondance' a été rajouté.";
+	 const  QUESTION_NOMBRE_LIGNE = "Seul le nombre de lignes a pu être pris en compte pour ce type de question.";
+	 const QUESTION_TOLERANCE = "La tolérance a été mis en %.</br> Type tolérance:";
+	 const QUESTION_PRECISION = "La précision a été mise en chiffres significatifs.</br> Type précision:" ;
+	 const QUESTION_FORMULE = "Formule WEBCT :";
+	 const QUESTION_REPONCE_ALTERNATIVE = "Les réponses alternatives n'ont pas pu être reprises";
+	 const QUESTION_SCORE_MAXIMUM_INCONNU = "Pas de score maximum trouvé. Le grade a été mis à 0.";
+	 const PROGRAMME_INCOHERENCE_BD = "Incohérence dans la base de donnée.";
+	 const PROGRAMME_SEULEMENT_FORMATEUR = "Seulement des formateurs donc pas de création du programme";
 	 
 	/**
 	 * @var Array d'InfoRapport
