@@ -4,9 +4,10 @@ require_once 'classes/model/GlobalModel.php';
 
 class WebCTModel extends \GlobalModel {
 	
+	const LEARNING_MODULE_AS_FOLDER = 1;
+	const LEARNING_MODULE_AS_BOOK = 2;
+	
 	private $connection;
-	
-	
 	
 	private $deliveryContextId;
 	
@@ -20,27 +21,27 @@ class WebCTModel extends \GlobalModel {
 		parent::__construct();
 		
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
-//    		$this->retrieveGlossaries();
+   		$this->retrieveGlossaries();
 
-//   		$this->retrieveQuestions();	
+  		$this->retrieveQuestions();	
 
 // 		foreach($this->questions->allQuestions as $key=>$value){
 // 			error_log($key.'-->'.$value->name.'<br/>');
 // 		} 
 		
-//   		$this->retrieveQuizzes();
+  		$this->retrieveQuizzes();
 		
-//     	$this->retrieveAssignments();
+    	$this->retrieveAssignments();
 		
-//    		$this->retrieveFolders();
+   		$this->retrieveFolders();
 		
-//   		$this->retrieveWebLinks();
+  		$this->retrieveWebLinks();
 
    		$this->retrieveSyllabus();
 	
-//   		$this->retrieveForum();
+  		$this->retrieveForum();
 		
-//   		$this->retrieveEmail();
+  		$this->retrieveEmail();
 
 		$this->retrieveLearningModules();
 		
@@ -2161,11 +2162,10 @@ class WebCTModel extends \GlobalModel {
 	 */
 	public function addQuiz($quizId){
 	
-		//echo $quizId.' - ';
-	
-		
 		global $USER;
 	
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_ASSESSMENTS];
+		
 		//Glossary
 		$quizModel = new QuizModel();
 		$quizModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
@@ -2174,7 +2174,7 @@ class WebCTModel extends \GlobalModel {
 		$quizModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
 
 		
-		$quizModel->module = $this->createModule($quizId,"quiz","2013110501",1);	
+		$quizModel->module = $this->createModule($quizId,"quiz","2013110501",$sectionId);	
 	
 		$quizModel->quiz = $this->createQuiz($quizId, $quizModel->module);
 	
@@ -2271,7 +2271,7 @@ class WebCTModel extends \GlobalModel {
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$quizModel->module->id;
-		$activity->sectionid=1;
+		$activity->sectionid=$sectionId;
 		$activity->modulename=$quizModel->module->modulename;
 		$activity->title=$quizModel->quiz->name;
 		$activity->directory="activities/quiz_".$quizModel->quiz->quizId;
@@ -2304,7 +2304,7 @@ class WebCTModel extends \GlobalModel {
 		$this->remarque = "";
 		$this->activities[] = $quizModel;
 		
-		$this->sections[1]->section->sequence[]= $quizModel->quiz->quizId;
+		$this->sections[$sectionId]->section->sequence[]= $quizModel->quiz->quizId;
 	}
 	
 	/**
@@ -2752,7 +2752,8 @@ class WebCTModel extends \GlobalModel {
 	public function addAssignment($assignmentId){	
 	
 		global $USER;
-	
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_ASSIGNMENTS];
+		
 		//Glossary
 		$assignmentModel = new AssignmentModel();
 		$assignmentModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
@@ -2761,7 +2762,7 @@ class WebCTModel extends \GlobalModel {
 		$assignmentModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
 	
 	
-		$assignmentModel->module = $this->createModule($assignmentId,"assign","2013110500",2);
+		$assignmentModel->module = $this->createModule($assignmentId,"assign","2013110500",$sectionId);
 	
 		$assignmentModel->assignment = $this->createAssignment($assignmentId, $assignmentModel->module);
 	
@@ -2852,7 +2853,7 @@ class WebCTModel extends \GlobalModel {
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$assignmentModel->module->id;
-		$activity->sectionid=2;
+		$activity->sectionid=$sectionId;
 		$activity->modulename=$assignmentModel->module->modulename;
 		$activity->title=$assignmentModel->assignment->name;
 		$activity->directory="activities/assign_".$assignmentModel->assignment->assignmentId;
@@ -2874,7 +2875,7 @@ class WebCTModel extends \GlobalModel {
 		$this->rapportMigration->add("tache", $assignmentModel->assignment->id, $assignmentModel->assignment->name,
 				null, 0);
 	
-		$this->sections[2]->section->sequence[]= $assignmentModel->assignment->assignmentId;
+		$this->sections[$sectionId]->section->sequence[]= $assignmentModel->assignment->assignmentId;
 	}
 	
 	
@@ -3118,6 +3119,7 @@ class WebCTModel extends \GlobalModel {
 	public function addFolder($folderId){
 	
 		global $USER;
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
 	
 		//Glossary
 		$folderModel = new FolderModel();
@@ -3128,7 +3130,7 @@ class WebCTModel extends \GlobalModel {
 		$folderModel->grades = new ActivityGradeBook();
 		$folderModel->calendar = new Events();
 	
-		$folderModel->module = $this->createModule($folderId,"folder","2013110500");
+		$folderModel->module = $this->createModule($folderId,"folder","2013110500",$sectionId);
 	
 		$folderModel->folder = $this->createActivityFolder($folderId, $folderModel->module);
 	
@@ -3136,7 +3138,7 @@ class WebCTModel extends \GlobalModel {
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$folderModel->module->id;
-		$activity->sectionid=$this->sections[0]->section->id;
+		$activity->sectionid=$this->sections[$sectionId]->section->id;
 		$activity->modulename=$folderModel->module->modulename;
 		$activity->title=$folderModel->folder->name;
 		$activity->directory="activities/folder_".$folderModel->folder->folderId;
@@ -3155,7 +3157,7 @@ class WebCTModel extends \GlobalModel {
 		$this->activities[] = $folderModel;
 		
 	
-		$this->sections[0]->section->sequence[]= $folderModel->folder->folderId;
+		$this->sections[$sectionId]->section->sequence[]= $folderModel->folder->folderId;
 	}
 	
 	
@@ -3225,6 +3227,7 @@ class WebCTModel extends \GlobalModel {
 	
 		
 		global $USER;
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
 		
 		$bookId = $this->getNextId(); 
 		
@@ -3236,7 +3239,7 @@ class WebCTModel extends \GlobalModel {
 		$bookModel->grades = new ActivityGradeBook();
 		$bookModel->calendar = new Events();
 		
-		$bookModel->module = $this->createModule($bookId,"book","2013110500");
+		$bookModel->module = $this->createModule($bookId,"book","2013110500",$sectionId);
 		
 		$bookModel->book = $this->createWebLinksActivityBook($bookId, $bookModel->module);
 		
@@ -3244,7 +3247,7 @@ class WebCTModel extends \GlobalModel {
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$bookModel->module->id;
-		$activity->sectionid=$this->sections[0]->section->id;
+		$activity->sectionid=$this->sections[$sectionId]->section->id;
 		$activity->modulename=$bookModel->module->modulename;
 		$activity->title=$bookModel->book->name;
 		$activity->directory="activities/book_".$bookModel->book->bookId;
@@ -3263,7 +3266,7 @@ class WebCTModel extends \GlobalModel {
 		$this->activities[] = $bookModel;
 		$this->rapportMigration->add("lienWeb",$bookModel->book->bookId,$bookModel->book->name ,
 				null, count($bookModel->book->chapters));
-		$this->sections[0]->section->sequence[]= $bookModel->book->bookId;
+		$this->sections[$sectionId]->section->sequence[]= $bookModel->book->bookId;
 	}
 	
 	
@@ -3434,6 +3437,7 @@ class WebCTModel extends \GlobalModel {
             if($totalLinks==$totalPageAndLinks && $countExternalTotal==0){
             	echo 'Le module "'.$row['NAME'].'" sera récupéré sous forme de répertoire de fichiers <br/>';
             	$this->addLearningModuleAsFolder($row['ID'],$row['NAME'],$learningModuleDescription);
+            	$this->allLearningModules[$row['ORIGINAL_CONTENT_ID']]=WebCTModel::LEARNING_MODULE_AS_FOLDER;
             }else {
             	echo 'Le module "'.$row['NAME'].'" sera récupéré sous forme de BOOK <br/>';
             	if($countExternalTotal>0){
@@ -3448,6 +3452,7 @@ class WebCTModel extends \GlobalModel {
 	            	}
             	}
             	$this->addLearningModuleAsBook($row['ID'],$row['NAME'],$learningModuleDescription);
+            	$this->allLearningModules[$row['ORIGINAL_CONTENT_ID']]=WebCTModel::LEARNING_MODULE_AS_BOOK;
                         	 
             }
 		}
@@ -3462,6 +3467,7 @@ class WebCTModel extends \GlobalModel {
 	
 		global $USER;
 	
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_LEARNING_MODULES];
 		//Glossary
 		$folderModel = new FolderModel();
 		$folderModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
@@ -3471,15 +3477,15 @@ class WebCTModel extends \GlobalModel {
 		$folderModel->grades = new ActivityGradeBook();
 		$folderModel->calendar = new Events();
 	
-		$folderModel->module = $this->createModule($learningModuleId,"folder","2013110500",3);
-	
+		$folderModel->module = $this->createModule($learningModuleId,"folder","2013110500",$sectionId);
+		
 		$folderModel->folder = $this->createLearningModuleFolder($learningModuleId, $name,$description,$folderModel->module);
 	
 	
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$folderModel->module->id;
-		$activity->sectionid=$this->sections[3]->section->id;
+		$activity->sectionid=$this->sections[$sectionId]->section->id;
 		$activity->modulename=$folderModel->module->modulename;
 		$activity->title=$folderModel->folder->name;
 		$activity->directory="activities/folder_".$folderModel->folder->folderId;
@@ -3497,7 +3503,7 @@ class WebCTModel extends \GlobalModel {
 	
 		$this->activities[] = $folderModel;
 	
-		$this->sections[3]->section->sequence[]= $folderModel->folder->folderId;
+		$this->sections[$sectionId]->section->sequence[]= $folderModel->folder->folderId;
 	}
 	
 	
@@ -3657,7 +3663,8 @@ class WebCTModel extends \GlobalModel {
 	public function addLearningModuleAsBook($learningModuleId,$name,$description){
 	
 		global $USER;
-	
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_LEARNING_MODULES];
+		
 		$bookModel = new BookModel();
 		$bookModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
 		$bookModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
@@ -3666,7 +3673,7 @@ class WebCTModel extends \GlobalModel {
 		$bookModel->grades = new ActivityGradeBook();
 		$bookModel->calendar = new Events();
 		
-		$bookModel->module = $this->createModule($learningModuleId,"book","2013110500",3);
+		$bookModel->module = $this->createModule($learningModuleId,"book","2013110500",$sectionId);
 		
 		$bookModel->book = $this->createLearningModuleBook($learningModuleId,$name,$description, $bookModel->module);
 		
@@ -3674,7 +3681,7 @@ class WebCTModel extends \GlobalModel {
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$bookModel->module->id;
-		$activity->sectionid=$this->sections[3]->section->id;
+		$activity->sectionid=$this->sections[$sectionId]->section->id;
 		$activity->modulename=$bookModel->module->modulename;
 		$activity->title=$bookModel->book->name;
 		$activity->directory="activities/book_".$bookModel->book->bookId;
@@ -3692,7 +3699,7 @@ class WebCTModel extends \GlobalModel {
 		
 		$this->activities[] = $bookModel;
 
-		$this->sections[3]->section->sequence[]= $bookModel->book->bookId;
+		$this->sections[$sectionId]->section->sequence[]= $bookModel->book->bookId;
 			
 	}
 	
@@ -3902,104 +3909,121 @@ class WebCTModel extends \GlobalModel {
 		
 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 		
-		if(!empty($row)){
-			$section = $this->addSections($row['ID'], utf8_encode("Section d'accueil"), utf8_encode("Section d'accueil (Racine dans WebCT)"));			
-			
-			//Retrieve the first level reposoitory
-			$request = "SELECT CMS_CONTENT_ENTRY.ID,CMS_CONTENT_ENTRY.NAME,CO_ORGANIZERLINK.LONG_DESCRIPTION
-						FROM CMS_CONTENT_ENTRY
-  							LEFT JOIN CMS_LINK ON CMS_LINK.RIGHTOBJECT_ID=CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID
-  							LEFT JOIN CO_ORGANIZERLINK ON CO_ORGANIZERLINK.ID=CMS_LINK.ID
-					 	WHERE CE_TYPE_NAME='ORGANIZER_PAGE_TYPE' AND DELETED_FLAG=0 AND PARENT_ID='".$row['ID']."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
-			$stid1 = oci_parse($this->connection,$request);
-			oci_execute($stid1);
+		$this->createNewCourseContentSection($row['ID'], utf8_encode("Section d'accueil"), utf8_encode("Section d'accueil (Racine dans WebCT)"));
+		
+	}
+	
+	
+	public function createNewCourseContentSection($repositoryId,$repositoryPath,$repositoryDescription){
+
+		$section = NULL;
+		//Add all the files of the repository.
+		$request = "SELECT * FROM CMS_CONTENT_ENTRY
+  						WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$repositoryId."')
+  								AND CE_TYPE_NAME!='ORGANIZER_PAGE_TYPE'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
 				
-				
-			while ($row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)){
-				$description = $row1['LONG_DESCRIPTION'];
-				if(empty($description)){
-					$description ="";
-				}else {
-					$description =$description->load();
-				}
-				
-				$hasOnlyFiles = $this->contentRepositoryhasOnlyFiles($row1['ID']);
-				//TEST if there are only PAGE and FILE (not HTML)
-				$repositoryName = $row1['NAME'];
-				$repositoryId = $row1['ID'];
-				if($hasOnlyFiles){
-					$this->rapportMigration->add("course_content", $repositoryId, $repositoryName,'Contenu du répertoire "'.$repositoryName.'" a été migré comme réperoire de fichiers.', 0);
-					$this->addCourseContentAsFolder($repositoryId, $repositoryName, $description);
-				}else {
-					$this->rapportMigration->add("course_content", $repositoryId, $repositoryName,'Contenu du répertoire "'.$repositoryName.'" n\'a été pu être migré.', 0);
-				}
-				
-				//$this->addSections($row['ID'], $row['NAME'], $description,true);
+		while ($row1 = oci_fetch_assoc($stid)){
+			if($section==NULL){
+				$sectionModel = $this->addSections($repositoryId, $repositoryPath, $repositoryDescription);
+				$section = $sectionModel->section;
 			}
 			
-			
-			//Add all the files of the repository.
-			$request = "SELECT * FROM CMS_CONTENT_ENTRY 
-  						WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$row['ID']."')
-  								AND CE_TYPE_NAME!='ORGANIZER_PAGE_TYPE'";
-			$stid1 = oci_parse($this->connection,$request);
-			oci_execute($stid1);
-			
-			while ($row1 = oci_fetch_assoc($stid1)){
-				$name = $row1['NAME'];
-				$description = $row1['DESCRIPTION'];
-				if(empty($description)){
-					$description ="";
-				}else {
-					$description =$description->load();
-				}
-				
-				if($row1['CE_TYPE_NAME']=='PAGE_TYPE'){
-					$contentId;
-						
-					if(empty($row1['FILE_CONTENT_ID'])){
-						$request = "SELECT * FROM CMS_CONTENT_ENTRY
-									WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$row1['ID']."' AND CMS_LINK.LINK_TYPE_ID='30004')";
-						$stid2 = oci_parse($this->connection,$request);
-						oci_execute($stid2);
-						$row2 = oci_fetch_assoc($stid2);
-						
-						$contentId=$row2['ORIGINAL_CONTENT_ID'];
-					}else {
-						$contentId=$row1['ORIGINAL_CONTENT_ID'];
-					}
-					
-					//echo $row['ID'].'--->'.$row1['ID'].' ---- ORIGINAL CONTENT ID == '.$contentId.'<br/>';
-					
-					$this->addResource($contentId,$name,$description,$section->section->id);
-						
-				}elseif($row1['CE_TYPE_NAME']=='URL_TYPE'){
-					$this->addURL($row1['ORIGINAL_CONTENT_ID'],$section->section->id);
-				}elseif($row1['CE_TYPE_NAME']=='ASSESSMENT_TYPE'){
-					$this->addInternalURL($name, $description, '$@QUIZVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->section->id);
-				}elseif($row1['CE_TYPE_NAME']=='PROJECT_TYPE'){
-					$this->addInternalURL($name, $description, '$@ASSIGNVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->section->id);
-				}elseif($row1['CE_TYPE_NAME']=='MEDIA_COLLECTION_TYPE'){
-					$this->addInternalURL($name, $description, '$@GLOSSARYVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->section->id);
-				}elseif($row1['CE_TYPE_NAME']=='SYLLABUS_TYPE'){
-					echo 'Cet élément n\'a pas pu être migré --> '.$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
-					if(isset($this->syllabusManager->syllabus->use_source_file_fl)){
-						if($this->syllabusManager->syllabus->use_source_file_fl==1){
-							$moduleId = $this->recupererOriginalContentId($this->deliveryContextId);
-							$this->addInternalURL($name, $description, '$@RESOURCEVIEWBYID*'.$moduleId.'@$',$section->section->id);						
-						}else {
-							$this->addInternalURL($name, $description, '$@PAGEVIEWBYID*'.$this->syllabusManager->syllabus->id.'@$',$section->section->id);						
-						}						
-					}
-				}elseif($row1['CE_TYPE_NAME']=='TOC_TYPE'){
-					$this->addInternalURL($name, $description, '$@GLOSSARYVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->section->id);
-				}else {
-					$this->rapportMigration->add("course_content", $row1['ID'], $row1['NAME'],'L\'élément de type "'.$row1['CE_TYPE_NAME'].'" n\'a été pu être migré.', 0);
-					echo 'Cet élément n\'a pas pu être migré --> '.$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
-				}
+			$name = $row1['NAME'];
+			$description = $row1['DESCRIPTION'];
+			if(empty($description)){
+				$description ="";
+			}else {
+				$description =$description->load();
 			}
 		
-		}	
+			if($row1['CE_TYPE_NAME']=='PAGE_TYPE'){
+				$contentId;
+		
+				if(empty($row1['FILE_CONTENT_ID'])){
+					$request = "SELECT * FROM CMS_CONTENT_ENTRY
+									WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$row1['ID']."' AND CMS_LINK.LINK_TYPE_ID='30004')";
+					$stid2 = oci_parse($this->connection,$request);
+					oci_execute($stid2);
+					$row2 = oci_fetch_assoc($stid2);
+		
+					$contentId=$row2['ORIGINAL_CONTENT_ID'];
+				}else {
+					$contentId=$row1['ORIGINAL_CONTENT_ID'];
+				}
+		
+				$this->addResource($contentId,$name,$description,$section->id);		
+			}elseif($row1['CE_TYPE_NAME']=='URL_TYPE'){
+				$this->addURL($row1['ORIGINAL_CONTENT_ID'],$section->id);
+			}elseif($row1['CE_TYPE_NAME']=='ASSESSMENT_TYPE'){
+				$this->addInternalURL($name, $description, '$@QUIZVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->id);
+			}elseif($row1['CE_TYPE_NAME']=='PROJECT_TYPE'){
+				$this->addInternalURL($name, $description, '$@ASSIGNVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->id);
+			}elseif($row1['CE_TYPE_NAME']=='MEDIA_COLLECTION_TYPE'){
+				$this->addInternalURL($name, $description, '$@GLOSSARYVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->id);
+			}elseif($row1['CE_TYPE_NAME']=='SYLLABUS_TYPE'){
+				if(isset($this->syllabusManager->syllabus->use_source_file_fl)){
+					if($this->syllabusManager->syllabus->use_source_file_fl==1){
+						$moduleId = $this->recupererOriginalContentId($this->deliveryContextId);
+						$this->addInternalURL($name, $description, '$@RESOURCEVIEWBYID*'.$moduleId.'@$',$section->id);
+					}else {
+						$this->addInternalURL($name, $description, '$@PAGEVIEWBYID*'.$this->syllabusManager->syllabus->id.'@$',$section->id);
+					}
+				}
+			}elseif($row1['CE_TYPE_NAME']=='TOC_TYPE'){
+				if($this->allLearningModules[$row1['ORIGINAL_CONTENT_ID']]==WebCTModel::LEARNING_MODULE_AS_FOLDER){
+					$this->addInternalURL($name, $description, '$@FOLDERVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->id);
+				}elseif($this->allLearningModules[$row1['ORIGINAL_CONTENT_ID']]==WebCTModel::LEARNING_MODULE_AS_BOOK){
+					$this->addInternalURL($name, $description, '$@BOOKVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->id);
+				}else {
+					echo 'Module non trouvé <br/>';
+				}
+			}else {
+				$this->rapportMigration->add("course_content", $row1['ID'], $row1['NAME'],'L\'élément de type "'.$row1['CE_TYPE_NAME'].'" n\'a été pu être migré.', 0);
+				echo 'Cet élément n\'a pas pu être migré --> '.$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
+			}
+		}
+		
+		
+		//Retrieve the first level reposoitories
+		$request = "SELECT CMS_CONTENT_ENTRY.ID,CMS_CONTENT_ENTRY.NAME,CO_ORGANIZERLINK.LONG_DESCRIPTION
+					FROM CMS_CONTENT_ENTRY
+  						LEFT JOIN CMS_LINK ON CMS_LINK.RIGHTOBJECT_ID=CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID
+  						LEFT JOIN CO_ORGANIZERLINK ON CO_ORGANIZERLINK.ID=CMS_LINK.ID
+					WHERE CE_TYPE_NAME='ORGANIZER_PAGE_TYPE' AND DELETED_FLAG=0 AND PARENT_ID='".$repositoryId."' AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+	
+	
+		while ($row1 = oci_fetch_assoc($stid)){
+			$description = $row1['LONG_DESCRIPTION'];
+			if(empty($description)){
+				$description ="";
+			}else {
+				$description =$description->load();
+			}
+
+			$hasOnlyFiles = $this->contentRepositoryhasOnlyFiles($row1['ID']);
+			//TEST if there are only PAGE and FILE (not HTML)
+			$repositoryName = $row1['NAME'];
+			$repositoryId = $row1['ID'];
+			if($hasOnlyFiles){
+				if($section==NULL){
+					$sectionModel = $this->addSections($repositoryId, $repositoryPath, $repositoryDescription);
+					$section = $sectionModel->section;
+				}
+				$this->rapportMigration->add("course_content", $repositoryId, $repositoryName,'Contenu du répertoire "'.$repositoryName.'" a été migré comme réperoire de fichiers.', 0);
+				$this->addCourseContentAsFolder($repositoryId, $repositoryName, $description,$section);
+			}else {
+				$this->rapportMigration->add("course_content", $repositoryId, $repositoryName,'Contenu du répertoire "'.$repositoryName.'" n\'a été pu être migré.', 0);
+				
+				$this->createNewCourseContentSection($repositoryId, $repositoryPath.' > '.$repositoryName, $description);	
+			}
+
+			//$this->addSections($row['ID'], $row['NAME'], $description,true);
+		}
+				
 	}
 	
 	/**
@@ -4028,10 +4052,16 @@ class WebCTModel extends \GlobalModel {
 	
 	
 	
+	
 	/**
 	 * Add a learning module as a Folder (files)
+	 * 
+	 * @param unknown $courseContentFolderId
+	 * @param string $name
+	 * @param string $description
+	 * @param Section $section
 	 */
-	public function addCourseContentAsFolder($courseContentFolderId,$name,$description){
+	public function addCourseContentAsFolder($courseContentFolderId,$name,$description,$section){
 	
 		global $USER;
 	
@@ -4043,7 +4073,7 @@ class WebCTModel extends \GlobalModel {
 		$folderModel->grades = new ActivityGradeBook();
 		$folderModel->calendar = new Events();
 	
-		$folderModel->module = $this->createModule($courseContentFolderId,"folder","2013110500",4);
+		$folderModel->module = $this->createModule($courseContentFolderId,"folder","2013110500",$section->id);
 	
 		$folderModel->folder = $this->createCourseContentFolder($courseContentFolderId, $name,$description,$folderModel->module);
 	
@@ -4051,7 +4081,7 @@ class WebCTModel extends \GlobalModel {
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$folderModel->module->id;
-		$activity->sectionid=$this->sections[4]->section->id;
+		$activity->sectionid=$this->sections[$section->id]->section->id;
 		$activity->modulename=$folderModel->module->modulename;
 		$activity->title=$folderModel->folder->name;
 		$activity->directory="activities/folder_".$folderModel->folder->folderId;
@@ -4069,7 +4099,7 @@ class WebCTModel extends \GlobalModel {
 	
 		$this->activities[] = $folderModel;
 	
-		$this->sections[4]->section->sequence[]= $folderModel->folder->folderId;
+		$this->sections[$section->id]->section->sequence[]= $folderModel->folder->folderId;
 	}
 	
 	
@@ -4413,6 +4443,7 @@ class WebCTModel extends \GlobalModel {
 	public function addLabel($name,$description,$sectionId){
 	
 		global $USER;
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
 	
 		//Glossary
 		$labelModel = new LabelModel();
@@ -4423,7 +4454,7 @@ class WebCTModel extends \GlobalModel {
 		$labelModel->grades = new ActivityGradeBook();
 		$labelModel->calendar = new Events();
 	
-		$labelModel->module = $this->createModule($labelId,"label","2013110500");
+		$labelModel->module = $this->createModule($labelId,"label","2013110500",$sectionId);
 	
 		$label = new ResourceLabel();
 		$label->id = $this->getNextId();
@@ -4444,7 +4475,7 @@ class WebCTModel extends \GlobalModel {
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$labelModel->module->id;
-		$activity->sectionid=$this->sections[0]->section->id;
+		$activity->sectionid=$this->sections[$sectionId]->section->id;
 		$activity->modulename=$labelModel->module->modulename;
 		$activity->title=$labelModel->label->name;
 		$activity->directory="activities/label_".$labelModel->label->labelId;
@@ -4462,7 +4493,7 @@ class WebCTModel extends \GlobalModel {
 	
 		$this->activities[] = $labelModel;
 	
-		$this->sections[0]->section->sequence[]= $labelModel->label->labelId;
+		$this->sections[$sectionId]->section->sequence[]= $labelModel->label->labelId;
 	}
 	
 	
@@ -4476,6 +4507,7 @@ class WebCTModel extends \GlobalModel {
 	
 	public function addForum($idForum){
 		global $USER;
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
 		
 		//Glossary
 		$folderModel = new FolderModel();
@@ -4486,14 +4518,14 @@ class WebCTModel extends \GlobalModel {
 		$folderModel->grades = new ActivityGradeBook();
 		$folderModel->calendar = new Events();
 		
-		$folderModel->module = $this->createModule($idForum,"folder","2013110500");
+		$folderModel->module = $this->createModule($idForum,"folder","2013110500",$sectionId);
 		$folderModel->folder = $this->createActivityForum($idForum, $folderModel->module);
 		
 		
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$folderModel->module->id;
-		$activity->sectionid=$this->sections[0]->section->id;
+		$activity->sectionid=$this->sections[$sectionId]->section->id;
 		$activity->modulename=$folderModel->module->modulename;
 		$activity->title=$folderModel->folder->name;
 		$activity->directory="activities/folder_".$folderModel->folder->folderId;
@@ -4511,7 +4543,7 @@ class WebCTModel extends \GlobalModel {
 		
 		$this->activities[] = $folderModel;
 		
-		$this->sections[0]->section->sequence[]= $folderModel->folder->folderId;
+		$this->sections[$sectionId]->section->sequence[]= $folderModel->folder->folderId;
 		
 		
 	}
@@ -4723,6 +4755,8 @@ class WebCTModel extends \GlobalModel {
 	 *@param $type correspond au type d'information qui sera placé dans la page (syllabus,url,...)
 	 */
 	public function addPage($pageId , $type){
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
+		
 		$pageModel = new PageModel();
 		$pageModel->roles = new RolesBackup(); //Vide
 		$pageModel->inforef = new InfoRef(); // Vide
@@ -4732,13 +4766,13 @@ class WebCTModel extends \GlobalModel {
 		$pageModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
 		$pageModel->calendar = new Events();
 		
-		$pageModel->module = $this->createModule($pageId,"page","2013110500");
+		$pageModel->module = $this->createModule($pageId,"page","2013110500",$sectionId);
 		$pageModel->page  = $this->createPage($pageId, $pageModel->module, $type)	;
 		
 		
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$pageModel->module->id;
-		$activity->sectionid=0;
+		$activity->sectionid=$sectionId;
 		$activity->modulename=$pageModel->module->modulename;
 		$activity->title=$pageModel->page->name;
 		$activity->directory="activities/page_".$pageModel->page->pageId;
@@ -4751,7 +4785,7 @@ class WebCTModel extends \GlobalModel {
 		$this->activities[] = $pageModel;
 		$this->rapportMigration->add("programme", $pageId, $pageModel->page->name,null, 0);
 	
-		$this->sections[0]->section->sequence[]= $pageModel->page->pageId;
+		$this->sections[$sectionId]->section->sequence[]= $pageModel->page->pageId;
 	}
 	
 	/**
@@ -4795,6 +4829,7 @@ class WebCTModel extends \GlobalModel {
 	
 	public function addEmail($idEmail){
 		global $USER;
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
 	
 		//Glossary
 		$folderModel = new FolderModel();
@@ -4805,14 +4840,14 @@ class WebCTModel extends \GlobalModel {
 		$folderModel->grades = new ActivityGradeBook();
 		$folderModel->calendar = new Events();
 	
-		$folderModel->module = $this->createModule($idEmail,"folder","2013110500");
+		$folderModel->module = $this->createModule($idEmail,"folder","2013110500",$sectionId);
 		$folderModel->folder = $this->createActivityEmail($idEmail, $folderModel->module);
 	
 	
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$folderModel->module->id;
-		$activity->sectionid=$this->sections[0]->section->id;
+		$activity->sectionid=$this->sections[$sectionId]->section->id;
 		$activity->modulename=$folderModel->module->modulename;
 		$activity->title=$folderModel->folder->name;
 		$activity->directory="activities/folder_".$folderModel->folder->folderId;
@@ -4830,7 +4865,7 @@ class WebCTModel extends \GlobalModel {
 	
 		$this->activities[] = $folderModel;
 	
-		$this->sections[0]->section->sequence[]= $folderModel->folder->folderId;
+		$this->sections[$sectionId]->section->sequence[]= $folderModel->folder->folderId;
 	
 	
 	}
@@ -4970,6 +5005,9 @@ class WebCTModel extends \GlobalModel {
 	}
 	
 	public function addRapportMigration($fileId , $contextId){
+		
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
+		
 		$resourceModel = new RessourceModel();
 		$resourceModel->calendar = new Events(); //vide
 		$resourceModel->comments = new Comments(); //vide
@@ -4979,7 +5017,7 @@ class WebCTModel extends \GlobalModel {
 		$resourceModel->inforef = new InfoRef(); // A remplir
 		$resourceModel->roles = new RolesBackup(); //Vide
 		
-		$resourceModel->module = $this->createModule($fileId,"resource","2013110500");
+		$resourceModel->module = $this->createModule($fileId,"resource","2013110500",$sectionId);
 		$resourceModel->ressource = $this->createResource($fileId, "Rapport de la migration","rapport" , $resourceModel->module);
 		$resourceModel->ressource->contextid = $contextId;
 		
@@ -5001,7 +5039,7 @@ class WebCTModel extends \GlobalModel {
 		
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$resourceModel->module->id;
-		$activity->sectionid=0;
+		$activity->sectionid=$sectionId;
 		$activity->modulename=$resourceModel->module->modulename;
 		$activity->title=$resourceModel->ressource->name;
 		$activity->directory="activities/resource_".$resourceModel->ressource->ressourceId;
@@ -5013,7 +5051,7 @@ class WebCTModel extends \GlobalModel {
 		
 		$this->activities[] = $resourceModel;
 		
-		$this->sections[0]->section->sequence[]= $resourceModel->ressource->ressourceId;	
+		$this->sections[$sectionId]->section->sequence[]= $resourceModel->ressource->ressourceId;	
 	}
 	
 	/**

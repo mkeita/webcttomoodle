@@ -57,6 +57,14 @@ require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 
 abstract class GlobalModel implements \IBackupModel {
 	protected $learningContextId = "366249217001";
+	
+	const SECTION_GENERAL = 1;
+	const SECTION_ASSESSMENTS = 2;
+	const SECTION_ASSIGNMENTS = 3;
+	const SECTION_LEARNING_MODULES = 4;
+	
+	protected $fixedSections = array();
+	
 	/**
 	 * @var MoodleBackup
 	 */
@@ -694,10 +702,9 @@ abstract class GlobalModel implements \IBackupModel {
 	
 		$sectionModels = array();
 	
-		//DEFAULT SECTION
+		//DEFAULT SECTION (EMPTY)
 		$sectionModel = new SectionModel();
 	
-		//Default section used to put all the activities (for now)
 		$section = new Section();
 		$section->id=$this->getNextSectionId();
 		$section->number=$section->id;
@@ -727,7 +734,42 @@ abstract class GlobalModel implements \IBackupModel {
 	
 		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
 	
+		
+		//SECTION GENERAL
+		//Default section used to put all the activities
+		$sectionModel = new SectionModel();
+		
+		//Default section used to put all the activities (for now)
+		$section = new Section();
+		$section->id=$this->getNextSectionId();
+		$section->number=$section->id;
+		$section->name=utf8_encode("Section générale");
+		$section->summary=utf8_encode("Section contenant plusieurs éléments récupérés de WebCT");
+		$section->summaryformat=1;
+		$section->visible=0;
+		$section->availablefrom=0;
+		$section->availableuntil=0;
+		$section->showavailability=0;
+		$section->groupingid=0;
+		
+		$sectionModel->section = $section;
+		
+		$infoRef = new InfoRef();
+		$sectionModel->inforef = $infoRef;
+		
+		$sectionModels[$section->id]=$sectionModel;
+		
+		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
+		
+		//moodle_backup settings
+		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
+		
+		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
 
+		$this->fixedSections[GlobalModel::SECTION_GENERAL]=$section->id;
+		
+		
 		//SECTION DES EVALUATIONS
 		$sectionModel = new SectionModel();
 		
@@ -735,8 +777,8 @@ abstract class GlobalModel implements \IBackupModel {
 		$section = new Section();
 		$section->id=$this->getNextSectionId();
 		$section->number=$section->id;
-		$section->name="Evaluations";
-		$section->summary="Liste de tous les quiz";
+		$section->name=utf8_encode("Évaluations");
+		$section->summary=utf8_encode("Liste de toutes les Évaluations");
 		$section->summaryformat=1;
 		$section->visible=0;
 		$section->availablefrom=0;
@@ -758,6 +800,8 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
 		
 		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
+		
+		$this->fixedSections[GlobalModel::SECTION_ASSESSMENTS]=$section->id;
 		
 		
 		//SECTION DES TACHES
@@ -790,7 +834,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
 		
 		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
-		
+		$this->fixedSections[GlobalModel::SECTION_ASSIGNMENTS]=$section->id;
 		
 		//SECTION DES LEARNING MODULES
 		$sectionModel = new SectionModel();
@@ -822,6 +866,8 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
 		
 		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
+		$this->fixedSections[GlobalModel::SECTION_LEARNING_MODULES]=$section->id;
+		
 		
 		$this->sections = $sectionModels;
 	}
@@ -1001,7 +1047,11 @@ abstract class GlobalModel implements \IBackupModel {
 	/**
 	 * @return Module
 	 */
-	public function createModule($id, $name, $version, $section=0){
+	public function createModule($id, $name, $version, $section=-1){
+		if($section==-1){
+			$section = $this->fixedSections[GlobalModel::SECTION_GENERAL];
+		}
+		
 		$module = new Module();
 		
 		$module->id=$id;// 		<module id="11" version="2013110500">

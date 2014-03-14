@@ -53,8 +53,8 @@ function contentRepositoryhasOnlyFiles($repositoryId,$connnection,$deep){
 			if($repositoryInfoTmp->deep>$deep){
 				$deep = $repositoryInfoTmp->deep;
 			}					
-		}elseif($row['CE_TYPE_NAME']!="PAGE_TYPE" || !empty($row['FILE_CONTENT_ID'])){
-			$repositoryInfo->hasOnlyFile =false;
+		}elseif($row['CE_TYPE_NAME']!="PAGE_TYPE"){
+			$repositoryInfo->hasOnlyFiles =false;
 		}
 	}
 	$repositoryInfo->deep = $deep;
@@ -114,7 +114,7 @@ while ($row = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)) {
         
         $writer->startElement('course');        
         $writer->writeAttribute('name', utf8_encode($row2['NAME']));
-        $writer->writeAttribute('code', utf8_encode($row2['SOURCE_ID']));
+        $writer->writeAttribute('code', $row2['SOURCE_ID']);
         
         
         //SECTION
@@ -126,7 +126,6 @@ while ($row = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)) {
             $counter3++;       
             $sectionId = $row3['ID'];    
             
-            
             //Get this section DELEVERY_CONTEXT ID!!
             $requestDeliveryContext = "SELECT TEMPLATE_ID FROM CO_LC_ASSIGNMENT WHERE LEARNING_CONTEXT_ID='".$sectionId. "'";
             $stidDeliveryContext = oci_parse($conn,$requestDeliveryContext);
@@ -136,7 +135,7 @@ while ($row = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)) {
             
             $writer->startElement('section');
 	            $writer->writeAttribute('name', utf8_encode($row3['NAME']));
-	            $writer->writeAttribute('code', utf8_encode($row3['SOURCE_ID']));
+	            $writer->writeAttribute('code', $row3['SOURCE_ID']);
             
 	            $request = "SELECT COUNT(*) FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='ORGANIZER_PAGE_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$deliveryContextId."'";
 	            $stid4 = oci_parse($conn,$request);
@@ -156,7 +155,7 @@ while ($row = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)) {
 	            	while ($row4 = oci_fetch_array($stid4, OCI_ASSOC+OCI_RETURN_NULLS)) {
 	            		
 	            		$writer->startElement('repository');
-	            			$writer->writeAttribute('name', $row4['NAME']);	            			
+	            			$writer->writeAttribute('name', utf8_encode($row4['NAME']));	            			
 	            			
 	            			
 	            			$repositoryInfo = contentRepositoryhasOnlyFiles($row4['ID'], $conn,0);
