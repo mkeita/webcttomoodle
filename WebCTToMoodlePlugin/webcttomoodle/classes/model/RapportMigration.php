@@ -10,12 +10,13 @@ class RapportMigration {
      						 que certaines réponses prennent plus de place.";
 	 const QUESTION_APERCU_COLONNE = "L'aperçu des colonnes a été supprimé et réintégré directement dans les réponses.";
 	 const QUESTION_REPONCE_MANQUANT = "Réponce manquante alors le texte 'aucune correspondance' a été rajouté.";
-	 const  QUESTION_NOMBRE_LIGNE = "Seul le nombre de lignes a pu être pris en compte pour ce type de question.";
+	 const QUESTION_NOMBRE_LIGNE = "Seul le nombre de lignes a pu être pris en compte pour ce type de question.";
 	 const QUESTION_TOLERANCE = "La tolérance a été mis en %.</br> Type tolérance:";
 	 const QUESTION_PRECISION = "La précision a été mise en chiffres significatifs.</br> Type précision:" ;
 	 const QUESTION_FORMULE = "Formule WEBCT :";
 	 const QUESTION_REPONCE_ALTERNATIVE = "Les réponses alternatives n'ont pas pu être reprises";
 	 const QUESTION_SCORE_MAXIMUM_INCONNU = "Pas de score maximum trouvé. Le grade a été mis à 0.";
+	 
 	 const PROGRAMME_INCOHERENCE_BD = "Incohérence dans la base de donnée.";
 	 const PROGRAMME_SEULEMENT_FORMATEUR = "Seulement des formateurs donc pas de création du programme";
 	 
