@@ -878,6 +878,7 @@ abstract class GlobalModel implements \IBackupModel {
 	public function addGlossary($glossaryId){
 		
 		global $USER;
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
 		
 		//Glossary
 		$glossaryModel = new GlossaryModel();
@@ -889,7 +890,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$glossaryModel->calendar = new Events(); //EMPTY CURRENTLY NOT NEEDED
 		
 		
-		$glossaryModel->module = $this->createModule($glossaryId,"glossary","2013110500");
+		$glossaryModel->module = $this->createModule($glossaryId,"glossary","2013110500",$sectionId);
 		
 		$glossaryModel->glossary = $this->createGlossary($glossaryId, $glossaryModel->module);
 		
@@ -909,7 +910,7 @@ abstract class GlobalModel implements \IBackupModel {
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
 		$activity->moduleid=$glossaryModel->module->id;
-		$activity->sectionid=0;
+		$activity->sectionid=$sectionId;
 		$activity->modulename=$glossaryModel->module->modulename;
 		$activity->title=$glossaryModel->glossary->name;
 		$activity->directory="activities/glossary_".$glossaryModel->glossary->glossaryid;
@@ -927,7 +928,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->activities[] = $glossaryModel;
 		$this->rapportMigration->add("glossaire", $glossaryModel->glossary->id, $glossaryModel->glossary->name,
 				null, count($glossaryModel->glossary->entries));
-		$this->sections[0]->section->sequence[]= $glossaryModel->glossary->id;
+		$this->sections[$sectionId]->section->sequence[]= $glossaryModel->glossary->id;
 	}
 	
 	/**

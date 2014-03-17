@@ -19,6 +19,9 @@ class RapportMigration {
 	 const PROGRAMME_INCOHERENCE_BD = "Incohérence dans la base de donnée.";
 	 const PROGRAMME_SEULEMENT_FORMATEUR = "Seulement des formateurs donc pas de création du programme";
 	 
+	 const MODULE_APPRENT_TYPE_BOOK = "Module d'apprentissage récupéré sous forme de BOOK";
+	 const MODULE_APPRENT_TYPE_REPERTOIRE = "Module d'apprentissage récupéré sous forme de répertoire";
+	 
 	/**
 	 * @var Array d'InfoRapport
 	 */
@@ -51,6 +54,20 @@ class RapportMigration {
 	 * @var Array d'InfoRapport
 	*/
 	public $question ;
+	
+	
+	/**
+	 * @var Array|InfoRapport
+	 */
+	public $learningModules ;
+	
+	
+	/**
+	 * @var Array|InfoRapport
+	 */
+	public $courseContent ;
+	
+	
 	/**
 	 * 
 	 * @var String
@@ -88,7 +105,7 @@ class RapportMigration {
 		$this->discussion = array();
 		$this->question = array();
 		$this->tabType = array("glossaire" ,"evaluation" , "tache","gestionnaireFichier","programme","lienWeb","discussion",
-		 "question");
+		 "question","module d'apprentissage","contenu du cours");
 		$this->tabErreur = array_change_key_case($this->getClassConstants());
 		
 		
@@ -113,6 +130,8 @@ class RapportMigration {
 			case "discussion" : $this->discussion[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
 			case "question" : $this->question[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
 			case "tache" : $this->tache[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
+			case "module d'apprentissage" : $this->learningModules[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
+			case "contenu du cours" : $this->courseContent[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
 		}
 	}
 	
@@ -188,6 +207,9 @@ class RapportMigration {
 		$html = $html . $this->createSection("Evaluation", $this->evaluation);
 		$html = $html . $this->createSection("Question", $this->question);
 		$html = $html . $this->createSection("Tache", $this->tache);
+		$html = $html . $this->createSection("Module d'apprentissage", $this->learningModules);
+		$html = $html . $this->createSection("Contenu du cours", $this->courseContent);
+		
 		$html = $html . "
 				</div>
 				<div class=\"cacherImprimer\">
