@@ -284,8 +284,8 @@ class WebCTModel extends \GlobalModel {
 		$pos1 = strpos($htmlContent, $findWebCT);
 		$findQuot   = '"';
 		
-		echo '<br/>'. $htmlContent;
-		echo '<br/> POS 1 = '. $pos1;
+//		echo '<br/>'. $htmlContent;
+///		echo '<br/> POS 1 = '. $pos1;
 		
 		//error_log("HTMLCONTENT = ".$htmlContent, 0);
 		
@@ -295,11 +295,11 @@ class WebCTModel extends \GlobalModel {
 			
 			$pos2 = strpos($htmlContent, $findQuot, $pos1+$findWebCTLenght);
 			
-			echo '<br/> POS 2 = '. $pos2;
+		//	echo '<br/> POS 2 = '. $pos2;
 				
 			$formerLink = substr($htmlContent, $pos1,$pos2-$pos1);
 			
-			echo 'FORMER LINK ='. $formerLink;
+		//	echo 'FORMER LINK ='. $formerLink;
 			
 			$lastSlashPos = strrpos($formerLink, "/");
 			
@@ -327,7 +327,7 @@ class WebCTModel extends \GlobalModel {
 			
 		}		
 		
-		echo '<br/> HTML CONTENT ='. $htmlContent;
+	//	echo '<br/> HTML CONTENT ='. $htmlContent;
 		
 		return $htmlContent;
 	} 
@@ -524,10 +524,12 @@ class WebCTModel extends \GlobalModel {
 		$fileArea = "";
 		$component ="";
 		$contextId=0;
+		$typeRapport = "";
 		
 		switch ($mode){
 			case 1 : 
 				$component = "mod_glossary";
+				$typeRapport = "glossaire";
 				$fileArea = "attachment";
 				$itemId=$item->id;
 				$contextId=$item->glossary->contextid;
@@ -535,6 +537,7 @@ class WebCTModel extends \GlobalModel {
 			case 2:
 				$component = "mod_glossary";
 				$fileArea = "entry";
+				$typeRapport = "glossaire";
 				$itemId=$item->id;
 				$contextId=$item->glossary->contextid;
 				break;
@@ -542,6 +545,7 @@ class WebCTModel extends \GlobalModel {
 			case 3:
 				$component = "question";
 				$fileArea = "questiontext";
+				$typeRapport = "question";
 				$itemId=$item->id;
 				$contextId=$item->category->contextid;
 				break;
@@ -549,12 +553,14 @@ class WebCTModel extends \GlobalModel {
 				$component = "question";
 				$fileArea = "generalfeedback";
 				$itemId=$item->id;
+				$typeRapport = "question";
 				$contextId=$item->category->contextid;
 				break;
 			case 5:
 				$component = "question";
 				$fileArea = "answer";
 				$itemId=$item->id;
+				$typeRapport = "question";
 				$contextId=$item->contextid;
 				break;
 				
@@ -562,6 +568,7 @@ class WebCTModel extends \GlobalModel {
 				$component = "question";
 				$fileArea = "answerfeedback";
 				$itemId=$item->id;
+				$typeRapport = "question";
 				$contextId=$item->contextid;
 				break;
 			case 7:
@@ -580,18 +587,21 @@ class WebCTModel extends \GlobalModel {
 				$component = "mod_assign";
 				$fileArea = "intro";
 				$itemId=0;
+				$typeRapport = "tache";
 				$contextId=$item->contextid;
 				break;
 			case 10:
 				$component = "mod_resource";
 				$fileArea = "content";
 				$itemId = 0;
+				$typeRapport = "resource";
 				$contextId = $item->contextid;
 				break;
 			case 11:
 				$component = "mod_book";
 				$fileArea = "chapter";
 				$itemId = $item->id;
+				$typeRapport = "resource";
 				$contextId = $item->book->contextid;
 				break;
 				
@@ -603,6 +613,8 @@ class WebCTModel extends \GlobalModel {
 		$file = $this->addCMSSimpleFile($fileOriginalContentId, $contextId, $component, $fileArea, $itemId, "/");
 									
 		if($file==null){
+			$rem = $this->rapportMigration->FILE_NON_RECUPERE . $fileOriginalContentId . "' n\' a pas été récupéré.";
+			$this->rapportMigration->add($typeRapport, $itemId, $item->nom, $rem , 0);
 			return;			
 		}
 		
@@ -3435,11 +3447,11 @@ class WebCTModel extends \GlobalModel {
             }
             
             if($totalLinks==$totalPageAndLinks && $countExternalTotal==0){
-            	echo 'Le module "'.$row['NAME'].'" sera récupéré sous forme de répertoire de fichiers <br/>';
+            	$this->remarque .= "Module d'apprentissage récupéré sous forme de répertoire" .' ('. $row['NAME'].') </br>';
             	$this->addLearningModuleAsFolder($row['ID'],$row['NAME'],$learningModuleDescription);
             	$this->allLearningModules[$row['ORIGINAL_CONTENT_ID']]=WebCTModel::LEARNING_MODULE_AS_FOLDER;
             }else {
-            	echo 'Le module "'.$row['NAME'].'" sera récupéré sous forme de BOOK <br/>';
+            	$this->remarque .= "Module d'apprentissage récupéré sous forme de BOOK" .' ('. $row['NAME'].')</br>';
             	if($countExternalTotal>0){
             		//Ici on teste et on écrit dans le rapport s'il y a des actions links
             		$request = "SELECT ID, NAME, CE_TYPE_NAME FROM CMS_CONTENT_ENTRY
@@ -3448,7 +3460,7 @@ class WebCTModel extends \GlobalModel {
 	            	$stid1 = oci_parse($this->connection,$request);
 	            	oci_execute($stid1);
 	            	while($row1 = oci_fetch_assoc($stid1)){
-	            		echo 'Le module d\'apprentissage "'.$row['NAME'].'" possède un lien d\'action vers "'.$row1['NAME'].'"('.$row1['CE_TYPE_NAME'].').<br/>';
+	            		$this->remarque .= 'Le module d\'apprentissage possède un lien d\'action vers "'.$row1['NAME'].'"('.$row1['CE_TYPE_NAME'].') ('. $row['NAME'].') <br/>';
 	            	}
             	}
             	$this->addLearningModuleAsBook($row['ID'],$row['NAME'],$learningModuleDescription);
@@ -3456,6 +3468,7 @@ class WebCTModel extends \GlobalModel {
                         	 
             }
 		}
+		
 		
 	}
 	
@@ -3504,6 +3517,9 @@ class WebCTModel extends \GlobalModel {
 		$this->activities[] = $folderModel;
 	
 		$this->sections[$sectionId]->section->sequence[]= $folderModel->folder->folderId;
+		
+		$this->rapportMigration->add("learningModules",$learningModuleId,$name,$this->remarque,0);
+		$this->remarque = "";
 	}
 	
 	
@@ -3609,7 +3625,8 @@ class WebCTModel extends \GlobalModel {
 				for($i=0;$i<=(-$identLevel);$i++){
 					$pos = strrpos($currentRepository, '/');
 					$currentRepository= substr($currentRepository, 0,$pos);
-					echo '$currentRepository ==' .$currentRepository.'    '.$pos.'<br/>';
+					//TODO Remarque??
+			//		echo '$currentRepository ==' .$currentRepository.'    '.$pos.'<br/>';
 				}
 				
 				$currentRepository.='/';
@@ -3644,7 +3661,7 @@ class WebCTModel extends \GlobalModel {
 				$filesIds[] = $file->id;
 			}
 			
-			echo 'CURRENT REPOSITORY = '.$currentRepository.'<br/>';
+		//	echo 'CURRENT REPOSITORY = '.$currentRepository.'<br/>';
 			
 			$index++;	
 		}
@@ -3775,7 +3792,9 @@ class WebCTModel extends \GlobalModel {
 			$stid1 = oci_parse($this->connection,$request);
 			oci_execute($stid1);
 			while($row1 = oci_fetch_assoc($stid1)){
-				echo 'La page "'.$name.'" ('.$learningModuleName.') possède un lien d\'action vers "'.$row1['NAME'].'"('.$row1['CE_TYPE_NAME'].').<br/>';
+				//echo 'La page "'.$name.'" ('.$learningModuleName.') possède un lien d\'action vers "'.$row1['NAME'].'"('.$row1['CE_TYPE_NAME'].').<br/>';
+				$this->rapportMigration->add("learningModules", $learningModuleId, $learningModuleName, 
+						RapportMigration::MODULE_APPRENT_TYPE_LIEN .$row1['NAME'].'"('.$row1['CE_TYPE_NAME']. $name.'" .<br/>', 0);
 			}
 			
 			
@@ -3977,11 +3996,13 @@ class WebCTModel extends \GlobalModel {
 				}elseif($this->allLearningModules[$row1['ORIGINAL_CONTENT_ID']]==WebCTModel::LEARNING_MODULE_AS_BOOK){
 					$this->addInternalURL($name, $description, '$@BOOKVIEWBYID*'.$row1['ORIGINAL_CONTENT_ID'].'@$',$section->id);
 				}else {
-					echo 'Module non trouvé <br/>';
+					$this->rapportMigration->add("courseContent", $row1["ID"], $row["NAME"],
+							"Module non trouvé <br/>" , 0);
 				}
 			}else {
-				$this->rapportMigration->add("course_content", $row1['ID'], $row1['NAME'],'L\'élément de type "'.$row1['CE_TYPE_NAME'].'" n\'a été pu être migré.', 0);
-				echo 'Cet élément n\'a pas pu être migré --> '.$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
+				$this->remarque = RapportMigration::COURSE_CONTENT_NON_RECUPERE .$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
+				$this->rapportMigration->add("courseContent", $row1["ID"], $row1["NAME"],$this->remarque, 0);
+				$this->remarque = "";
 			}
 		}
 		
@@ -4013,10 +4034,12 @@ class WebCTModel extends \GlobalModel {
 					$sectionModel = $this->addSections($repositoryId, $repositoryPath, $repositoryDescription);
 					$section = $sectionModel->section;
 				}
-				$this->rapportMigration->add("course_content", $repositoryId, $repositoryName,'Contenu du répertoire "'.$repositoryName.'" a été migré comme réperoire de fichiers.', 0);
+				$this->rapportMigration->add("courseContent", $repositoryId, $repositoryName,'Contenu du répertoire "'.
+						$repositoryName. RapportMigration::COURSE_CONTENT_REP_FICHIER .'.', 0);
 				$this->addCourseContentAsFolder($repositoryId, $repositoryName, $description,$section);
 			}else {
-				$this->rapportMigration->add("course_content", $repositoryId, $repositoryName,'Contenu du répertoire "'.$repositoryName.'" n\'a été pu être migré.', 0);
+				$this->rapportMigration->add("courseContent", $repositoryId,
+					 $repositoryName,RapportMigration::COURSE_CONTENT_REP_NON_RECUPERER .' ( '. $repositoryName . ')', 0);
 				
 				$this->createNewCourseContentSection($repositoryId, $repositoryPath.' > '.$repositoryName, $description);	
 			}
@@ -4991,14 +5014,19 @@ class WebCTModel extends \GlobalModel {
 	 * Rapport Migration
 	*/
 	public function retrieveRapportMigration(){
-		$request1 = "Select NAME , SOURCE_ID FROM LEARNING_CONTEXT 
-		WHERE ID = '". $this->learningContextId ."' and TYPE_CODE = 'Section'";
+		$request1 = "Select LEARNING_CONTEXT.NAME  , LEARNING_CONTEXT.SOURCE_ID , LC_CATEGORY.NAME as CATEGORIE FROM LEARNING_CONTEXT
+JOIN LC_CATEGORIZATION  on LEARNING_CONTEXT.PARENT_ID = LC_CATEGORIZATION.LEARNING_CONTEXT_ID
+JOIN LC_CATEGORY  on LC_CATEGORIZATION.LC_CATEGORY_ID = LC_CATEGORY.ID
+WHERE LEARNING_CONTEXT.ID = '".$this->learningContextId ."' and LEARNING_CONTEXT.TYPE_CODE = 'Section'";
 		$stid2 = oci_parse($this->connection,$request1);
 		oci_execute($stid2);
 		$row = oci_fetch_array($stid2, OCI_ASSOC+OCI_RETURN_NULLS);
+		$request2 = "Select NAME , SOURCE_ID FROM LEARNING_CONTEXT 
+		WHERE ID = '". $this->learningContextId ."' and TYPE_CODE = 'Section'";
 		$this->rapportMigration->fullName = $row["NAME"]  ;
 		$this->rapportMigration->shortName = $row["SOURCE_ID"];
 		$this->rapportMigration->nomFichier = 'rapportMigration_'. $this->rapportMigration->str_fichier($this->rapportMigration->shortName) .'.xml';
+		$this->rapportMigration->categorieCour = $row["CATEGORIE"];
 		$fileId = $this->getNextId();
 		$contextId = $this->getNextId();
 		$this->addRapportMigration($fileId , $contextId);
@@ -5421,7 +5449,7 @@ private function createFichierAssocie($contextid, $path, &$filesIds , $fileGroup
 						where  sf.GROUP_ID = '" . $fileGroupId . "'";
 		$stid2 = oci_parse ( $this->connection, $req );
 		oci_execute ( $stid2 );
-		echo '</br> ' . $req . '</br>';
+	//	echo '</br> ' . $req . '</br>';
 		$res = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
 		var_dump($res);
 		global $USER;

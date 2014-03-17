@@ -22,6 +22,14 @@ class RapportMigration {
 	 
 	 const MODULE_APPRENT_TYPE_BOOK = "Module d'apprentissage récupéré sous forme de BOOK";
 	 const MODULE_APPRENT_TYPE_REPERTOIRE = "Module d'apprentissage récupéré sous forme de répertoire";
+	 const MODULE_APPRENT_TYPE_LIEN = "Le module d\'apprentissage possède un lien d\'action vers";
+	 
+	 const COURSE_CONTENT_NON_TROUVE = "Module non trouvé <br/>";
+	 const COURSE_CONTENT_NON_RECUPERE = "Cet élément n\'a pas pu être migré -->";
+	 const COURSE_CONTENT_REP_FICHIER = "a été migré comme réperoire de fichiers";
+	 const COURSE_CONTENT_REP_NON_RECUPERER = "Contenu du répertoire n\'a pas pu être migré.";
+	 
+	 const FILE_NON_RECUPERE = "Le fichier avec l'id -->";
 	 
 	/**
 	 * @var Array d'InfoRapport
@@ -84,6 +92,10 @@ class RapportMigration {
 	 * @var String
 	 */
 	public $nomFichier;
+	/**
+	 * @var String
+	 */
+	public $categorieCour;
 	
 	private $tabType;
 	
@@ -105,8 +117,10 @@ class RapportMigration {
 		$this->lienWeb = array();
 		$this->discussion = array();
 		$this->question = array();
+		$this->learningModules = array();
+		$this->courseContent = array();
 		$this->tabType = array("glossaire" ,"evaluation" , "tache","gestionnaireFichier","programme","lienWeb","discussion",
-		 "question","module d'apprentissage","contenu du cours");
+		 "question","learningModules","courseContent");
 		$this->tabErreur = array_change_key_case($this->getClassConstants());
 		
 		
@@ -132,7 +146,8 @@ class RapportMigration {
 			case "question" : $this->question[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
 			case "tache" : $this->tache[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
 			case "module d'apprentissage" : $this->learningModules[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "contenu du cours" : $this->courseContent[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
+			case "learningModules" : $this->learningModules[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
+			case "courseContent" : $this->courseContent[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
 		}
 	}
 	
@@ -153,8 +168,9 @@ class RapportMigration {
 		$writer->setIndent(true);
 		$writer->startElement('cour');
 		$writer->writeAttribute('learningContextId','.'.(string)$learningContext);
+		$writer->writeAttribute('Categorie',$this->categorieCour);
 		$writer->writeAttribute('fullName',$this->fullName);
-		$writer->writeAttribute('shortName',$this->shortName);
+		$writer->writeAttribute('shortName',$this->shortName);	
 		foreach ($this->tabType as $type){
 			if(property_exists($this , $type)){
 				foreach ($this->$type as $element){
@@ -163,10 +179,10 @@ class RapportMigration {
 						$writer->startElement('type');
 						$writer->writeAttribute('id','.'.(string)$element->id);
 						$writer->writeAttribute('nomType',$type);
-						$writer->writeElement('codeRemarque',$erreur);
 						$writer->writeElement('titre',$element->nomFichier);
-						$writer->writeElement('nombreElement',$element->nbElem);
+						$writer->writeElement('codeRemarque',$erreur);
 						$writer->writeElement('remarque',$element->rem);
+						$writer->writeElement('nombreElement',$element->nbElem);
 						$writer->endElement();
 					}
 					unset($this->codeErreur);
@@ -192,7 +208,7 @@ class RapportMigration {
 				}
 			}	
 		}else if(count($this->codeErreur) == 0){
-			$this->codeErreur[] = "pas_remarque";
+			//$this->codeErreur[] = "pas_remarque";
 		}	
 	}
 	
