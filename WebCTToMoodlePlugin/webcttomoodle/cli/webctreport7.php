@@ -95,13 +95,14 @@ while ($row = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)) {
 	            $writer->writeAttribute('code', $row3['SOURCE_ID']);
             	$writer->writeAttribute('learning_context', $sectionId);
 	              
-	            $request = "SELECT COUNT(*),SUM(FILESIZE)/1000000 AS FILESIZE FROM CMS_CONTENT_ENTRY WHERE DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$deliveryContextId."'";
+	            $request = "SELECT COUNT(*), ROUND(SUM(FILESIZE)/1000000) AS FILESIZE, ROUND(MAX(FILESIZE/1000000)) AS MAXFILESIZE FROM CMS_CONTENT_ENTRY WHERE DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$deliveryContextId."'";
 	            $stid4 = oci_parse($conn,$request);
 	            oci_execute($stid4);
 	            
 	            $row4 = oci_fetch_array($stid4, OCI_ASSOC+OCI_RETURN_NULLS);
 	            $writer->writeAttribute('nb_cms_elements',$row4['COUNT(*)']);
 	            $writer->writeAttribute('all_files_size',$row4['FILESIZE']);
+	            $writer->writeAttribute('file_max_size',$row4['MAXFILESIZE']);
 	             
             $writer->endElement();
             
