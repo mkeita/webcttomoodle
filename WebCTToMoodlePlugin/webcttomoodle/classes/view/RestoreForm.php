@@ -75,16 +75,17 @@ class RestoreForm extends moodleform {
 					$code = $result[1];
 					$codes[$code]=$file;
 					
-					$codeToFind = str_ireplace(array('_','-'), '%', $code); 
-					 
-					$course = $DB->get_record_sql('SELECT * FROM mdl_course WHERE '.$DB->sql_like('shortname',':sname'), array('sname'=>$codeToFind));
+					$codeToFind = str_ireplace(array('_','-'), '%', $code)."%";
 					
-					if(!empty($course)){
+					$courses = $DB->get_records_sql('SELECT * FROM mdl_course WHERE '.$DB->sql_like('shortname',':sname'), array('sname'=>$codeToFind));
+					
+					foreach($courses as $course){
 						$moodleShortName =$course->shortname;
+						$table.="<tr><td><input type='text' name='$code' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";						
 					}
 				}		
 						
-				$table.="<tr><td><input type='text' name='$code' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";
+				
 				
 			}
 		$table.="

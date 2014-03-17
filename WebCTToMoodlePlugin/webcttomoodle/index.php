@@ -18,6 +18,16 @@ require_once 'lib/FTPConnexion.php';
 
 admin_externalpage_setup('toolwebcttomoodle');
 
+
+class BackupThread extends Thread{
+	public function process($pParams=null){
+		
+		$model = $webCTService->createGlobalModel($lc);
+		$webCTService->createBackup($model);
+		//return "Fin après".$pParams->time ."secondes";
+	}
+}
+
 $isBackup = optional_param('isBackup',false,PARAM_BOOL);
 $isRestore = optional_param('isRestore',false,PARAM_BOOL);
 $isFtpSave = optional_param('isFtpSave',false,PARAM_BOOL);
