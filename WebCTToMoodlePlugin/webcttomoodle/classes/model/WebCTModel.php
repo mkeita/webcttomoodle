@@ -23,34 +23,34 @@ class WebCTModel extends \GlobalModel {
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
    		$this->retrieveGlossaries();
 
-  		$this->retrieveQuestions();	
+   		$this->retrieveQuestions();	
 
-// 		foreach($this->questions->allQuestions as $key=>$value){
-// 			error_log($key.'-->'.$value->name.'<br/>');
-// 		} 
+// // 		foreach($this->questions->allQuestions as $key=>$value){
+// // 			error_log($key.'-->'.$value->name.'<br/>');
+// // 		} 
 		
-  		$this->retrieveQuizzes();
+   		$this->retrieveQuizzes();
 		
-    	$this->retrieveAssignments();
+     	$this->retrieveAssignments();
 		
-   		$this->retrieveFolders();
+     	$this->retrieveFolders();
 		
-  		$this->retrieveWebLinks();
+    	$this->retrieveWebLinks();
 
-   		$this->retrieveSyllabus();
+     	$this->retrieveSyllabus();
 	
-  		$this->retrieveForum();
+    	$this->retrieveForum();
 		
-  		$this->retrieveEmail();
+    	$this->retrieveEmail();
 
 		$this->retrieveLearningModules();
 		
  		$this->retrieveCourseContent();
  		
-  		/*******
-  		 * retrieveRapportMigration() doit toujour être en derniére position.
-  		 */
-  		$this->retrieveRapportMigration();
+//   		/*******
+//   		 * retrieveRapportMigration() doit toujour être en derniére position.
+//   		 */
+   		$this->retrieveRapportMigration();
 		
 		oci_close($this->connection);
 	}
@@ -275,7 +275,7 @@ class WebCTModel extends \GlobalModel {
 		$pattern = "/(?<=href=(\"|'))[^\"']+(?=(\"|'))/";
 		preg_match_all($pattern, $htmlContent, $result);
 		
-		var_dump($result);
+		//var_dump($result);
 		
 		return "";
 		
@@ -3562,7 +3562,7 @@ class WebCTModel extends \GlobalModel {
 			$index++;
 		}
 		
-		var_dump($repertoriesStatus);
+		//var_dump($repertoriesStatus);
 		
 		$currentRepository=$path;
 		oci_execute($stid);
@@ -5413,7 +5413,7 @@ body {
 		$filesIds [] = $repository->id;
 	}
 private function createFichierAssocie($contextid, $path, &$filesIds , $fileGroupId) {
-		var_dump($fileGroupId);
+		//var_dump($fileGroupId);
 		$req = "SELECT  sf.NAME,sf.FILESIZE,cms.CONTENT,CMS_MIMETYPE.MIMETYPE
 						 from SIMPLE_FILE sf 
 						JOIN CMS_FILE_CONTENT cms on sf.FILE_CONTENT_ID = cms.ID
@@ -5421,9 +5421,9 @@ private function createFichierAssocie($contextid, $path, &$filesIds , $fileGroup
 						where  sf.GROUP_ID = '" . $fileGroupId . "'";
 		$stid2 = oci_parse ( $this->connection, $req );
 		oci_execute ( $stid2 );
-		echo '</br> ' . $req . '</br>';
+		//echo '</br> ' . $req . '</br>';
 		$res = oci_fetch_array ( $stid2, OCI_ASSOC + OCI_RETURN_NULLS );
-		var_dump($res);
+		//var_dump($res);
 		global $USER;
 		$component = "mod_folder";
 		$fileArea = "content";
