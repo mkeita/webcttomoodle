@@ -57,6 +57,10 @@ require_once($CFG->dirroot . '/backup/util/includes/backup_includes.php');
 
 abstract class GlobalModel implements \IBackupModel {
 	protected $learningContextId = "366249217001";
+	protected $deliveryContextId;
+	protected $connection;
+	
+	
 	
 	const SECTION_GENERAL = 1;
 	const SECTION_ASSESSMENTS = 2;
@@ -771,103 +775,125 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		
 		//SECTION DES EVALUATIONS
-		$sectionModel = new SectionModel();
+		$request = "SELECT COUNT(*) FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='ASSESSMENT_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' ORDER BY NAME";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_assoc($stid);
+
+		if($row["COUNT(*)"]>0){
+				
+			$sectionModel = new SectionModel();
+			
+			//Default section used to put all the activities (for now)
+			$section = new Section();
+			$section->id=$this->getNextSectionId();
+			$section->number=$section->id;
+			$section->name=utf8_encode("Évaluations");
+			$section->summary=utf8_encode("Liste de toutes les Évaluations");
+			$section->summaryformat=1;
+			$section->visible=0;
+			$section->availablefrom=0;
+			$section->availableuntil=0;
+			$section->showavailability=0;
+			$section->groupingid=0;
+			
+			$sectionModel->section = $section;
+			
+			$infoRef = new InfoRef();
+			$sectionModel->inforef = $infoRef;
 		
-		//Default section used to put all the activities (for now)
-		$section = new Section();
-		$section->id=$this->getNextSectionId();
-		$section->number=$section->id;
-		$section->name=utf8_encode("Évaluations");
-		$section->summary=utf8_encode("Liste de toutes les Évaluations");
-		$section->summaryformat=1;
-		$section->visible=0;
-		$section->availablefrom=0;
-		$section->availableuntil=0;
-		$section->showavailability=0;
-		$section->groupingid=0;
-		
-		$sectionModel->section = $section;
-		
-		$infoRef = new InfoRef();
-		$sectionModel->inforef = $infoRef;
-	
-		$sectionModels[$section->id]=$sectionModel;
-		
-		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
-		
-		//moodle_backup settings
-		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
-		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
-		
-		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
-		
-		$this->fixedSections[GlobalModel::SECTION_ASSESSMENTS]=$section->id;
-		
+			$sectionModels[$section->id]=$sectionModel;
+			
+			$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
+			
+			//moodle_backup settings
+			$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
+			$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
+			
+			$this->moodle_backup->contents->sections[]=$moodleBackupSection;
+			
+			$this->fixedSections[GlobalModel::SECTION_ASSESSMENTS]=$section->id;
+		}
 		
 		//SECTION DES TACHES
-		$sectionModel = new SectionModel();
 		
-		//Default section used to put all the activities (for now)
-		$section = new Section();
-		$section->id=$this->getNextSectionId();
-		$section->number=$section->id;
-		$section->name=utf8_encode("Tâches");
-		$section->summary=utf8_encode("Liste de tous les tâches");
-		$section->summaryformat=1;
-		$section->visible=0;
-		$section->availablefrom=0;
-		$section->availableuntil=0;
-		$section->showavailability=0;
-		$section->groupingid=0;
+		$request = "SELECT COUNT(*) FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='PROJECT_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_assoc($stid);
 		
-		$sectionModel->section = $section;
+		if($row["COUNT(*)"]>0){
+			
+			$sectionModel = new SectionModel();
+			
+			//Default section used to put all the activities (for now)
+			$section = new Section();
+			$section->id=$this->getNextSectionId();
+			$section->number=$section->id;
+			$section->name=utf8_encode("Tâches");
+			$section->summary=utf8_encode("Liste de tous les tâches");
+			$section->summaryformat=1;
+			$section->visible=0;
+			$section->availablefrom=0;
+			$section->availableuntil=0;
+			$section->showavailability=0;
+			$section->groupingid=0;
+			
+			$sectionModel->section = $section;
+			
+			$infoRef = new InfoRef();
+			$sectionModel->inforef = $infoRef;
+			
+			$sectionModels[$section->id]=$sectionModel;
+			
+			$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
+			
+			//moodle_backup settings
+			$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
+			$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
+			
+			$this->moodle_backup->contents->sections[]=$moodleBackupSection;
+			$this->fixedSections[GlobalModel::SECTION_ASSIGNMENTS]=$section->id;
+		}
+
+		//SECTION DES LEARNING MODULES		
+		$request = "SELECT COUNT(*) FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='TOC_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_assoc($stid);
 		
-		$infoRef = new InfoRef();
-		$sectionModel->inforef = $infoRef;
-		
-		$sectionModels[$section->id]=$sectionModel;
-		
-		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
-		
-		//moodle_backup settings
-		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
-		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
-		
-		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
-		$this->fixedSections[GlobalModel::SECTION_ASSIGNMENTS]=$section->id;
-		
-		//SECTION DES LEARNING MODULES
-		$sectionModel = new SectionModel();
-		
-		//Default section used to put all the activities (for now)
-		$section = new Section();
-		$section->id=$this->getNextSectionId();
-		$section->number=$section->id;
-		$section->name=utf8_encode("Modules d'apprentissage");
-		$section->summary=utf8_encode("Liste de tous les modules d'apprentissage");
-		$section->summaryformat=1;
-		$section->visible=0;
-		$section->availablefrom=0;
-		$section->availableuntil=0;
-		$section->showavailability=0;
-		$section->groupingid=0;
-		
-		$sectionModel->section = $section;
-		
-		$infoRef = new InfoRef();
-		$sectionModel->inforef = $infoRef;
-		
-		$sectionModels[$section->id]=$sectionModel;
-		
-		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
-		
-		//moodle_backup settings
-		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
-		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
-		
-		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
-		$this->fixedSections[GlobalModel::SECTION_LEARNING_MODULES]=$section->id;
-		
+		if($row["COUNT(*)"]>0){
+			$sectionModel = new SectionModel();
+			
+			//Default section used to put all the activities (for now)
+			$section = new Section();
+			$section->id=$this->getNextSectionId();
+			$section->number=$section->id;
+			$section->name=utf8_encode("Modules d'apprentissage");
+			$section->summary=utf8_encode("Liste de tous les modules d'apprentissage");
+			$section->summaryformat=1;
+			$section->visible=0;
+			$section->availablefrom=0;
+			$section->availableuntil=0;
+			$section->showavailability=0;
+			$section->groupingid=0;
+			
+			$sectionModel->section = $section;
+			
+			$infoRef = new InfoRef();
+			$sectionModel->inforef = $infoRef;
+			
+			$sectionModels[$section->id]=$sectionModel;
+			
+			$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
+			
+			//moodle_backup settings
+			$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
+			$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
+			
+			$this->moodle_backup->contents->sections[]=$moodleBackupSection;
+			$this->fixedSections[GlobalModel::SECTION_LEARNING_MODULES]=$section->id;
+		}		
 		
 		$this->sections = $sectionModels;
 	}

@@ -19,6 +19,7 @@ require_once 'lib/FTPConnexion.php';
 admin_externalpage_setup('toolwebcttomoodle');
 
 
+
 /*class BackupThread extends Thread{
 	public function process($pParams=null){
 		
@@ -36,6 +37,7 @@ admin_externalpage_setup('toolwebcttomoodle');
 	</div>
 </div>
 <?php 
+
 $isBackup = optional_param('isBackup',false,PARAM_BOOL);
 $isRestore = optional_param('isRestore',false,PARAM_BOOL);
 $isFtpSave = optional_param('isFtpSave',false,PARAM_BOOL);
@@ -79,10 +81,12 @@ if($isBackup){
 		$nbElem = count($lcList);
 		foreach ($lcList as $lc){
 			$lc=trim($lc);
+
 			progression($indice);
 			$timestart=microtime(true);
 			if(!empty($lc)){
 				$model = $webCTService->createGlobalModel($lc, $nbElem,&$indice);					
+
 				$webCTService->createBackup($model);
 				
 				echo $lc.': course backup created <br/>';

@@ -6,11 +6,7 @@ class WebCTModel extends \GlobalModel {
 	
 	const LEARNING_MODULE_AS_FOLDER = 1;
 	const LEARNING_MODULE_AS_BOOK = 2;
-	
-	private $connection;
-	
-	private $deliveryContextId;
-	
+		
 	private $allLearningModules = array();
 		
 	/* (non-PHPdoc)
@@ -53,10 +49,12 @@ class WebCTModel extends \GlobalModel {
      	$indice += $progression;
      	$this->progression($indice);
 		
+
      	$this->retrieveFolders();
      	echo " Folder " . utf8_encode("récupéré");
      	$indice += $progression;
      	$this->progression($indice);
+
 		
     	$this->retrieveWebLinks();
     	echo " WebLinks " . utf8_encode("récupéré");
@@ -4012,7 +4010,7 @@ class WebCTModel extends \GlobalModel {
 				$description =$description->load();
 			}
 		
-			if($row1['CE_TYPE_NAME']=='PAGE_TYPE'){
+			if($row1['CE_TYPE_NAME']=='PAGE_TYPE' && stristr($name,'journal d\'importation du contenu du cours') == false){
 				$contentId;
 		
 				if(empty($row1['FILE_CONTENT_ID'])){
