@@ -6,11 +6,7 @@ class WebCTModel extends \GlobalModel {
 	
 	const LEARNING_MODULE_AS_FOLDER = 1;
 	const LEARNING_MODULE_AS_BOOK = 2;
-	
-	private $connection;
-	
-	private $deliveryContextId;
-	
+		
 	private $allLearningModules = array();
 		
 	/* (non-PHPdoc)
@@ -33,7 +29,7 @@ class WebCTModel extends \GlobalModel {
 		
      	$this->retrieveAssignments();
 		
-     	$this->retrieveFolders();
+//     	$this->retrieveFolders();
 		
     	$this->retrieveWebLinks();
 
@@ -613,8 +609,8 @@ class WebCTModel extends \GlobalModel {
 		$file = $this->addCMSSimpleFile($fileOriginalContentId, $contextId, $component, $fileArea, $itemId, "/");
 									
 		if($file==null){
-			$rem = $this->rapportMigration->FILE_NON_RECUPERE . $fileOriginalContentId . "' n\' a pas été récupéré.";
-			$this->rapportMigration->add($typeRapport, $itemId, $item->nom, $rem , 0);
+			$rem = RapportMigration::FILE_NON_RECUPERE . $fileOriginalContentId . "' n\' a pas été récupéré.";
+			$this->rapportMigration->add($typeRapport, $itemId, $item->name, $rem , 0);
 			return;			
 		}
 		
@@ -3957,7 +3953,7 @@ class WebCTModel extends \GlobalModel {
 				$description =$description->load();
 			}
 		
-			if($row1['CE_TYPE_NAME']=='PAGE_TYPE'){
+			if($row1['CE_TYPE_NAME']=='PAGE_TYPE' && stristr($name,'journal d\'importation du contenu du cours') == false){
 				$contentId;
 		
 				if(empty($row1['FILE_CONTENT_ID'])){
