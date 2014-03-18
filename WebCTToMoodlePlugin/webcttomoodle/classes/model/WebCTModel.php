@@ -16,41 +16,85 @@ class WebCTModel extends \GlobalModel {
 	/* (non-PHPdoc)
 	 * @see GlobalModel::__construct()
 	 */
-	public function __construct($learningContextId) {
+	/**
+	 * 
+	 * @param string $learningContextId
+	 * @param int $nbElemRec Représente le nombre de learning context qui vont être récupéré.
+	 */
+	public function __construct($learningContextId , $nbElemRec , &$indice) {
 		$this->learningContextId = $learningContextId;
 		parent::__construct();
 		
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
-   		$this->retrieveGlossaries();
-
-   		$this->retrieveQuestions();	
-
-// // 		foreach($this->questions->allQuestions as $key=>$value){
-// // 			error_log($key.'-->'.$value->name.'<br/>');
-// // 		} 
+		$progression = 100/($nbElemRec*12);
 		
+   		$this->retrieveGlossaries();
+		echo " Glossaire " . utf8_encode("récupéré");
+		$indice += $progression;
+		$this->progression($indice);		
+   		
+   		$this->retrieveQuestions();	
+   		echo " Question " . utf8_encode("récupéré");
+   		$indice += $progression;
+   		$this->progression($indice);
+
+// 		foreach($this->questions->allQuestions as $key=>$value){
+// 			error_log($key.'-->'.$value->name.'<br/>');
+// 		} 
+		
+   		
    		$this->retrieveQuizzes();
+   		echo " Evaluation " . utf8_encode("récupéré");
+   		$indice += $progression;
+   		$this->progression($indice);
 		
      	$this->retrieveAssignments();
+     	echo " Tache " . utf8_encode("récupéré");
+     	$indice += $progression;
+     	$this->progression($indice);
 		
      	$this->retrieveFolders();
+     	echo " Folder " . utf8_encode("récupéré");
+     	$indice += $progression;
+     	$this->progression($indice);
 		
     	$this->retrieveWebLinks();
+    	echo " WebLinks " . utf8_encode("récupéré");
+    	$indice += $progression;
+    	$this->progression($indice);
 
      	$this->retrieveSyllabus();
+     	echo " Syllabus " . utf8_encode("récupéré");
+     	$indice += $progression;
+     	$this->progression($indice);
 	
     	$this->retrieveForum();
+    	echo " Forum " . utf8_encode("récupéré");
+    	$indice += $progression;
+    	$this->progression($indice);
 		
     	$this->retrieveEmail();
+    	echo " Email " . utf8_encode("récupéré");
+    	$indice += $progression;
+    	$this->progression($indice);
 
 		$this->retrieveLearningModules();
+		echo "LearningModule " . utf8_encode("récupéré");
+		$indice += $progression;
+		$this->progression($indice);
 		
  		$this->retrieveCourseContent();
+ 		echo " CourseContent " . utf8_encode("récupéré");
+ 		$indice += $progression;
+ 		$this->progression($indice);
  		
 //   		/*******
 //   		 * retrieveRapportMigration() doit toujour être en derniére position.
 //   		 */
    		$this->retrieveRapportMigration();
+   		echo " RapportMigration " . utf8_encode("récupéré");
+   		$indice += $progression;
+   		$this->progression($indice);
 		
 		oci_close($this->connection);
 	}
@@ -85,7 +129,18 @@ class WebCTModel extends \GlobalModel {
 		$this->deliveryContextId = $deliveryContext["TEMPLATE_ID"];
 		
 	}
-	
+	public function progression($indice)
+	{
+		echo "<script>";
+		echo "document.getElementById('pourcentage').innerHTML='$indice%';";
+		echo "document.getElementById('barre').style.width='$indice%';";
+		echo "</script>";
+		echo "</br>";
+		ob_flush();
+		flush();
+		ob_flush();
+		flush();
+	}
 	public function initializeMoodleBackupModel(){
 		parent::initializeMoodleBackupModel();
 		
@@ -613,8 +668,8 @@ class WebCTModel extends \GlobalModel {
 		$file = $this->addCMSSimpleFile($fileOriginalContentId, $contextId, $component, $fileArea, $itemId, "/");
 									
 		if($file==null){
-			$rem = $this->rapportMigration->FILE_NON_RECUPERE . $fileOriginalContentId . "' n\' a pas été récupéré.";
-			$this->rapportMigration->add($typeRapport, $itemId, $item->nom, $rem , 0);
+			$rem = RapportMigration::FILE_NON_RECUPERE . $fileOriginalContentId . "' n\' a pas été récupéré.";
+			$this->rapportMigration->add($typeRapport, $itemId, $item->name, $rem , 0);
 			return;			
 		}
 		
@@ -3888,7 +3943,7 @@ class WebCTModel extends \GlobalModel {
 				
 				$book->addChapter($this->addBookChapter($name,$content, $isChapter,$pageNum));
 			}else {
-				echo 'Ce type d\'object n\'est pas traité : '.$row['CE_TYPE_NAME'].'<br/>';
+			//	echo 'Ce type d\'object n\'est pas traité : '.$row['CE_TYPE_NAME'].'<br/>';
 				$content = utf8_encode('Ici se trouvait un élément ('.$row['CE_TYPE_NAME'].') qui n\'a pu être migré depuis WebCT.');
 				$book->addChapter($this->addBookChapter($name,$content, $isChapter,$pageNum));
 			}
@@ -4237,7 +4292,7 @@ class WebCTModel extends \GlobalModel {
 	
 		$this->sections[$section->id] = $sectionModel;
 		
-		echo 'SECTION ID =='.$section->id.'<br/>';
+	//	echo 'SECTION ID =='.$section->id.'<br/>';
 			
 		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
 	
@@ -4525,7 +4580,22 @@ class WebCTModel extends \GlobalModel {
 	*/
 	
 	public function retrieveForum(){
-		$this->addForum($this->getNextId());
+		$request = "Select count(*) as NBELEM
+					from CMS_CONTENT_ENTRY cm1
+					JOIN CMS_CONTENT_ENTRY cm2 on cm2.ID = cm1.PARENT_ID
+					JOIN DIS_MESSAGE msg on msg.TOPIC_ID = cm1.ID
+					JOIN PERSON p on msg.AUTHOR_ID = p.ID
+					WHERE cm1.DELIVERY_CONTEXT_ID = '".$this->deliveryContextId."' and cm1.CE_TYPE_NAME = 'DISCUSSION_TOPIC_TYPE'";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+		if($row["NBELEM"] > 0){
+			$this->addForum($this->getNextId());
+		}else{
+			$this->rapportMigration->add("forum" , $this->learningContextId , "forum 2013-2014" ,
+					 RapportMigration::FORUM_NON_RECUPERE,0);
+		}
+		
 	}
 	
 	public function addForum($idForum){
@@ -4677,7 +4747,7 @@ class WebCTModel extends \GlobalModel {
 		}
 		
 		if($file != NULL){
-			echo '</br> FichierInterne </br>';
+		
 			$file->contenthash=md5($content);
 			$file->createFile($content, $this->repository);
 			$this->files->files[]=$file;
@@ -4927,7 +4997,7 @@ class WebCTModel extends \GlobalModel {
 					JOIN MAIL_MESSAGE mes on rec.MAIL_MESSAGE_ID = mes.ID
 					JOIN PERSON pers2 on mes.PERSON_ID = pers2.ID
 					JOIN MAIL_TARGET target on mes.ID = target.MAIL_MESSAGE_ID
-					where box.LEARNING_CONTEXT_ID = '366249217001' and box.ID != '368132341001'
+					where box.LEARNING_CONTEXT_ID = '".$this->learningContextId ."' and box.ID != '368132341001'
 						 and folder.TYPE != 1 and folder.TYPE != 3
 					order by pers.WEBCT_ID ,  folder.TYPE , folder.NAME";
 		$stid = oci_parse ( $this->connection, $request );
@@ -5133,7 +5203,7 @@ WHERE LEARNING_CONTEXT.ID = '".$this->learningContextId ."' and LEARNING_CONTEXT
 		$stid = oci_parse ( $this->connection, $request );
 		oci_execute ( $stid );
 		$res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS );
-		echo 'count() = ' . $res["COUNT(*)"] ; '</br>';
+//		echo 'count() = ' . $res["COUNT(*)"] ; '</br>';
 		return $res["COUNT(*)"] != "0";
 		
 	}

@@ -20,10 +20,11 @@ class WebCTService {
 	
 	/**
 	 * @param string $learningContextId
+	 * @param int $nbElemRec Représente le nombre de learning context qui vont être récupéré. 
 	 * @return GlobalModel
 	 */
-	public function createGlobalModel($learningContextId) {
-		$model = new WebCTModel($learningContextId);
+	public function createGlobalModel($learningContextId , $nbElemRec, &$indice) {
+		$model = new WebCTModel($learningContextId , $nbElemRec, $indice);
 		return $model;
 	}
 	

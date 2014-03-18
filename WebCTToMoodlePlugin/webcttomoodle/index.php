@@ -19,15 +19,23 @@ require_once 'lib/FTPConnexion.php';
 admin_externalpage_setup('toolwebcttomoodle');
 
 
-class BackupThread extends Thread{
+/*class BackupThread extends Thread{
 	public function process($pParams=null){
 		
 		$model = $webCTService->createGlobalModel($lc);
 		$webCTService->createBackup($model);
-		//return "Fin après".$pParams->time ."secondes";
+		//return "Fin aprï¿½s".$pParams->time ."secondes";
 	}
-}
-
+}*/
+?>
+<div id="conteneur" style="display:none; background-color:transparent; position:absolute; top:100px; left:15%; z-index: 10 ;float:top ;clear:top ;clear:both; height:50px; width:70%; border:1px solid #000000;">
+	<div id="barre" style="display:block; background-color:#FFD700; width:0%; height:100%;float:top;clear : top ;clear:both">
+		<div id="pourcentage" style="text-align:right; height:100%; font-size:1.8em;">
+			&nbsp;
+		</div>
+	</div>
+</div>
+<?php 
 $isBackup = optional_param('isBackup',false,PARAM_BOOL);
 $isRestore = optional_param('isRestore',false,PARAM_BOOL);
 $isFtpSave = optional_param('isFtpSave',false,PARAM_BOOL);
@@ -64,18 +72,33 @@ if($isBackup){
 		echo $OUTPUT->header();
 		
 		$lcList = preg_split('/[\n]/', $learningContextIds);
-		var_dump($lcList);
+		//var_dump($lcList);
 		
+		activerAffichage();
+		$indice = 0;
+		$nbElem = count($lcList);
 		foreach ($lcList as $lc){
 			$lc=trim($lc);
+			progression($indice);
+			$timestart=microtime(true);
 			if(!empty($lc)){
-				
-				$model = $webCTService->createGlobalModel($lc);					
+				$model = $webCTService->createGlobalModel($lc, $nbElem,&$indice);					
 				$webCTService->createBackup($model);
 				
 				echo $lc.': course backup created <br/>';
-			}			
+				
+			}	
+			$timeend=microtime(true);
+			$time=$timeend-$timestart;
+			$page_load_time = number_format($time, 3);
+			echo " <b> Debut du script: ".date("H:i:s", $timestart);
+			echo "<br>Fin du script: ".date("H:i:s", $timeend);
+			echo "<br>Script execute en " . $page_load_time . " sec </b> </br>";
+			ob_flush();
+			flush();
+			$indice += 100/($nbElem*12); 		
 		}
+		
 		
 		echo $OUTPUT->footer();
 		die();
@@ -89,6 +112,8 @@ if($isBackup){
 	echo $OUTPUT->header();
 	
 	$codes =json_decode(optional_param('codes', "", PARAM_TEXT));
+	
+	
 	
 	foreach ($codes as $code=>$file){
 		$value = optional_param($code, "", PARAM_TEXT);
@@ -127,6 +152,28 @@ $restoreForm->display();
 echo $OUTPUT->footer();
 die();
 	
+function progression($indice)
+{
+	echo "<script>";
+	echo "document.getElementById('pourcentage').innerHTML='$indice%';";
+	echo "document.getElementById('barre').style.width='$indice%';";
+	echo "</script>";
+	
+	ob_flush();
+	flush();
+	ob_flush();
+	flush();
+}
 
+function activerAffichage(){
+echo "<script>";
+echo "document.getElementById('conteneur').style.display = \"block\";";
+echo "</script>";
+echo "</br> </br> </br>";
+ob_flush();
+flush();
+ob_flush();
+flush();
+}
 
 ?>

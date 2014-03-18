@@ -31,6 +31,8 @@ class RapportMigration {
 	 
 	 const FILE_NON_RECUPERE = "Le fichier avec l'id -->";
 	 
+	 const FORUM_NON_RECUPERE = "Le forum n'est pas récupéré parce qu'il est vide";
+	 
 	/**
 	 * @var Array d'InfoRapport
 	 */
@@ -63,7 +65,11 @@ class RapportMigration {
 	 * @var Array d'InfoRapport
 	*/
 	public $question ;
-	
+	/**
+	 * 
+	 * @var Array|InfoRapport
+	 */
+	public $forum;
 	
 	/**
 	 * @var Array|InfoRapport
@@ -119,8 +125,9 @@ class RapportMigration {
 		$this->question = array();
 		$this->learningModules = array();
 		$this->courseContent = array();
+		$this->forum = array();
 		$this->tabType = array("glossaire" ,"evaluation" , "tache","gestionnaireFichier","programme","lienWeb","discussion",
-		 "question","learningModules","courseContent");
+		 "question","learningModules","courseContent","forum");
 		$this->tabErreur = array_change_key_case($this->getClassConstants());
 		
 		
@@ -145,9 +152,9 @@ class RapportMigration {
 			case "discussion" : $this->discussion[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
 			case "question" : $this->question[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
 			case "tache" : $this->tache[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "module d'apprentissage" : $this->learningModules[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
 			case "learningModules" : $this->learningModules[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
 			case "courseContent" : $this->courseContent[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
+			case "forum" : $this->forum[]= new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
 		}
 	}
 	
@@ -249,7 +256,6 @@ class RapportMigration {
 		$content = "<table class=\"table table-striped\"> 
 							<thead>
        						   <tr>
-           						 <th>ID</th>
           						 <th>Titre</th>
 								 <th> " . utf8_encode("Nombre d'éléments") ."</th>
 								 <th>Remarque</th>
@@ -260,15 +266,17 @@ class RapportMigration {
 		foreach($array as $info){
 			$nombreRem = ((($info->rem == null) || ($info->rem == "")) ? $nombreRem : $nombreRem +1 ); 
 		}
-		foreach($array as $info){
-			$tr = ((($info->rem == null) || ($info->rem == "") ) ? "<tr>" :  "<tr class=\"danger\">");
-			$content = $content . $tr .
-						"   <td>". $info->id ."</td>
-            				<td>". $info->nomFichier. "</td>
-            				<td>".$info->nbElem. "</td>
-            				<td>".$info->rem . "</td>
-         				 </tr>		
-						";
+		if($nombreRem != 0){
+			foreach($array as $info){
+				$tr = ((($info->rem == null) || ($info->rem == "") ) ? "<tr>" :  "<tr class=\"danger\">");
+				$content = $content . $tr .
+							"  
+	            				<td>". $info->nomFichier. "</td>
+	            				<td>".$info->nbElem. "</td>
+	            				<td>".$info->rem . "</td>
+	         				 </tr>		
+							";
+			}
 		}
 		$content = $content. "</table>";
 		$res = "";
