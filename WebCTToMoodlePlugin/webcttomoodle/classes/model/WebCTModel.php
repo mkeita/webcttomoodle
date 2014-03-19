@@ -50,7 +50,7 @@ class WebCTModel extends \GlobalModel {
      	$this->progression($indice);
 		
 
-     	$this->retrieveFolders();
+//     	$this->retrieveFolders();
      	echo " Folder " . utf8_encode("récupéré");
      	$indice += $progression;
      	$this->progression($indice);
@@ -3984,6 +3984,28 @@ class WebCTModel extends \GlobalModel {
 		$this->createNewCourseContentSection($row['ID'], utf8_encode("Section d'accueil"), utf8_encode("Section d'accueil (Racine dans WebCT)"));
 		
 	}
+
+	public function createCourseHeaderAndFooter($repositoryId,$section){
+
+		$request = "SELECT * FROM CO_HEADERFOOTER WHERE CO_ORGANIZERPAGE_ID='".$repositoryId."' AND ISDEFAULT='0' AND TYPE='H' ORDER BY CO_HEADERFOOTER.TYPE DESC";
+		$stid = oci_parse($this->connection,$request);
+		oci_execute($stid);
+		
+		while($row = oci_fetch_assoc($stid)){
+			
+			$description = $row['HD_FT_TEXT'];
+			if(empty($description)){
+				$description ="";
+			}else {
+				$description =$description->load();
+			}
+			
+			if(!empty($description)){
+				$this->addLabel("Header", $description, $section->id);
+			}
+		}
+		
+	}
 	
 	
 	public function createNewCourseContentSection($repositoryId,$repositoryPath,$repositoryDescription){
@@ -4000,6 +4022,8 @@ class WebCTModel extends \GlobalModel {
 			if($section==NULL){
 				$sectionModel = $this->addSections($repositoryId, $repositoryPath, $repositoryDescription);
 				$section = $sectionModel->section;
+				
+				$this->createCourseHeaderAndFooter($repositoryId, $section);
 			}
 			
 			$name = $row1['NAME'];
@@ -4086,6 +4110,8 @@ class WebCTModel extends \GlobalModel {
 				if($section==NULL){
 					$sectionModel = $this->addSections($repositoryId, $repositoryPath, $repositoryDescription);
 					$section = $sectionModel->section;
+					
+					$this->createCourseHeaderAndFooter($repositoryId, $section);
 				}
 				$this->rapportMigration->add("courseContent", $repositoryId, $repositoryName,'Contenu du répertoire "'.
 						$repositoryName. RapportMigration::COURSE_CONTENT_REP_FICHIER .'.', 0);
@@ -4519,7 +4545,6 @@ class WebCTModel extends \GlobalModel {
 	public function addLabel($name,$description,$sectionId){
 	
 		global $USER;
-		$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
 	
 		//Glossary
 		$labelModel = new LabelModel();
@@ -4530,20 +4555,22 @@ class WebCTModel extends \GlobalModel {
 		$labelModel->grades = new ActivityGradeBook();
 		$labelModel->calendar = new Events();
 	
-		$labelModel->module = $this->createModule($labelId,"label","2013110500",$sectionId);
+		
+		$id = $this->getNextId();
+		$labelModel->module = $this->createModule($id,"label","2013110500",$sectionId);
 	
 		$label = new ResourceLabel();
-		$label->id = $this->getNextId();
+		$label->id = $id;
 		$label->moduleid =$labelModel->module->id;
 		$label->modulename =$labelModel->module->modulename;
 		$label->contextid=$this->getNextId();
-		$label->labelIdId = $label->id;
+		$label->labelId = $id;
 		
 		//Ici on choisit le nom de notre folder
 		$label->name =$name;
 		$label->intro=$description;
 		$label->introformat=1;
-		$folder->timemodified=time();
+		$label->timemodified=time();
 		
 		$labelModel->label = $label;
 		
