@@ -231,8 +231,8 @@ class RapportMigration {
 		$html = $html . $this->createSection("Evaluation", $this->evaluation);
 		$html = $html . $this->createSection("Question", $this->question);
 		$html = $html . $this->createSection("Tache", $this->tache);
-		$html = $html . $this->createSection("Module d'apprentissage", $this->learningModules);
-		$html = $html . $this->createSection("Contenu du cours", $this->courseContent);
+		$html = $html . $this->createSection("Module_Apprentissage", $this->learningModules);		
+		$html = $html . $this->createSection("Forum", $this->forum);
 		
 		$html = $html . "
 				</div>
@@ -254,10 +254,9 @@ class RapportMigration {
 	 */
 	private function createSection($mode , $array){
 		$content = "<table class=\"table table-striped\"> 
-							<thead>
+							<thead>111
        						   <tr>
           						 <th>Titre</th>
-								 <th> " . utf8_encode("Nombre d'éléments") ."</th>
 								 <th>Remarque</th>
          					 </tr>
         					</thead>	
@@ -269,13 +268,14 @@ class RapportMigration {
 		if($nombreRem != 0){
 			foreach($array as $info){
 				$tr = ((($info->rem == null) || ($info->rem == "") ) ? "<tr>" :  "<tr class=\"danger\">");
-				$content = $content . $tr .
-							"  
+				if($tr != "<tr>"){
+					$content = $content . $tr .
+					"
 	            				<td>". $info->nomFichier. "</td>
-	            				<td>".$info->nbElem. "</td>
 	            				<td>".$info->rem . "</td>
-	         				 </tr>		
+	         				 </tr>
 							";
+				}
 			}
 		}
 		$content = $content. "</table>";

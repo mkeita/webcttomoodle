@@ -85,7 +85,7 @@ if($isBackup){
 			progression($indice);
 			$timestart=microtime(true);
 			if(!empty($lc)){
-				$model = $webCTService->createGlobalModel($lc, $nbElem,&$indice);					
+				$model = $webCTService->createGlobalModel($lc, $nbElem,$indice);					
 
 				$webCTService->createBackup($model);
 				
@@ -117,11 +117,13 @@ if($isBackup){
 	
 	$codes =json_decode(optional_param('codes', "", PARAM_TEXT));
 	
-	
-	
+	activerAffichage();
+	$nbElemRestore = count($codes);
+	$indice =0;
 	foreach ($codes as $code=>$file){
 		$value = optional_param($code, "", PARAM_TEXT);
-				
+		progression($indice);
+		$indice += 100 /$nbElemRestore ;
 		if(empty($value)){
 			continue;
 		}
@@ -130,13 +132,20 @@ if($isBackup){
 			//CREE UN NOUVEAU COURS
 			$webCTService->restoreNewCourse($file);
 			echo 'NOUVEAU COURS CREE - '.$code.'<br/>'; 
+			ob_flush();
+			flush();
 		}else{
 			//ON ECRASE LE COURS EXISTANT
 			$webCTService->restoreExistingCourse($value, $file);
 			echo 'COURS RESTAURE - '.$code.'<br/>';
+			ob_flush();
+			flush();
+			
 		} 
-	}
 		
+		
+	}
+	progression($indice);
 	echo $OUTPUT->footer();
 	die();
 }

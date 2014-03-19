@@ -29,7 +29,7 @@ class WebCTModel extends \GlobalModel {
 		$indice += $progression;
 		$this->progression($indice);		
    		
-   		$this->retrieveQuestions();	
+   	//	$this->retrieveQuestions();	
    		echo " Question " . utf8_encode("récupéré");
    		$indice += $progression;
    		$this->progression($indice);
@@ -39,7 +39,7 @@ class WebCTModel extends \GlobalModel {
 // 		} 
 		
    		
-   		$this->retrieveQuizzes();
+   //		$this->retrieveQuizzes();
    		echo " Evaluation " . utf8_encode("récupéré");
    		$indice += $progression;
    		$this->progression($indice);
@@ -50,7 +50,7 @@ class WebCTModel extends \GlobalModel {
      	$this->progression($indice);
 		
 
-     	$this->retrieveFolders();
+     //	$this->retrieveFolders();
      	echo " Folder " . utf8_encode("récupéré");
      	$indice += $progression;
      	$this->progression($indice);
@@ -76,12 +76,12 @@ class WebCTModel extends \GlobalModel {
     	$indice += $progression;
     	$this->progression($indice);
 
-		$this->retrieveLearningModules();
+		//$this->retrieveLearningModules();
 		echo "LearningModule " . utf8_encode("récupéré");
 		$indice += $progression;
 		$this->progression($indice);
 		
- 		$this->retrieveCourseContent();
+ 		//$this->retrieveCourseContent();
  		echo " CourseContent " . utf8_encode("récupéré");
  		$indice += $progression;
  		$this->progression($indice);
@@ -1150,6 +1150,7 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswerQuestionText ="";
 				
 				$maxScore = 0;
+				$vide = false;
 				foreach ($xmlContent->xpath('//ims:respcondition') as $respcondition){
 						
 					$varEqual = $respcondition->conditionvar->varequal;
@@ -1178,7 +1179,10 @@ class WebCTModel extends \GlobalModel {
 					}
 				
 					if(empty($answerText)){
-						$this->remarque = utf8_encode("Une réponse n'a pas été prise en compte parce qu'elle était vide. </br>");
+					if(!$vide){
+						$vide = true;
+						$this->remarque .= utf8_encode("Une réponse n'a pas été prise en compte parce qu'elle était vide. </br>");
+					}
 						continue;
 					}
 				
@@ -1374,6 +1378,7 @@ class WebCTModel extends \GlobalModel {
 				$shortAnswerQuestionText ="";
 				
 				$maxScore = 0;
+				$vide = false;
 				foreach ($xmlContent->xpath('//ims:respcondition') as $respcondition){
 				
 					$varEqual = $respcondition->conditionvar->varequal;
@@ -1402,7 +1407,10 @@ class WebCTModel extends \GlobalModel {
 					}
 				
 					if(empty($answerText)){
+					if(!$vide){
+						$vide = true;
 						$this->remarque .= utf8_encode("Une réponse n'a pas été prise en compte parce qu'elle était vide. </br>");
+					}
 						continue;
 					}
 				
@@ -3411,8 +3419,17 @@ class WebCTModel extends \GlobalModel {
 						WHERE CE_TYPE_NAME='URL_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' AND PARENT_ID='".$row['ID']."' AND CO_URL.LINK!='/importexport/alertObject.jsp?type=0'";
 			$stid1 = oci_parse($this->connection,$request1);
 			oci_execute($stid1);
-			
-			$content .="<table><tbody>";
+			$style =" <style type=\"text/css\">
+							.tab{
+								background-color:#099;
+							}
+							.tab td{
+								width:50% auto;
+								border:1px dashed #000;
+							}
+							</style>";
+			$content .= $style ;
+			$content .="<table width=\"100%\" border=\"0\" class=\"tab\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
 			
 			//Retrieve All the links..
 			$hasLink = false;
@@ -3431,11 +3448,11 @@ class WebCTModel extends \GlobalModel {
 				
 				$urlRow = "<tr>"
 					."<td>"."</td>"
-					."<td valign='top' width='50%'>"
+					."<td >"
 						."<label><b><a target='".$target."' href='".$row1['LINK']."'>".$row1['NAME']."</a></b></label><br/>"
 						."<div>".$urlDescription."</div>"
 					."</td>"
-					."<td valign='top' width='50%'>".$row1['LINK']."</td>"
+					."<td >".$row1['LINK']."</td>"
 				."</tr>";
 				$content .= $urlRow;
 						
@@ -3500,11 +3517,11 @@ class WebCTModel extends \GlobalModel {
             }
             
             if($totalLinks==$totalPageAndLinks && $countExternalTotal==0){
-            	$this->remarque .= "Module d'apprentissage récupéré sous forme de répertoire" .' ('. $row['NAME'].') </br>';
+            	$this->remarque .= utf8_encode("Module d'apprentissage récupéré sous forme de répertoire") .' ('. $row['NAME'].') </br>';
             	$this->addLearningModuleAsFolder($row['ID'],$row['NAME'],$learningModuleDescription);
             	$this->allLearningModules[$row['ORIGINAL_CONTENT_ID']]=WebCTModel::LEARNING_MODULE_AS_FOLDER;
             }else {
-            	$this->remarque .= "Module d'apprentissage récupéré sous forme de BOOK" .' ('. $row['NAME'].')</br>';
+            	$this->remarque .= utf8_encode("Module d'apprentissage récupéré sous forme de BOOK") .' ('. $row['NAME'].')</br>';
             	if($countExternalTotal>0){
             		//Ici on teste et on écrit dans le rapport s'il y a des actions links
             		$request = "SELECT ID, NAME, CE_TYPE_NAME FROM CMS_CONTENT_ENTRY
@@ -3513,7 +3530,7 @@ class WebCTModel extends \GlobalModel {
 	            	$stid1 = oci_parse($this->connection,$request);
 	            	oci_execute($stid1);
 	            	while($row1 = oci_fetch_assoc($stid1)){
-	            		$this->remarque .= 'Le module d\'apprentissage possède un lien d\'action vers "'.$row1['NAME'].'"('.$row1['CE_TYPE_NAME'].') ('. $row['NAME'].') <br/>';
+	            		$this->remarque .= utf8_encode('Le module d\'apprentissage possède un lien d\'action vers "').$row1['NAME'].'"('.$row1['CE_TYPE_NAME'].') ('. $row['NAME'].') <br/>';
 	            	}
             	}
             	$this->addLearningModuleAsBook($row['ID'],$row['NAME'],$learningModuleDescription);
@@ -4053,7 +4070,7 @@ class WebCTModel extends \GlobalModel {
 							"Module non trouvé <br/>" , 0);
 				}
 			}else {
-				$this->remarque = RapportMigration::COURSE_CONTENT_NON_RECUPERE .$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
+				$this->remarque = utf8_encode(RapportMigration::COURSE_CONTENT_NON_RECUPERE) .$row1['NAME'].' -- '.$row1['ID'].' -- '.$row1['CE_TYPE_NAME'].'<br/>';
 				$this->rapportMigration->add("courseContent", $row1["ID"], $row1["NAME"],$this->remarque, 0);
 				$this->remarque = "";
 			}
@@ -5059,11 +5076,11 @@ class WebCTModel extends \GlobalModel {
   									<td width="50%" class="rightcolumn"><b>A :</b>  ' .utf8_encode($res["DESTINATAIRE"]). '</td>
   								</tr>
   								<tr>
-  									<td><b>DE :</b> ' .utf8_decode($res["EXPEDITEUR"]) .'</td>
+  									<td><b>DE :</b> ' .$res["EXPEDITEUR"] .'</td>
   									<td class="rightcolumn"><b>Envoyé :</b>  ' .$date.' </td>
   								</tr>
  							 </table>
- 							 <div class="entrytext">' . utf8_encode($message) .  '</div>
+ 							 <div class="entrytext">' . utf8_decode($message) .  '</div>
 						</div>';
 		}
 	
