@@ -1088,8 +1088,9 @@ abstract class GlobalModel implements \IBackupModel {
 		$module->sectionid=$this->sections[$section]->section->id;// 		<sectionid>36</sectionid>
 		$module->sectionnumber=$this->sections[$section]->section->number;// 		<sectionnumber>0</sectionnumber>
 		$module->visible=$this->sections[$section]->section->visible;// 		<visible>1</visible>
-				
+
 		$module->idnumber="";// 		<idnumber></idnumber>
+		
 		$module->added=time();// 		<added>1390818670</added>
 		$module->score=0;// 		<score>0</score>
 		$module->indent=0;// 		<indent>0</indent>
@@ -1332,6 +1333,16 @@ abstract class GlobalModel implements \IBackupModel {
 				mkdir($activityDir);
 				
 				$activityModel->url->toXMLFile($activityDir);
+				
+			}else if ($activityModel instanceof LabelModel){
+				$activityDir = $dir.'/label_'.$activityModel->module->id;
+
+				if(is_dir($activityDir)){
+					rrmdir($activityDir);
+				}
+				mkdir($activityDir);
+				
+				$activityModel->label->toXMLFile($activityDir);
 			}
 			
 			$activityModel->calendar->toXMLFile($activityDir);

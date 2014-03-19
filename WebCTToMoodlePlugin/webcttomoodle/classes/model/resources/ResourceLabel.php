@@ -34,8 +34,8 @@ class ResourceLabel implements \IBackupModel {
 				$writer->writeAttribute('modulename', $this->modulename);
 				$writer->writeAttribute('contextid', $this->contextid);
 				
-				$writer->startElement('folder');
-					$writer->writeAttribute('id', $this->folderId);
+				$writer->startElement('label');
+					$writer->writeAttribute('id', $this->labelId);
 					$writer->startElement('name');
 						$writer->text($this->name);
 					$writer->endElement();
