@@ -29,7 +29,7 @@ class WebCTModel extends \GlobalModel {
 		$indice += $progression;
 		$this->progression($indice);		
    		
-   	//	$this->retrieveQuestions();	
+   		$this->retrieveQuestions();	
    		echo " Question " . utf8_encode("récupéré");
    		$indice += $progression;
    		$this->progression($indice);
@@ -39,7 +39,7 @@ class WebCTModel extends \GlobalModel {
 // 		} 
 		
    		
-   //		$this->retrieveQuizzes();
+   		$this->retrieveQuizzes();
    		echo " Evaluation " . utf8_encode("récupéré");
    		$indice += $progression;
    		$this->progression($indice);
@@ -49,7 +49,7 @@ class WebCTModel extends \GlobalModel {
      	$indice += $progression;
      	$this->progression($indice);
 
-		 //	$this->retrieveFolders();
+		$this->retrieveFolders();
      	echo " Folder " . utf8_encode("récupéré");
      	$indice += $progression;
      	$this->progression($indice);
@@ -70,17 +70,17 @@ class WebCTModel extends \GlobalModel {
     	$indice += $progression;
     	$this->progression($indice);
 		
-    	$this->retrieveEmail();
+    	//$this->retrieveEmail();
     	echo " Email " . utf8_encode("récupéré");
     	$indice += $progression;
     	$this->progression($indice);
 
-		//$this->retrieveLearningModules();
+		$this->retrieveLearningModules();
 		echo "LearningModule " . utf8_encode("récupéré");
 		$indice += $progression;
 		$this->progression($indice);
 		
- 		//$this->retrieveCourseContent();
+ 		$this->retrieveCourseContent();
  		echo " CourseContent " . utf8_encode("récupéré");
  		$indice += $progression;
  		$this->progression($indice);
@@ -157,7 +157,7 @@ class WebCTModel extends \GlobalModel {
 		$this->moodle_backup->original_course_id = $row['ID'];
 		$this->moodle_backup->original_course_fullname = $row['NAME'];//WebCt Course 0";
 		$this->moodle_backup->original_course_shortname = $shortName;//WEBCT-0";
-		$this->moodle_backup->name = $this->moodle_backup->original_course_shortname."#backup_".time().".mbz"; //test_backup.mbz
+		$this->moodle_backup->name = $this->moodle_backup->original_course_shortname."__BACKUP_".time().".mbz"; //test_backup.mbz
 		$this->moodle_backup->settings[0] = new MoodleBackupBasicSetting("root","filename",$this->moodle_backup->name);
 	}
 	
@@ -4821,9 +4821,16 @@ class WebCTModel extends \GlobalModel {
 		}else if($this->verifierCreerProgramme($pageId)){
 			$this->addPage($pageId,"syllabus");
 		}else{
-			error_log("Programme : " . $this->syllabusManager->courseInfo->nomCours .' --> Seulement des formateurs donc pas de création de page <br/>');
-			$this->rapportMigration->add("programme", $pageId, "Plan de cours: " .$this->syllabusManager->courseInfo->nomCours,
+			$courseName = $this->course->course->fullname;
+			
+			error_log("Programme : " . $courseName .' --> Seulement des formateurs donc pas de création de page <br/>');
+			$this->rapportMigration->add("programme", $pageId, "Plan de cours: " .$courseName,
 					utf8_encode("Seulement des formateurs donc pas de création du programme"), 0);
+				
+// 			error_log("Programme : " . $this->syllabusManager->courseInfo->nomCours .' --> Seulement des formateurs donc pas de création de page <br/>');
+// 			$this->rapportMigration->add("programme", $pageId, "Plan de cours: " .$this->syllabusManager->courseInfo->nomCours,
+// 					utf8_encode("Seulement des formateurs donc pas de création du programme"), 0);
+			
 		}
 	}
 	

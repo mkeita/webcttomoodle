@@ -14,7 +14,7 @@ require_once 'classes/view/FTPConnexionForm.php';
 require_once 'classes/view/CourseSelectionForm.php';
 require_once 'classes/view/RestoreForm.php';
 require_once 'classes/service/WebCTService.php';
-require_once 'lib/FTPConnexion.php';
+require_once 'lib/MigrationConnexion.php';
 
 admin_externalpage_setup('toolwebcttomoodle');
 
@@ -30,7 +30,7 @@ admin_externalpage_setup('toolwebcttomoodle');
 }*/
 ?>
 <div id="conteneur" style="display:none; background-color:transparent; position:absolute; top:100px; left:15%; z-index: 10 ;float:top ;clear:top ;clear:both; height:50px; width:70%; border:1px solid #000000;">
-	<div id="barre" style="display:block; background-color:#FFD700; width:0%; height:100%;float:top;clear : top ;clear:both">
+	<div id="barre" style="display:block; background-color:rgba(132, 232, 104, 0.7); width:0%; height:100%;float:top;clear : top ;clear:both">
 		<div id="pourcentage" style="text-align:right; height:100%; font-size:1.8em;">
 			&nbsp;
 		</div>
@@ -40,26 +40,59 @@ admin_externalpage_setup('toolwebcttomoodle');
 
 $isBackup = optional_param('isBackup',false,PARAM_BOOL);
 $isRestore = optional_param('isRestore',false,PARAM_BOOL);
-$isFtpSave = optional_param('isFtpSave',false,PARAM_BOOL);
+$isConnexionSave = optional_param('isConnexionSave',false,PARAM_BOOL);
 
 $learningContextIds = optional_param('learningContextIds', "", PARAM_TEXT);
 
-$ftpConnexion;
-
-if($isFtpSave || !isset($_COOKIE['FTP_CONNEXION_FOR_WEBCT'])){
-	$ftpConnexion=new FTPConnexion(
-			optional_param('ftpip','127.0.0.1',PARAM_TEXT),
-			optional_param('ftpuser','anonymous',PARAM_TEXT),
-			optional_param('ftppassword','',PARAM_TEXT),
-			optional_param('ftprepository','/backup_1/',PARAM_TEXT));
+$migrationConnexion;
+$protocol=NULL;
+if(isset($_COOKIE['CONNEXION_FOR_WEBCT'])) {
+	$migrationConnexion = json_decode($_COOKIE['CONNEXION_FOR_WEBCT']);
+	$protocol = $migrationConnexion->protocol;
+}
 	
-	setcookie("FTP_CONNEXION_FOR_WEBCT", json_encode($ftpConnexion), time()+3600);
-}else {
-	$ftpConnexion = json_decode($_COOKIE['FTP_CONNEXION_FOR_WEBCT']);
+$protocol = optional_param('protocols',$protocol,PARAM_INT);
+
+if($protocol==0 && $isConnexionSave){
+		$migrationConnexion=new MigrationConnexion(
+				0,
+				optional_param('ip','164.15.72.104',PARAM_TEXT),
+				optional_param('user','ftpuser',PARAM_TEXT),
+				optional_param('password','ftpuser',PARAM_TEXT),
+				optional_param('repository','/ingest/',PARAM_TEXT));
+		setcookie("CONNEXION_FOR_WEBCT", json_encode($migrationConnexion), time()+60*60*24*30);
+		
+}elseif($protocol==1 && $isConnexionSave){
+		$migrationConnexion=new MigrationConnexion(
+				1,
+				optional_param('ip','127.0.0.1',PARAM_TEXT),
+				optional_param('user','anonymous',PARAM_TEXT),
+				optional_param('password','',PARAM_TEXT),
+				optional_param('repository','/ingest/',PARAM_TEXT));
+		setcookie("CONNEXION_FOR_WEBCT", json_encode($migrationConnexion), time()+60*60*24*30);
+}elseif($protocol==2 && $isConnexionSave){
+		$migrationConnexion=new MigrationConnexion(
+				2,
+				optional_param('ip','',PARAM_TEXT),
+				optional_param('user','',PARAM_TEXT),
+				optional_param('password','',PARAM_TEXT),
+				optional_param('repository','/ingest/',PARAM_TEXT));
+		
+		setcookie("CONNEXION_FOR_WEBCT", json_encode($migrationConnexion), time()+60*60*24*30);
+}
+
+if(!isset($migrationConnexion)){
+	$migrationConnexion=new MigrationConnexion(
+			0,
+			optional_param('ip','164.15.72.104',PARAM_TEXT),
+			optional_param('user','ftpuser',PARAM_TEXT),
+			optional_param('password','ftpuser',PARAM_TEXT),
+			optional_param('repository','/ingest/',PARAM_TEXT));
+	setcookie("CONNEXION_FOR_WEBCT", json_encode($migrationConnexion), time()+60*60*24*30);
 }
 
 $settings = new WebCTServiceSettings();
-$settings->ftpConnection = $ftpConnexion;
+$settings->migrationConnection = $migrationConnexion;
 
 $webCTService = new WebCTService();
 $webCTService->settings = $settings;
@@ -153,13 +186,13 @@ if($isBackup){
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('pageheader', 'tool_webcttomoodle'));
 
-$ftpConnexionForm = new FTPConnexionForm($ftpConnexion);
+$ftpConnexionForm = new FTPConnexionForm($migrationConnexion);
 $ftpConnexionForm->display();
 
-$courseSelectioForm = new CourseSelectionForm($ftpConnexion);
+$courseSelectioForm = new CourseSelectionForm($migrationConnexion);
 $courseSelectioForm->display();
 
-$restoreForm = new RestoreForm($ftpConnexion);
+$restoreForm = new RestoreForm($migrationConnexion);
 $restoreForm->display();
 
 echo $OUTPUT->footer();

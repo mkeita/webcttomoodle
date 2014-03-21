@@ -38,30 +38,42 @@ class WebCTService {
 	public function createBackup($model){
 		global $CFG;
 		
-		$ftpConnexion = $this->settings->ftpConnection;
-		
 		$repository = $CFG->tempdir;
 		
 		
 		$rapport = $repository.'/'.$model->rapportMigration->nomFichier;
 	
 		$archiveName = $model->toMBZArchive($repository);
-		$destination = $ftpConnexion->repository.$model->moodle_backup->name;
-		
-		
-		$ftp = ftp_connect($ftpConnexion->ip, 21);
-		ftp_login($ftp, $ftpConnexion->user, $ftpConnexion->password);
-		if (!ftp_chdir($ftp,$ftpConnexion->repository)){
-			ftp_mkdir($ftp, $ftpConnexion->repository);
-			ftp_chdir($ftp,$ftpConnexion->repository);
-		}
 
-		$file = ftp_put($ftp, $destination , $archiveName, FTP_BINARY);
+		$migrationConnexion = $this->settings->migrationConnection;
 		
-		$file = ftp_put($ftp, $ftpConnexion->repository.$model->rapportMigration->nomFichier , $rapport , FTP_BINARY);
+		$destination = $migrationConnexion->repository.$model->moodle_backup->name;
 		
-		ftp_close($ftp);
-		
+		if($migrationConnexion->protocol==0){
+			$sftp = new SFTPConnection($migrationConnexion->ip);
+			$sftp->login($migrationConnexion->user, $migrationConnexion->password);
+			
+			$sftp->uploadFile($archiveName, $destination);
+			$sftp->uploadFile($rapport,$migrationConnexion->repository.$model->rapportMigration->nomFichier);
+			
+		}elseif($migrationConnexion->protocol==1){
+			
+			
+			$ftp = ftp_connect($migrationConnexion->ip, 21);
+			ftp_login($ftp, $migrationConnexion->user, $migrationConnexion->password);
+			if (!ftp_chdir($ftp,$migrationConnexion->repository)){
+				ftp_mkdir($ftp, $migrationConnexion->repository);
+				ftp_chdir($ftp,$migrationConnexion->repository);
+			}
+	
+			$file = ftp_put($ftp, $destination , $archiveName, FTP_BINARY);			
+			$file = ftp_put($ftp, $migrationConnexion->repository.$model->rapportMigration->nomFichier , $rapport , FTP_BINARY);
+			
+			ftp_close($ftp);
+		}elseif($migrationConnexion->protocol==2){
+			rename($archiveName, $destination);
+			rename($rapport,$migrationConnexion->repository.$model->rapportMigration->nomFichier);
+		}
 	}
 	
 	
@@ -90,20 +102,29 @@ class WebCTService {
 	protected function prepareArchive($courseId, $backupFile){
 		global $CFG,$USER;
 		
-		$ftpConnexion = $this->settings->ftpConnection;
-		
 		$tmpdir = $CFG->tempdir . '/backup/';
 		
 		$filename = restore_controller::get_tempdir_name($courseId, $USER->id);
 				
 		$source = $tmpdir.$filename;
 		
-		$ftp = ftp_connect($ftpConnexion->ip, 21);
-		ftp_login($ftp, $ftpConnexion->user, $ftpConnexion->password);
-		ftp_chdir($ftp,$ftpConnexion->repository);
-		
-		$file = ftp_get($ftp, $source , $backupFile, FTP_BINARY);
-		ftp_close($ftp);
+		$migrationConnection= $this->settings->migrationConnection;
+		if($migrationConnection->protocol==0){
+			$sftp = new SFTPConnection($migrationConnection->ip);
+			$sftp->login($migrationConnection->user, $migrationConnection->password);
+				
+			$sftp->receiveFile($migrationConnection->repository.$backupFile, $source);
+			
+		}elseif($migrationConnection->protocol==1){
+			$ftp = ftp_connect($migrationConnection->ip, 21);
+			ftp_login($ftp, $migrationConnection->user, $migrationConnection->password);
+			ftp_chdir($ftp,$migrationConnection->repository);
+			
+			$file = ftp_get($ftp, $source , $backupFile, FTP_BINARY);
+			ftp_close($ftp);
+		}elseif($migrationConnection->protocol==2){
+			$moveResult = rename($migrationConnection->repository.$backupFile, $source);
+		}
 		
 		$filepath = restore_controller::get_tempdir_name($courseId, $USER->id);
 		
@@ -149,8 +170,8 @@ class WebCTServiceSettings {
 	
 	
 	/**
-	 * @var FTPConnexionForm
+	 * @var MigrationConnexion
 	 */
 	
-	public $ftpConnection;
+	public $migrationConnection;
 }

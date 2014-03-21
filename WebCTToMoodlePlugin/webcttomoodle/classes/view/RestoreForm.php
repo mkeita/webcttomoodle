@@ -3,7 +3,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 require_once($CFG->libdir.'/formslib.php');
-
+require_once('classes/utils/SFTPConnection.php');
 /**
  * @author Marc
  *
@@ -11,21 +11,20 @@ require_once($CFG->libdir.'/formslib.php');
 class RestoreForm extends moodleform {
 	
 	/**
-	 * @var FtpConnexion
+	 * @var MigrationConnexion
 	 */
-	public $ftpConnexion;
+	public $migrationConnexion;
 	
-	public function __construct($ftpConnexion){
-		$this->ftpConnexion = $ftpConnexion;
-		parent::__construct();
-	
+	public function __construct($migrationConnexion){
+		$this->migrationConnexion = $migrationConnexion;
+		parent::__construct();	
 	}
 	
 	/*
 	 * (non-PHPdoc) @see moodleform::definition()
 	 */
 	function definition() {
-		global $DB;
+		global $DB;		
 		
 		// TODO Auto-generated method stub
 		$mform = $this->_form;
@@ -35,29 +34,61 @@ class RestoreForm extends moodleform {
 		$mform->addElement('html', get_string("restore_instructions","tool_webcttomoodle"). '<br/>');
 		
 		
-		$ftp = ftp_connect($this->ftpConnexion->ip, 21);
+		if($this->migrationConnexion->protocol==0){
+			$sftp = new SFTPConnection($this->migrationConnexion->ip);
+			$sftp->login($this->migrationConnexion->user, $this->migrationConnexion->password);
+			
+			$files = $sftp->scanFilesystem($this->migrationConnexion->repository);
+
+			if(empty($files)){
+				$mform->addElement('html', get_string("no_files","tool_webcttomoodle") . '<br/>');
+				return;
+			}
+				
+		}elseif($this->migrationConnexion->protocol==1){
+			$ftp = ftp_connect($this->migrationConnexion->ip, 21);
+			
+			if(!$ftp){
+				$mform->addElement('html', get_string("no_ftp_connexion","tool_webcttomoodle"). '<br/>');
+				return;
+			}
+			
+			ftp_login($ftp, $this->migrationConnexion->user, $this->migrationConnexion->password);
+			
+			
+			if(!ftp_chdir($ftp, $this->migrationConnexion->repository)){
+				$mform->addElement('html', get_string("no_directory","tool_webcttomoodle"). '<br/>');
+				ftp_close($ftp);	
+				return;
+			}
+			
+			$files = ftp_nlist($ftp, ".");
+			
+			//récupère la liste des backups disponibles (ftp)
+			
+			if(empty($files)){
+				$mform->addElement('html', get_string("no_files","tool_webcttomoodle") . '<br/>');
+				ftp_close($ftp);
+				return;
+			}
+			
+			ftp_close($ftp);
+					
+				
+		}elseif($this->migrationConnexion->protocol==2){
+			if(is_dir($this->migrationConnexion->repository)==false){
+				$mform->addElement('html', get_string("no_directory","tool_webcttomoodle"). '<br/>');
+				return;
+			}
+			
+			$files = scandir($this->migrationConnexion->repository);
+
+			if(empty($files)){
+				$mform->addElement('html', get_string("no_files","tool_webcttomoodle") . '<br/>');
+				return;
+			}
+		}		
 		
-		if(!$ftp){
-			$mform->addElement('html', get_string("no_ftp_connexion","tool_webcttomoodle"). '<br/>');
-			return;
-		}
-		
-		ftp_login($ftp, $this->ftpConnexion->user, $this->ftpConnexion->password);
-		
-		
-		if(!ftp_chdir($ftp, $this->ftpConnexion->repository)){
-			$mform->addElement('html', get_string("no_directory","tool_webcttomoodle"). '<br/>');
-			return;
-		}
-		
-		$files = ftp_nlist($ftp, ".");
-		
-		//récupère la liste des backups disponibles (ftp)
-		
-		if(empty($files)){
-			$mform->addElement('html', get_string("no_files","tool_webcttomoodle") . '<br/>');
-			return;
-		}
 		
 		$codes = array();
 		
@@ -67,26 +98,37 @@ class RestoreForm extends moodleform {
 			
 			foreach ($files as $file){
 				$result = null;
-				preg_match('/\/(.+)#/',$file,$result);
+				preg_match('/(?i)(.+?)__BACKUP/',$file,$result);
 				$code = "";
 				$moodleShortName = "";
 				
 				if(count($result)>=2){
 					$code = $result[1];
-					$codes[$code]=$file;
 					
-					$codeToFind = str_ireplace(array('_','-'), '%', $code)."%";
+					$strpos1 = strpos($code,"-");
+					$strpos2 = strpos($code,"-",$strpos1+1);
+					$codeToFind = $code;					
+					if($strpos2){
+						$codeToFind = substr_replace($code,'%', $strpos2,1);
+					}
+					$codeToFind .= "%";
 					
 					$courses = $DB->get_records_sql('SELECT * FROM mdl_course WHERE '.$DB->sql_like('shortname',':sname'), array('sname'=>$codeToFind));
 					
 					if(count($courses)>0){
 						foreach($courses as $course){
 							$moodleShortName =$course->shortname;						
-							$table.="<tr><td><input type='text' name='$code' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";
+							$table.="<tr><td><input type='text' name='$moodleShortName' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";
+							$codes[$moodleShortName]=$file;
 						}
 					}else{
-						$table.="<tr><td><input type='text' name='$code' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";
+						$moodleShortName = $code;
+						$table.="<tr><td><input type='text' name='$moodleShortName' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";
+						$codes[$moodleShortName]=$file;
 					}
+					
+					
+						
 				}		
 						
 				
@@ -95,9 +137,7 @@ class RestoreForm extends moodleform {
 		$table.="
 			</tbody>
 		</table>";
-				
-		ftp_close($ftp);
-		
+
 		$mform->addElement('hidden', 'codes', json_encode($codes));
 		$mform->setType('codes',PARAM_RAW);
 		

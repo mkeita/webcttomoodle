@@ -16,6 +16,10 @@ $string['backup_course_button'] = 'Start backup';
 
 //FTP FORM
 $string['ftp_form_header'] = 'Set FTP Connexion';
+$string['transfer_protocol'] = 'Transfer protocol';
+$string['sftp'] = 'SFTP';
+$string['ftp'] = 'FTP';
+$string['local'] = 'LOCAL';
 $string['ip'] = 'IP/DNS';
 $string['user'] = 'User';
 $string['password'] = 'Password';

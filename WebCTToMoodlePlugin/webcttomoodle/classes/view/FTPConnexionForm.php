@@ -11,12 +11,12 @@ require_once($CFG->libdir.'/formslib.php');
 class FTPConnexionForm extends moodleform {
 	
 	/**
-	 * @var FtpConnexion
+	 * @var MigrationConnexion
 	 */
-	public $ftpConnexion;
+	public $migrationConnexion;
 	
-	public function __construct($ftpConnexion){
-		$this->ftpConnexion = $ftpConnexion;
+	public function __construct($migrationConnexion){
+		$this->migrationConnexion = $migrationConnexion;
 		parent::__construct();
 		
 	}
@@ -32,21 +32,28 @@ class FTPConnexionForm extends moodleform {
 		
 		$mform->addElement('header', 'ftp_form_hdr', get_string('ftp_form_header','tool_webcttomoodle'));
 
- 		$mform->addElement('text', 'ftpip', get_string('ip','tool_webcttomoodle'));
- 		$mform->setType('ftpip', PARAM_TEXT);
- 		$mform->setDefault('ftpip', $this->ftpConnexion->ip);
+		$radioarray=array();
+		$radioarray[] =& $mform->createElement('radio', 'protocols', '', get_string('sftp','tool_webcttomoodle'), 0);
+		$radioarray[] =& $mform->createElement('radio', 'protocols', '', get_string('ftp','tool_webcttomoodle'), 1);
+		$radioarray[] =& $mform->createElement('radio', 'protocols', '', get_string('local','tool_webcttomoodle'), 2);
+		$mform->addGroup($radioarray, 'radioar', get_string('transfer_protocol','tool_webcttomoodle'), array(' '), false);
+		$mform->setDefault('protocols', $this->migrationConnexion->protocol);
+				
+ 		$mform->addElement('text', 'ip', get_string('ip','tool_webcttomoodle'));
+ 		$mform->setType('ip', PARAM_TEXT);
+ 		$mform->setDefault('ip', $this->migrationConnexion->ip);
 		
- 		$mform->addElement('text', 'ftpuser', get_string('user','tool_webcttomoodle'));
- 		$mform->setType('ftpuser', PARAM_TEXT);
- 		$mform->setDefault('ftpuser', $this->ftpConnexion->user);
+ 		$mform->addElement('text', 'user', get_string('user','tool_webcttomoodle'));
+ 		$mform->setType('user', PARAM_TEXT);
+ 		$mform->setDefault('user', $this->migrationConnexion->user);
 
- 		$mform->addElement('text', 'ftppassword', get_string('password','tool_webcttomoodle'));
- 		$mform->setType('ftppassword', PARAM_TEXT);
- 		$mform->setDefault('ftppassword', $this->ftpConnexion->password);
+ 		$mform->addElement('text', 'password', get_string('password','tool_webcttomoodle'));
+ 		$mform->setType('password', PARAM_TEXT);
+ 		$mform->setDefault('password', $this->migrationConnexion->password);
  		
- 		$mform->addElement('text', 'ftprepository', get_string('repository','tool_webcttomoodle'));
- 		$mform->setType('ftprepository', PARAM_TEXT);
- 		$mform->setDefault('ftprepository', $this->ftpConnexion->repository);
+ 		$mform->addElement('text', 'repository', get_string('repository','tool_webcttomoodle'));
+ 		$mform->setType('repository', PARAM_TEXT);
+ 		$mform->setDefault('repository', $this->migrationConnexion->repository);
  			
 		$this->add_action_buttons(false, get_string('save_button', 'tool_webcttomoodle'));
 	}
@@ -54,7 +61,7 @@ class FTPConnexionForm extends moodleform {
 	function definition_after_data() {
 		$mform = $this->_form;
 		
-		$mform->addElement('hidden', 'isFtpSave', true);
+		$mform->addElement('hidden', 'isConnexionSave', true);
 	}
 }
 
