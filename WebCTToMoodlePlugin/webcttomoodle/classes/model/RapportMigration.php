@@ -22,7 +22,7 @@ class RapportMigration {
 	 
 	 const MODULE_APPRENT_TYPE_BOOK = "Module d'apprentissage récupéré sous forme de BOOK";
 	 const MODULE_APPRENT_TYPE_REPERTOIRE = "Module d'apprentissage récupéré sous forme de répertoire";
-	 const MODULE_APPRENT_TYPE_LIEN = "Le module d\'apprentissage possède un lien d\'action vers";
+	 const MODULE_APPRENT_TYPE_LIEN = "Le module d'apprentissage possède un lien d'action vers ";
 	 
 	 const COURSE_CONTENT_NON_TROUVE = "Module non trouvé <br/>";
 	 const COURSE_CONTENT_NON_RECUPERE = "Cet élément n\'a pas pu être migré -->";
@@ -254,7 +254,7 @@ class RapportMigration {
 	 */
 	private function createSection($mode , $array){
 		$content = "<table class=\"table table-striped\"> 
-							<thead>111
+							<thead>
        						   <tr>
           						 <th>Titre</th>
 								 <th>Remarque</th>

@@ -25,12 +25,12 @@ class WebCTModel extends \GlobalModel {
 		$progression = 100/($nbElemRec*12);
 		
    		$this->retrieveGlossaries();
-		echo " Glossaire " . utf8_encode("récupéré");
+		echo " Glossaires " . utf8_encode("récupérés");
 		$indice += $progression;
 		$this->progression($indice);		
    		
    		$this->retrieveQuestions();	
-   		echo " Question " . utf8_encode("récupéré");
+   		echo " Questions " . utf8_encode("récupérées");
    		$indice += $progression;
    		$this->progression($indice);
 
@@ -40,12 +40,12 @@ class WebCTModel extends \GlobalModel {
 		
    		
    		$this->retrieveQuizzes();
-   		echo " Evaluation " . utf8_encode("récupéré");
+   		echo " Evaluations " . utf8_encode("récupérées");
    		$indice += $progression;
    		$this->progression($indice);
 		
      	$this->retrieveAssignments();
-     	echo " Tache " . utf8_encode("récupéré");
+     	echo " Taches " . utf8_encode("récupérées");
      	$indice += $progression;
      	$this->progression($indice);
 
@@ -56,7 +56,7 @@ class WebCTModel extends \GlobalModel {
 
 		
     	$this->retrieveWebLinks();
-    	echo " WebLinks " . utf8_encode("récupéré");
+    	echo " WebLinks " . utf8_encode("récupérés");
     	$indice += $progression;
     	$this->progression($indice);
 
@@ -76,12 +76,12 @@ class WebCTModel extends \GlobalModel {
     	$this->progression($indice);
 
 		$this->retrieveLearningModules();
-		echo "LearningModule " . utf8_encode("récupéré");
+		echo "Learning Modules " . utf8_encode("récupérés");
 		$indice += $progression;
 		$this->progression($indice);
 		
  		$this->retrieveCourseContent();
- 		echo " CourseContent " . utf8_encode("récupéré");
+ 		echo " Course Content " . utf8_encode("récupéré");
  		$indice += $progression;
  		$this->progression($indice);
  		
@@ -89,7 +89,7 @@ class WebCTModel extends \GlobalModel {
 //   		 * retrieveRapportMigration() doit toujour être en derniére position.
 //   		 */
    		$this->retrieveRapportMigration();
-   		echo " RapportMigration " . utf8_encode("récupéré");
+   		echo " Rapport Migration " . utf8_encode("récupéré");
    		$indice += $progression;
    		$this->progression($indice);
 		
@@ -1054,12 +1054,12 @@ class WebCTModel extends \GlobalModel {
 					$answerText = $varEqual;
 				}else if(!empty($varExt)){
 					$answerText = $varExt->children('http://www.webct.com/vista/assessment');
-					$this->remarque .= utf8_encode("Une réponse est évaluée à l'aide d'une expression réguliére(".
-							utf8_encode($answerText) ."). </br>");
+					$this->remarque .= utf8_encode("Une réponse est évaluée à l'aide d'une expression réguliére suivante :".
+							$answerText.". </br>");
 				}else if(!empty($varSubset)){
 					$answerText = "*".$varSubset."*";
 					$this->remarque .= utf8_encode("Une réponse est valide si elle contient l'expression suivante :".
-							utf8_encode($varSubset).". </br>");
+							$varSubset.". </br>");
 				}
 				
 				if(empty($answerText)){
@@ -3529,7 +3529,7 @@ class WebCTModel extends \GlobalModel {
 	            	$stid1 = oci_parse($this->connection,$request);
 	            	oci_execute($stid1);
 	            	while($row1 = oci_fetch_assoc($stid1)){
-	            		$this->remarque .= utf8_encode('Le module d\'apprentissage possède un lien d\'action vers "').$row1['NAME'].'"('.$row1['CE_TYPE_NAME'].') ('. $row['NAME'].') <br/>';
+	            		$this->remarque .= utf8_encode("L'élément \"").$row['NAME']. utf8_encode("\" possède un lien d'action vers ").$row1['NAME'].' (Type ='.$row1['CE_TYPE_NAME'].') <br/>';
 	            	}
             	}
             	$this->addLearningModuleAsBook($row['ID'],$row['NAME'],$learningModuleDescription);
@@ -3863,7 +3863,7 @@ class WebCTModel extends \GlobalModel {
 			while($row1 = oci_fetch_assoc($stid1)){
 				//echo 'La page "'.$name.'" ('.$learningModuleName.') possède un lien d\'action vers "'.$row1['NAME'].'"('.$row1['CE_TYPE_NAME'].').<br/>';
 				$this->rapportMigration->add("learningModules", $learningModuleId, $learningModuleName, 
-						RapportMigration::MODULE_APPRENT_TYPE_LIEN .$row1['NAME'].'"('.$row1['CE_TYPE_NAME']. $name.'" .<br/>', 0);
+						utf8_encode(RapportMigration::MODULE_APPRENT_TYPE_LIEN) .$row1['NAME'].' ('.$row1['CE_TYPE_NAME'].')'.utf8_encode(" sur l'élément \"") . $name.'" .<br/>', 0);
 			}
 			
 			
@@ -4773,7 +4773,7 @@ class WebCTModel extends \GlobalModel {
 			$content = $content . '<div class="entrydiv">
   							<table width="100%" cellspacing="0" summary="">
   								<tr>
-  									<td width="50%"><strong>Objet :</strong>  ' .$res["SUBJECT"] .'</td>
+  									<td width="50%"><strong>Objet :</strong>  ' .utf8_decode($res["SUBJECT"]) .'</td>
   									<td width="50%" class="rightcolumn"><b>Thème :</b>  ' .$res["NAME_TOPIC"]. '</td>
   								</tr>
   								<tr>
@@ -4781,7 +4781,7 @@ class WebCTModel extends \GlobalModel {
   									<td class="rightcolumn"><b>Date :</b>  ' .$date.' </td>
   								</tr>
  							 </table>
- 							 <div class="entrytext">' . $message .  '</div>
+ 							 <div class="entrytext">' . utf8_decode($message) .  '</div>
 						</div>';	
 			$this->rapportMigration->add("discussion",$file->id, $file->filename,
 					null, $nbObject);

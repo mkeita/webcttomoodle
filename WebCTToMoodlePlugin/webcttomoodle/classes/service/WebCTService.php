@@ -123,7 +123,7 @@ class WebCTService {
 			$file = ftp_get($ftp, $source , $backupFile, FTP_BINARY);
 			ftp_close($ftp);
 		}elseif($migrationConnection->protocol==2){
-			$moveResult = rename($migrationConnection->repository.$backupFile, $source);
+			$moveResult = copy($migrationConnection->repository.$backupFile, $source);
 		}
 		
 		$filepath = restore_controller::get_tempdir_name($courseId, $USER->id);

@@ -123,7 +123,7 @@ class RestoreForm extends moodleform {
 						}
 					}else{
 						$moodleShortName = $code;
-						$table.="<tr><td><input type='text' name='$moodleShortName' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";
+						$table.="<tr><td><input type='text' name='$moodleShortName' value='C'/></td><td>$code</td><td>$file</td></tr>";
 						$codes[$moodleShortName]=$file;
 					}
 					

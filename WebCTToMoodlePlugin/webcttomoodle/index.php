@@ -148,10 +148,11 @@ if($isBackup){
 	//ON EFFECTUE LA RESTAURATION DES COURS...
 	echo $OUTPUT->header();
 	
-	$codes =json_decode(optional_param('codes', "", PARAM_TEXT));
+	$codes =json_decode(optional_param('codes', "", PARAM_TEXT),true);
 	
 	activerAffichage();
 	$nbElemRestore = count($codes);
+	
 	$indice =0;
 	foreach ($codes as $code=>$file){
 		$value = optional_param($code, "", PARAM_TEXT);
@@ -161,7 +162,7 @@ if($isBackup){
 			continue;
 		}
 		
-		if($value == "NEW"){
+		if($value == "C"){
 			//CREE UN NOUVEAU COURS
 			$webCTService->restoreNewCourse($file);
 			echo 'NOUVEAU COURS CREE - '.$code.'<br/>'; 
