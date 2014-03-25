@@ -33,7 +33,7 @@ class CourseSelectionForm extends \moodleform {
 		
 		if($this->migrationConnexion->protocol==0){
 			try{
-				$sftp = new SFTPConnection("164.15.72.104");
+				$sftp = new SFTPConnection($this->migrationConnexion->ip);
 			}catch (Exception $e){
 				$mform->addElement('html',$e.'<br/>');
 			}

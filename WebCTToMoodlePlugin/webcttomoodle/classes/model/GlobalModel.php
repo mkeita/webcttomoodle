@@ -1372,6 +1372,8 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		$packer->archive_to_pathname(array(null=>$this->repository), $archiveName);
 		
+		rrmdir($this->repository);
+		
 		return $archiveName;
 	}
 	

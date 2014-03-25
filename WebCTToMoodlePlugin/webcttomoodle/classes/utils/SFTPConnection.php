@@ -26,7 +26,7 @@ class SFTPConnection
 
     public function uploadFile($local_file, $remote_file)
     {
-        $sftp = $this->sftp;
+        /*$sftp = $this->sftp;
         $stream = @fopen("ssh2.sftp://$sftp$remote_file", 'w');
 
         if (! $stream)
@@ -39,12 +39,15 @@ class SFTPConnection
         if (@fwrite($stream, $data_to_send) === false)
             throw new Exception("Could not send data from file: $local_file.");
 
-        @fclose($stream);
+        @fclose($stream);*/
+        
+        ssh2_scp_send($this->connection, $local_file, $remote_file, 0777);
     }
     
     public function receiveFile($remote_file, $local_file)
     {    	
-    	$sftp = $this->sftp; 
+/*    	$sftp = $this->sftp;
+    	
     	$stream = @fopen("ssh2.sftp://$sftp$remote_file", 'r');
        	
     	if (! $stream)
@@ -58,7 +61,8 @@ class SFTPConnection
     		$contents .= $buf;
     	}
     	file_put_contents ($local_file, $contents);
-    	@fclose($stream);
+    	@fclose($stream);*/
+    	ssh2_scp_recv($this->connection, $remote_file, $local_file);    	 
     }
     
     public function getFileSize($file){

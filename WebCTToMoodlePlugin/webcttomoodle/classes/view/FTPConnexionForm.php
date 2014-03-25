@@ -54,6 +54,7 @@ class FTPConnexionForm extends moodleform {
  		$mform->addElement('text', 'repository', get_string('repository','tool_webcttomoodle'));
  		$mform->setType('repository', PARAM_TEXT);
  		$mform->setDefault('repository', $this->migrationConnexion->repository);
+ 		$mform->addHelpButton('repository', 'repository_format', 'tool_webcttomoodle');
  			
 		$this->add_action_buttons(false, get_string('save_button', 'tool_webcttomoodle'));
 	}

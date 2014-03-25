@@ -56,9 +56,11 @@ class WebCTService {
 			$sftp->uploadFile($archiveName, $destination);
 			$sftp->uploadFile($rapport,$migrationConnexion->repository.$model->rapportMigration->nomFichier);
 			
+			unlink($archiveName);
+			unlink($rapport);
+			
 		}elseif($migrationConnexion->protocol==1){
-			
-			
+						
 			$ftp = ftp_connect($migrationConnexion->ip, 21);
 			ftp_login($ftp, $migrationConnexion->user, $migrationConnexion->password);
 			if (!ftp_chdir($ftp,$migrationConnexion->repository)){
@@ -70,6 +72,10 @@ class WebCTService {
 			$file = ftp_put($ftp, $migrationConnexion->repository.$model->rapportMigration->nomFichier , $rapport , FTP_BINARY);
 			
 			ftp_close($ftp);
+			
+			unlink($archiveName);
+			unlink($rapport);
+			
 		}elseif($migrationConnexion->protocol==2){
 			rename($archiveName, $destination);
 			rename($rapport,$migrationConnexion->repository.$model->rapportMigration->nomFichier);
@@ -83,6 +89,11 @@ class WebCTService {
 		
 		$course = $DB->get_record('course',array('shortname'=>$shortName));
 		if(!empty($course)){
+			//Suppress the course content
+			$transaction = $DB->start_delegated_transaction();
+			restore_dbops::delete_course_content($course->id);
+			$transaction->allow_commit();
+			
 			$filePath = $this->prepareArchive($course->id, $backupFile);
 			$this->restoreWebCTCourse($course->id, $filePath, backup::TARGET_EXISTING_DELETING);
 		}

@@ -12,7 +12,8 @@ $string['course_id'] = 'Course Id';
 $string['webct_learning_context_id'] = 'WebCT Learning Context Id';
 $string['backup_course_button'] = 'Start backup';
 
-
+$string['repository_format'] = 'Repository format?';
+$string['repository_format_help'] = 'Must end with "/" ! ';
 
 //FTP FORM
 $string['ftp_form_header'] = 'Set FTP Connexion';

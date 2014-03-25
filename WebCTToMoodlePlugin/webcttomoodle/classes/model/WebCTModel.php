@@ -4760,7 +4760,11 @@ class WebCTModel extends \GlobalModel {
 			
 			$message = $res["SHORT_MESSAGE"];
 			if( $message == NULL){
-				$message = $res["LONG_MESSAGE"]->load();
+				if($res["LONG_MESSAGE"]!=null){
+					$message = $res["LONG_MESSAGE"]->load();
+				}else {
+					$message = "";
+				}
 			}
 			
 			if($res["FILE_GROUP_ID"] !=NULL){
