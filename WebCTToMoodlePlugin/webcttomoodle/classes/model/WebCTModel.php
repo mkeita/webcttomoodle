@@ -5644,14 +5644,14 @@ private function createFichierAssocie($contextid, $path, &$filesIds , $fileGroup
 				from CMS_CONTENT_ENTRY cm1
 				JOIN CMS_CONTENT_ENTRY cm2 on cm2.ID = cm1.PARENT_ID
 				JOIN DIS_MESSAGE msg on msg.TOPIC_ID = cm1.ID
-				WHERE cm1.DELIVERY_CONTEXT_ID = '" . $this->deliveryContextId . "'and
-						cm1.NAME = '" .$nameTopic. "' and cm1.CE_TYPE_NAME = 'DISCUSSION_TOPIC_TYPE'
+				WHERE cm1.DELIVERY_CONTEXT_ID = '" . $this->deliveryContextId . "' and
+						cm1.NAME = '" .$nameTopic. "' and cm1.CE_TYPE_NAME = 'DISCUSSION_TOPIC_TYPE' 
 				order by NAME_CATEGORIE , NAME_TOPIC , msg.ROOT_MESSAGE_ID, msg.POSTDATE";
 		$stid = oci_parse ( $this->connection, $request );
 		oci_execute ( $stid );
 		$rootMsgId = "";
 		$content = "<h2> Table des matières </h2> <ul>";
-		while($res = oci_fetch_array ( $stid, OCI_ASSOC + OCI_RETURN_NULLS )){
+		while($res = oci_fetch_array( $stid, OCI_ASSOC + OCI_RETURN_NULLS )){
 			if($rootMsgId != $res["ROOT_MESSAGE_ID"]){
 				$rootMsgId = $res["ROOT_MESSAGE_ID"];
 				$content = $content . "<li> <a href=\"#".$res["SUBJECT"] . "\"> " . $res["SUBJECT"] . "</a></li>";

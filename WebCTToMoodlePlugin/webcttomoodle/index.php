@@ -97,6 +97,10 @@ $settings->migrationConnection = $migrationConnexion;
 $webCTService = new WebCTService();
 $webCTService->settings = $settings;
 
+if($isBackup || $isRestore){
+	@ignore_user_abort(true);	
+	@set_time_limit(0);
+}
 
 if($isBackup){
 
@@ -142,7 +146,6 @@ if($isBackup){
 	}
 
 }elseif($isRestore){
-	set_time_limit(0);
 	global $USER;
 	
 	//ON EFFECTUE LA RESTAURATION DES COURS...
@@ -162,22 +165,28 @@ if($isBackup){
 			continue;
 		}
 		
+		$timestart=microtime(true);
 		if($value == "C"){
 			//CREE UN NOUVEAU COURS
-			$webCTService->restoreNewCourse($file);
-			echo 'NOUVEAU COURS CREE - '.$code.'<br/>'; 
+			echo utf8_encode('<b>Création du cours - '.$code.'</b><br/>');
 			ob_flush();
 			flush();
+			$webCTService->restoreNewCourse($value, $file);
 		}else{
 			//ON ECRASE LE COURS EXISTANT
-			$webCTService->restoreExistingCourse($value, $file);
-			echo 'COURS RESTAURE - '.$code.'<br/>';
+			echo '<b>Restauration du cours - '.$code.'</b><br/>';
 			ob_flush();
 			flush();
-			
+			$webCTService->restoreExistingCourse($value, $file);
 		} 
+		$timeToRestore = floor(microtime(true) - $timestart);
+		$hour = floor($timeToRestore/3600);
+		$minute = floor(($timeToRestore - $hour*3600)/60);
+		$second = $timeToRestore - $hour*3600 - $minute*60;
 		
-		
+		echo '<b>Temps de restauration = '.$hour.'h '.$minute.'min '.$second.'sec ('.$timeToRestore.'s) </b><br/><br/><br/>';
+		ob_flush();
+		flush();
 	}
 	progression($indice);
 	echo $OUTPUT->footer();
@@ -208,19 +217,15 @@ function progression($indice)
 	
 	ob_flush();
 	flush();
-	ob_flush();
-	flush();
 }
 
 function activerAffichage(){
-echo "<script>";
-echo "document.getElementById('conteneur').style.display = \"block\";";
-echo "</script>";
-echo "</br> </br> </br>";
-ob_flush();
-flush();
-ob_flush();
-flush();
+	echo "<script>";
+	echo "document.getElementById('conteneur').style.display = \"block\";";
+	echo "</script>";
+	echo "</br> </br> </br>";
+	ob_flush();
+	flush();
 }
 
 ?>

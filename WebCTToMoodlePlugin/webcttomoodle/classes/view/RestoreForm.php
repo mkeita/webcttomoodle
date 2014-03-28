@@ -81,7 +81,7 @@ class RestoreForm extends moodleform {
 				return;
 			}
 			
-			$files = scandir($this->migrationConnexion->repository);
+			$files = $this->scan_dir($this->migrationConnexion->repository);
 
 			if(empty($files)){
 				$mform->addElement('html', get_string("no_files","tool_webcttomoodle") . '<br/>');
@@ -109,7 +109,8 @@ class RestoreForm extends moodleform {
 					$strpos2 = strpos($code,"-",$strpos1+1);
 					$codeToFind = $code;					
 					if($strpos2){
-						$codeToFind = substr_replace($code,'%', $strpos2,1);
+						$codeToFind = substr_replace($code,'', $strpos2,1);
+						$codeToFind .='-';
 					}
 					$codeToFind .= "%";
 					
@@ -122,9 +123,19 @@ class RestoreForm extends moodleform {
 							$codes[$moodleShortName]=$file;
 						}
 					}else{
-						$moodleShortName = $code;
-						$table.="<tr><td><input type='text' name='$moodleShortName' value='C'/></td><td>$code</td><td>$file</td></tr>";
-						$codes[$moodleShortName]=$file;
+						$codeToFind = $code."%";
+						$courses = $DB->get_records_sql('SELECT * FROM mdl_course WHERE '.$DB->sql_like('shortname',':sname'), array('sname'=>$codeToFind));
+						if(count($courses)>0){
+							foreach($courses as $course){
+								$moodleShortName =$course->shortname;
+								$table.="<tr><td><input type='text' name='$moodleShortName' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";
+								$codes[$moodleShortName]=$file;
+							}
+						}else {						
+							$moodleShortName = $code;
+							$table.="<tr><td><input type='text' name='$moodleShortName' value='C'/></td><td>$code</td><td>$file</td></tr>";
+							$codes[$moodleShortName]=$file;
+						}
 					}
 					
 					
@@ -150,5 +161,20 @@ class RestoreForm extends moodleform {
 		$mform = $this->_form;
 		
 		$mform->addElement('hidden', 'isRestore', true);
+	}
+	
+	function scan_dir($dir) {
+		$ignored = array('.', '..', '.svn', '.htaccess');
+	
+		$files = array();
+		foreach (scandir($dir) as $file) {
+			if (in_array($file, $ignored)) continue;
+			$files[$file] = filesize($dir . '/' . $file);
+		}
+	
+		asort($files);
+		$files = array_keys($files);
+	
+		return ($files) ? $files : false;
 	}
 }

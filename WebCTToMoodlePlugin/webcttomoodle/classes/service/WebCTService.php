@@ -38,8 +38,8 @@ class WebCTService {
 	public function createBackup($model){
 		global $CFG;
 		
+		//$repository = $CFG->tempdir.'/backup_temp';
 		$repository = $CFG->tempdir;
-		
 		
 		$rapport = $repository.'/'.$model->rapportMigration->nomFichier;
 	
@@ -48,6 +48,11 @@ class WebCTService {
 		$migrationConnexion = $this->settings->migrationConnection;
 		
 		$destination = $migrationConnexion->repository.$model->moodle_backup->name;
+		
+		//Pas de déplacement de fichier pour l'instant
+//		echo '<br/>ARCHIVE NAME = '.$archiveName.' </br>';
+//		echo '<br/>REPORT NAME = '.$rapport.' </br>';
+//		return;
 		
 		if($migrationConnexion->protocol==0){
 			$sftp = new SFTPConnection($migrationConnexion->ip);
@@ -89,23 +94,48 @@ class WebCTService {
 		
 		$course = $DB->get_record('course',array('shortname'=>$shortName));
 		if(!empty($course)){
-			//Suppress the course content
+			echo 'Suppression du contenu du cours.... <br/>';			
+			ob_flush();
+			flush();
 			$transaction = $DB->start_delegated_transaction();
-			restore_dbops::delete_course_content($course->id);
+			$options = array();
+			$options['keep_roles_and_enrolments'] = 0;
+			$options['keep_groups_and_groupings'] = 0;
+			restore_dbops::delete_course_content($course->id, $options);
 			$transaction->allow_commit();
 			
+			//Suppress the course content
+			echo utf8_encode('Préparation de l\'archive.... <br/>');
+			ob_flush();
+			flush();
 			$filePath = $this->prepareArchive($course->id, $backupFile);
+
 			$this->restoreWebCTCourse($course->id, $filePath, backup::TARGET_EXISTING_DELETING);
+			echo utf8_encode('<b>Cours restauré.</b> <br/>');			
+			ob_flush();
+			flush();
 		}
 	}
 
-	public function restoreNewCourse($backupFile){
+	public function restoreNewCourse($shortName,$backupFile){
 	
 		//New course in category "Miscellaneous"
-		$courseId = restore_dbops::create_new_course('', '', 1);
+		echo utf8_encode('Création d\'un nouveau cours.... <br/>');
+		ob_flush();
+		flush();
+		$courseId = restore_dbops::create_new_course('','', 1);
+		
 		if(!empty($courseId)){
+			echo utf8_encode('Préparation de l\'archive.... <br/>');
+			ob_flush();
+			flush();
 			$filePath = $this->prepareArchive($courseId, $backupFile);
-			$this->restoreWebCTCourse($courseId, $filePath, backup::TARGET_NEW_COURSE);				
+			
+			$this->restoreWebCTCourse($courseId, $filePath, backup::TARGET_NEW_COURSE);	
+
+			echo utf8_encode('<b>Cours restauré.</b> <br/>');
+			ob_flush();
+			flush();
 		}
 		
 	}
@@ -120,6 +150,9 @@ class WebCTService {
 		$source = $tmpdir.$filename;
 		
 		$migrationConnection= $this->settings->migrationConnection;
+		
+		echo 'Taille de l\'archive = '.(filesize($migrationConnection->repository.$backupFile)/1000000).' M <br/>';
+		
 		if($migrationConnection->protocol==0){
 			$sftp = new SFTPConnection($migrationConnection->ip);
 			$sftp->login($migrationConnection->user, $migrationConnection->password);
@@ -152,7 +185,7 @@ class WebCTService {
 	}
 	
 	protected function restoreWebCTCourse($courseId,$filepath,$target){
-		global $DB,$USER;
+		global $CFG,$DB,$USER;
 		
 		$transaction = $DB->start_delegated_transaction();
 		
@@ -160,14 +193,21 @@ class WebCTService {
 		$controller = new restore_controller($filepath, $courseId,
 				backup::INTERACTIVE_NO, backup::MODE_GENERAL, $USER->id,
 				$target);
+		
+		$logger = new WebCTServiceLogger($CFG->debugdeveloper ? backup::LOG_DEBUG : backup::LOG_INFO);
+		$controller->add_logger($logger);
+		
+		//$controller->get_logger()->set_next( new output_indented_logger(backup::LOG_INFO, true, true) );
+		
 		$controller->execute_precheck();
 		
-		$options = array();
-		$options['keep_roles_and_enrolments'] = 0;
-		$options['keep_groups_and_groupings'] = 0;
-		restore_dbops::delete_course_content($courseId, $options);
+		echo 'Restauration du cours.... <br/>';
+		ob_flush();
+		flush();
 		
 		$controller->execute_plan();
+
+		$controller->destroy();
 		
 		// Commit.
 		$transaction->allow_commit();
@@ -185,4 +225,21 @@ class WebCTServiceSettings {
 	 */
 	
 	public $migrationConnection;
+}
+
+class WebCTServiceLogger extends base_logger {
+
+ 	protected function action($message, $level, $options = null) {
+        $prefix = $this->get_prefix($level, $options);
+        $depth = isset($options['depth']) ? $options['depth'] : 0;
+        // Depending of running from browser/command line, format differently
+        if (defined('STDOUT')) {
+            echo $prefix . str_repeat('  ', $depth) . $message . PHP_EOL;
+        } else {
+            echo $prefix . str_repeat('&nbsp;&nbsp;', $depth) . htmlentities($message, ENT_QUOTES, 'UTF-8') . '<br/>' . PHP_EOL;
+        }
+        ob_flush();
+		flush();
+        return true;
+    }
 }

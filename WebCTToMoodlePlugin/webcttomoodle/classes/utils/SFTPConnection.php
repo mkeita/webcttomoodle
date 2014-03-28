@@ -9,19 +9,25 @@ class SFTPConnection
     {
         $this->connection = @ssh2_connect($host, $port);
         if (! $this->connection){
+        	echo "Could not connect to $host on port $port.";
             throw new Exception("Could not connect to $host on port $port.");
         }
     }
 
     public function login($username, $password)
     {
-        if (! @ssh2_auth_password($this->connection, $username, $password))
+        if (! @ssh2_auth_password($this->connection, $username, $password)){
+        	echo "Could not authenticate with username $username " .
+                                "and password $password.";
             throw new Exception("Could not authenticate with username $username " .
                                 "and password $password.");
+        }
 
         $this->sftp = @ssh2_sftp($this->connection);
-        if (! $this->sftp)
+        if (! $this->sftp){
+        	echo "Could not initialize SFTP subsystem.";
             throw new Exception("Could not initialize SFTP subsystem.");
+        }
     }
 
     public function uploadFile($local_file, $remote_file)
