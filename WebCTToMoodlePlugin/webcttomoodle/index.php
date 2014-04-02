@@ -100,6 +100,7 @@ $webCTService->settings = $settings;
 if($isBackup || $isRestore){
 	@ignore_user_abort(true);	
 	@set_time_limit(0);
+	raise_memory_limit(MEMORY_HUGE);
 }
 
 if($isBackup){
@@ -187,6 +188,7 @@ if($isBackup){
 		echo '<b>Temps de restauration = '.$hour.'h '.$minute.'min '.$second.'sec ('.$timeToRestore.'s) </b><br/><br/><br/>';
 		ob_flush();
 		flush();
+		error_log("COURS ".$code." restoré en ".$hour.'h '.$minute.'min '.$second.'sec ('.$timeToRestore.'s)');
 	}
 	progression($indice);
 	echo $OUTPUT->footer();

@@ -167,6 +167,7 @@ class WebCTService {
 			$file = ftp_get($ftp, $source , $backupFile, FTP_BINARY);
 			ftp_close($ftp);
 		}elseif($migrationConnection->protocol==2){
+			@set_time_limit(0);
 			$moveResult = copy($migrationConnection->repository.$backupFile, $source);
 		}
 		

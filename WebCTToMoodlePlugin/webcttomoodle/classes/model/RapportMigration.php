@@ -16,6 +16,7 @@ class RapportMigration {
 	 const QUESTION_FORMULE = "Formule WEBCT :";
 	 const QUESTION_REPONCE_ALTERNATIVE = "Les réponses alternatives n'ont pas pu être reprises";
 	 const QUESTION_SCORE_MAXIMUM_INCONNU = "Pas de score maximum trouvé. Le grade a été mis à 0.";
+	 const QUESTION_WITHOUT_CONTENT = "Question sans contenu dans la base </br>";
 	 
 	 const PROGRAMME_INCOHERENCE_BD = "Incohérence dans la base de donnée.";
 	 const PROGRAMME_SEULEMENT_FORMATEUR = "Seulement des formateurs donc pas de création du programme";

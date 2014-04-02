@@ -771,6 +771,10 @@ class WebCTModel extends \GlobalModel {
 				$question->category = $questionCategory;
 				
 				$this->fillQuestion($question, $row1['FILE_CONTENT_ID']);
+				
+				if(empty($question)){
+					continue;
+				}
 
 				$questionCategory->addQuestion($question);
 				
@@ -805,7 +809,13 @@ class WebCTModel extends \GlobalModel {
 		oci_execute($stid);
 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 	
-		$content = $row["CONTENT"]->load();
+		if(isset($row["CONTENT"])){
+			$content = $row["CONTENT"]->load();
+		}else {
+			$this->remarque = $this->remarque .RapportMigration::QUESTION_WITHOUT_CONTENT;
+			$question = null;
+			return;
+		}
 	
 		//PARSE THE XML FILE AND RETREIVE THE NEEDED INFORMATION
 		$xmlContent = new SimpleXMLElement($content);
@@ -3018,7 +3028,7 @@ class WebCTModel extends \GlobalModel {
 		}else {
 			if(empty($row['MAX_VALUE'])){
 				$assignment->grade=0;
-				error_log("ASSIGNMENT - EVALUATION ALPHANUMERIQUE - ".$assignment->name);
+				//error_log("ASSIGNMENT - EVALUATION ALPHANUMERIQUE - ".$assignment->name);
 			}else {
 				$assignment->grade=str_replace(",", ".", $row['MAX_VALUE']);
 			}
@@ -3908,7 +3918,11 @@ class WebCTModel extends \GlobalModel {
 					
 					$content = $row1["CONTENT"]->load();
 					
-					$content=$this->convertTextAndCreateAssociedFiles($content,11,$chapter);					
+					$content=$this->convertTextAndCreateAssociedFiles($content,11,$chapter);
+					//Cas particulier de modules contenant des caractères spéciaux problématiques..
+					if($this->learningContextId=="2840620001" || $this->learningContextId=="2988733001"){
+						$content = str_ireplace(array(''), ' ', $content);
+					}					
 					$chapter->content = $content;
 				}
 				$book->addChapter($chapter);
@@ -4316,8 +4330,16 @@ class WebCTModel extends \GlobalModel {
 		$section = new Section();
 		$section->id=$this->getNextSectionId();
 		$section->number=$section->id;
-		$section->name=$name;
-		$section->summary=$description;
+		
+		if(strlen($name)>255){
+			$this->remarque = $this->remarque . utf8_encode("Nom de section trop longue donc limité à 255 caratéres </br>");
+			$section->name = substr($name, 252)."...";
+			$section->summary=$name."<br/>".$description;
+		}else {
+			$section->name=$name;
+			$section->summary=$description;
+		}
+		
 		$section->summaryformat=1;
 		$section->visible=0;
 		$section->availablefrom=0;
@@ -4818,7 +4840,7 @@ class WebCTModel extends \GlobalModel {
 				$this->addResource($originalContentId,$name,"Description");
 				$this->rapportMigration->add("programme", $pageId, "Plan de cours: " .$this->syllabusManager->courseInfo->nomCours,null, 0);
 			}else{
-				error_log("Programme : " . $this->syllabusManager->courseInfo->nomCours .' --> Incohérence BD <br/>');
+				//error_log("Programme : " . $this->syllabusManager->courseInfo->nomCours .' --> Incohérence BD <br/>');
 				$this->rapportMigration->add("programme", $pageId, "Plan de cours: " .$this->syllabusManager->courseInfo->nomCours, 
 						utf8_encode("Incohérence dans la base de donnée."), 0);
 			}		
@@ -4827,7 +4849,7 @@ class WebCTModel extends \GlobalModel {
 		}else{
 			$courseName = $this->course->course->fullname;
 			
-			error_log("Programme : " . $courseName .' --> Seulement des formateurs donc pas de création de page <br/>');
+			//error_log("Programme : " . $courseName .' --> Seulement des formateurs donc pas de création de page <br/>');
 			$this->rapportMigration->add("programme", $pageId, "Plan de cours: " .$courseName,
 					utf8_encode("Seulement des formateurs donc pas de création du programme"), 0);
 				

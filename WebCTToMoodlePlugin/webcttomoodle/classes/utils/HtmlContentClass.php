@@ -8,7 +8,7 @@ class HtmlContentClass {
 	{
 		$fileName = $matches[0];
 	
-		error_log("FILE URL = ".$fileName);
+		//error_log("FILE URL = ".$fileName);
 		
 		$pos = strpos($fileName, "ttp:");
 		if($pos<=0){
