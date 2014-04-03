@@ -4883,6 +4883,7 @@ class WebCTModel extends \GlobalModel {
 			 		$filesIds[] = $file->id;
 			 		$content = $style;
 			 	}
+			 	
 				$nomFichier = $res["NAME_TOPIC"];
 				$content = $content . '<body> ';
 				$content = $content . '<h1 style="text-align:center">'. $nomFichier . '</h1>';
@@ -4926,8 +4927,9 @@ class WebCTModel extends \GlobalModel {
  							 </table>
  							 <div class="entrytext">' . utf8_decode($message) .  '</div>
 						</div>';	
-			$this->rapportMigration->add(RapportMigration::TYPE_CHAT, RapportMigration::CHAT_MIGRATED, 
-										$file->id, $file->filename,$nbObject);
+			$this->rapportMigration->add(RapportMigration::TYPE_CHAT, RapportMigration::CHAT_MIGRATED,
+					$file->id, $file->filename,$nbObject);
+			
 		}
 		
 		if($file != NULL){

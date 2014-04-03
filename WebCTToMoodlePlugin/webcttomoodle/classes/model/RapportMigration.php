@@ -375,7 +375,16 @@ class RapportMigration {
 	 * @param array $array Tableau qui contient les informations lié à la section.
 	 */
 	private function createSection($mode,$name, $array){
-		$content = "<table class=\"table table-striped\"> 
+		$nombreRem = 0;
+		foreach($array as $info){
+			$nombreRem = ((($info->rem == null) || ($info->rem == "")) ? $nombreRem : $nombreRem +1 );
+		}
+		$content = '<h4> <b>' . utf8_encode($name)  . '( ' .count($array) . utf8_encode(" éléments récupérés") . ' ) (
+				            		'. $nombreRem . utf8_encode(" remarques") . ' ) 
+				    </h4> </b>' ;
+		
+		if($nombreRem != 0){
+		$content .= "<table class=\"table table-bordered\"> 
 							<thead>
        						   <tr>
           						 <th>Titre</th>
@@ -383,18 +392,15 @@ class RapportMigration {
          					 </tr>
         					</thead>	
 							";
-		$nombreRem = 0;
-		foreach($array as $info){
-			$nombreRem = ((($info->rem == null) || ($info->rem == "")) ? $nombreRem : $nombreRem +1 ); 
-		}
-		if($nombreRem != 0){
+		
+		
 			foreach($array as $info){
-				$tr = ((($info->rem == null) || ($info->rem == "") ) ? "<tr>" :  "<tr class=\"danger\">");
-				if($tr != "<tr>"){
-					$content = $content . $tr .
+				$checkRem = ((($info->rem == null) || ($info->rem == "") ) ? false :  true);
+				if($checkRem){
+					$content = $content . "<tr>" .
 					"
-	            				<td>". $info->nomFichier. "</td>
-	            				<td>".$info->rem . "</td>
+	            				<td>". $info->nomFichier . "</td>
+	            				<td>". utf8_encode($info->rem) . $this->affichageNbElem($info->type)  ."</td>
 	         				 </tr>
 							";
 				}
@@ -402,7 +408,7 @@ class RapportMigration {
 		}
 		$content = $content. "</table>";
 		$res = "";
-		if($content != ""){
+		/*if($content != ""){
 			$res = '
 				<div class="panel panel-default">
 				    <div class="panel-heading">
@@ -420,11 +426,20 @@ class RapportMigration {
 				    </div>
 				  </div>
 				';
-		}
+		}*/
 		
-		return $res;
+		return $content;
 	}
-	
+	private function affichageNbElem($type){
+		$chaine = " ";
+		switch($type){
+			case RapportMigration::TYPE_WEB_LINK : $chaine = '( ' . RapportMigration::WEB_LINK_CATEGORY_COUNT . ' )';break;
+			case RapportMigration::TYPE_EVALUATION : $chaine = '( Nombre de question )';  break;
+			case RapportMigration::TYPE_CHAT : $chaine = '(Nombre d\' objets de discussion )';break;
+			case RapportMigration::TYPE_GLOSSARY : $chaine = '(Nombre de glossaire)';break;
+		}
+		return $chaine;
+	}
 	private function style(){
 		$style = "
 				<head> <meta charset=\"utf-8\" />
@@ -460,7 +475,7 @@ a {
 .cacherImprimer{
     display:none;
 }
-.table-striped>tbody>tr:nth-child(odd)>td,
+
 </style>
 
 <style media=\"screen\">
