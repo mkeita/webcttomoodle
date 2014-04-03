@@ -161,7 +161,6 @@ abstract class GlobalModel implements \IBackupModel {
 	protected $idCount = 1;
 	
 	protected $sectionId = 0;
-	public $remarque = "";
 	
 	/**
 	 * @return GlobalModel
@@ -898,178 +897,6 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->sections = $sectionModels;
 	}
 	
-	/**
-	 * Add a glossary
-	 */
-	public function addGlossary($glossaryId){
-		
-		global $USER;
-		$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
-		
-		//Glossary
-		$glossaryModel = new GlossaryModel();
-		$glossaryModel->grades = new ActivityGradeBook(); //EMPTY CURRENTLY NOT NEEDED
-		$glossaryModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
-		$glossaryModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
-		$glossaryModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
-		$glossaryModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
-		$glossaryModel->calendar = new Events(); //EMPTY CURRENTLY NOT NEEDED
-		
-		
-		$glossaryModel->module = $this->createModule($glossaryId,"glossary","2013110500",$sectionId);
-		
-		$glossaryModel->glossary = $this->createGlossary($glossaryId, $glossaryModel->module);
-		
-		if($glossaryModel->glossary->name == "mediaLibrary.defaultCollection.name"){
-			if(sizeof($glossaryModel->glossary->entries)<=0){
-				$rem = utf8_encode("Le glossaire ne contenait aucune entré donc il n'a pas été récupéré");
-				$this->rapportMigration->add("glossaire", $glossaryModel->glossary->id, $glossaryModel->glossary->name, 
-						$rem, 0);
-				return;
-			}else {
-				$glossaryModel->glossary->name =utf8_encode("Glossaire par défaut");
-				$glossaryModel->glossary->intro=utf8_encode("Glossaire par défaut");
-			}
-				
-		}
-		
-		//reference dans moodle_backup
-		$activity = new MoodleBackupActivity();
-		$activity->moduleid=$glossaryModel->module->id;
-		$activity->sectionid=$sectionId;
-		$activity->modulename=$glossaryModel->module->modulename;
-		$activity->title=$glossaryModel->glossary->name;
-		$activity->directory="activities/glossary_".$glossaryModel->glossary->glossaryid;
-		
-		$this->moodle_backup->contents->activities[] = $activity;
-		
-		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","glossary_".$glossaryModel->glossary->glossaryid,"glossary_".$glossaryModel->glossary->glossaryid."_included",1);
-		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","glossary_".$glossaryModel->glossary->glossaryid,"glossary_".$glossaryModel->glossary->glossaryid."_userinfo",1);
-		
-		$inforRef = new InfoRef();
-		$inforRef->userids[]=$USER->id;
-		$inforRef->fileids=$glossaryModel->glossary->filesIds;
-		$glossaryModel->inforef = $inforRef;
-		
-		$this->activities[] = $glossaryModel;
-		$this->rapportMigration->add("glossaire", $glossaryModel->glossary->id, $glossaryModel->glossary->name,
-				null, count($glossaryModel->glossary->entries));
-		$this->sections[$sectionId]->section->sequence[]= $glossaryModel->glossary->id;
-	}
-	
-	/**
-	 * @var unknown $glossaryId
-	 * @var Module $module
-	 * @return Glossary
-	 */
-	public function createGlossary($glossaryId, $module){
-		$glossary = new Glossary();
-		
-		$glossary->id=$glossaryId;//		<activity id="1" moduleid="11" modulename="glossary" contextid="54">
-		$glossary->moduleid =$module->id; //ID
-		$glossary->modulename =$module->modulename;
-		$glossary->contextid=0;
-		$glossary->glossaryid=$glossaryId;
-		$glossary->name ="Marc glossary";// 		<name>Marc glossary</name>
-		$glossary->intro ="An alphabetical list of terms relating to this course, and their descriptions.";// 		<intro>&lt;p&gt;An alphabetical list of terms relating to this course, and their descriptions.&lt;/p&gt;</intro>
-		$glossary->introformat =1;// 		<introformat>1</introformat>
-		$glossary->allowduplicatedentries =0;// 		<allowduplicatedentries>0</allowduplicatedentries>
-		$glossary->displayformat ="dictionary";// 		<displayformat>dictionary</displayformat>
-		$glossary->mainglossary =0;// 		<mainglossary>0</mainglossary>
-		$glossary->showspecial =1;// 		<showspecial>1</showspecial>
-		$glossary->showalphabet =1;// 		<showalphabet>1</showalphabet>
-		$glossary->showall =1;// 		<showall>1</showall>
-		$glossary->allowcomments =0;// 		<allowcomments>0</allowcomments>
-		$glossary->allowprintview =1;// 		<allowprintview>1</allowprintview>
-		$glossary->usedynalink =1;// 		<usedynalink>1</usedynalink>
-		$glossary->defaultapproval =1;// 		<defaultapproval>1</defaultapproval>
-		$glossary->globalglossary =0;// 		<globalglossary>0</globalglossary>
-		$glossary->entbypage =10;// 		<entbypage>10</entbypage>
-		$glossary->editalways =0;// 		<editalways>0</editalways>
-		$glossary->rsstype =0;// 		<rsstype>0</rsstype>
-		$glossary->rssarticles =0;// 		<rssarticles>0</rssarticles>
-		$glossary->assessed =0;// 		<assessed>0</assessed>
-		$glossary->assesstimestart =0;// 		<assesstimestart>0</assesstimestart>
-		$glossary->assesstimefinish =0;// 		<assesstimefinish>0</assesstimefinish>
-		$glossary->scale =0;// 		<scale>0</scale>
-		$glossary->timecreated =time();// 		<timecreated>1390818670</timecreated>
-		$glossary->timemodified =time();// 		<timemodified>1390818670</timemodified>
-		$glossary->completionentries =0;// 		<completionentries>0</completionentries>
-		
-		$entry1 = new Entry();
-		$entry1->id=1;// 		id="1">
-		$entry1->userid=2;// 		<userid>2</userid>
-		$entry1->concept="Entry1";// 		<concept>Entry1</concept>
-		$entry1->definition="Entry 1 of glossary";// 		<definition>&lt;p&gt;Entry 1 of glossary&lt;/p&gt;</definition>
-		$entry1->definitionformat=1;// 		<definitionformat>1</definitionformat>
-		$entry1->definitiontrust=0;// 		<definitiontrust>0</definitiontrust>
-		$entry1->attachment=1;// 		<attachment>1</attachment>
-		$entry1->timecreated=time();// 		<timecreated>1390818856</timecreated>
-		$entry1->timemodified=time();// 		<timemodified>1390818883</timemodified>
-		$entry1->teacherentry=1;// 		<teacherentry>1</teacherentry>
-		$entry1->sourceglossaryid=0;// 		<sourceglossaryid>0</sourceglossaryid>
-		$entry1->usedynalink=0;// 		<usedynalink>0</usedynalink>
-		$entry1->casesensitive=0;// 		<casesensitive>0</casesensitive>
-		$entry1->fullmatch=1;// 		<fullmatch>0</fullmatch>
-		$entry1->approved=1;// 		<approved>1</approved>
-		
-		$alias = new Alias(1,"test");
-		$entry1->aliases[]=$alias;
-		
-		$this->addFileGlossaryFile();
-		
-		
-		$entry2 = new Entry();
-		$entry2->id=2;
-		$entry2->userid=2;
-		$entry2->concept="Second entry";
-		$entry2->definition="Ma deuxieme entree";
-		$entry2->definitionformat=1;
-		$entry2->definitiontrust=0;
-		$entry2->attachment="";
-		$entry2->timecreated=time();
-		$entry2->timemodified=time();
-		$entry2->teacherentry=1;
-		$entry2->sourceglossaryid=0;
-		$entry2->usedynalink=1;
-		$entry2->casesensitive=0;
-		$entry2->fullmatch=0;
-		$entry2->approved=1;
-		
-		$alias = new Alias(2,"Second");
-		$entry2->aliases[]=$alias;
-		
-		$entry3 = new Entry();
-		$entry3->id=3;
-		$entry3->userid=2;
-		$entry3->concept="Entry 3";
-		$entry3->definition="Entry 3 description";
-		$entry3->definitionformat=1;
-		$entry3->definitiontrust=0;
-		$entry3->attachment="";
-		$entry3->timecreated=time();
-		$entry3->timemodified=time();
-		$entry3->teacherentry=1;
-		$entry3->sourceglossaryid=0;
-		$entry3->usedynalink=1;
-		$entry3->casesensitive=0;
-		$entry3->fullmatch=0;
-		$entry3->approved=1;
-		
-		$alias = new Alias(3,"Entry3");
-		$entry3->aliases[]=$alias;
-		
-		$glossary->entries[]=$entry1;
-		$glossary->entries[]=$entry2;
-		$glossary->entries[]=$entry3;
-		
-		$glossary->filesIds[]="101";
-		$glossary->filesIds[]="102";
-		
-		
-		return $glossary;
-	}
-	
 	
 	/**
 	 * @return Module
@@ -1195,9 +1022,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->groups->toXMLFile($repository);
 		$this->outcomes->toXMLFile($repository);
 		$this->scales->toXMLFile($repository);
-		$this->rapportMigration->toXMLFILE($repository.'/..',$this->learningContextId,
-				"cour" , "cour"   );
-		
+		$this->rapportMigration->toXMLFile($repository.'/..',$this->learningContextId);
 		
 		
 		//COURSE REPOSITORY

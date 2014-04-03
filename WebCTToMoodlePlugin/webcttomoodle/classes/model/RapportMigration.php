@@ -1,39 +1,137 @@
 <?php
 class RapportMigration {
-	 const QUESTION_TROP_LONGUE = "Question trop longue donc limité à 255 caratéres </br>";
-	 const QUESTION_REMPLACE_CLOZE = "La question courte a été transformée en question CLOZE.Attention du code javascript
-	 	 a été rajouté à la fin de la description de la question afin que les champs de textes ont la même taille. </br>";
-	 const QUESTION_REPONCE_EVALUE_REGEX = "Une réponse est évaluée à l'aide d'une expression réguliére";
-	 const QUESTION_REPONCE_VIDE = "Une réponse n'a pas été prise en compte parce qu'elle était vide.";
-	 const QUESTION_PROBLEME_PONDERATION = "Probléme de pondération rencontré.";
-	 const QUESTION_TAILLE_LIMITE = "La taille maximale des champs de texte a été limité à 500 malgré le fait
-     						 que certaines réponses prennent plus de place.";
-	 const QUESTION_APERCU_COLONNE = "L'aperçu des colonnes a été supprimé et réintégré directement dans les réponses.";
-	 const QUESTION_REPONCE_MANQUANT = "Réponce manquante alors le texte 'aucune correspondance' a été rajouté.";
-	 const QUESTION_NOMBRE_LIGNE = "Seul le nombre de lignes a pu être pris en compte pour ce type de question.";
-	 const QUESTION_TOLERANCE = "La tolérance a été mis en %.</br> Type tolérance:";
-	 const QUESTION_PRECISION = "La précision a été mise en chiffres significatifs.</br> Type précision:" ;
-	 const QUESTION_FORMULE = "Formule WEBCT :";
-	 const QUESTION_REPONCE_ALTERNATIVE = "Les réponses alternatives n'ont pas pu être reprises";
-	 const QUESTION_SCORE_MAXIMUM_INCONNU = "Pas de score maximum trouvé. Le grade a été mis à 0.";
-	 const QUESTION_WITHOUT_CONTENT = "Question sans contenu dans la base </br>";
+	
+	//ELEMENT TYPE
+	const TYPE_GLOSSARY="GLOSSARY";
+	const TYPE_EVALUATION="EVALUATION";
+	const TYPE_QUESTION="QUESTION";
+	const TYPE_ASSIGNMENT="ASSIGNMENT";
+	const TYPE_FILES="FILES";
+	const TYPE_PROGRAM="PROGRAM";
+	const TYPE_WEB_LINK="WEB_LINK";
+	const TYPE_CHAT="CHAT";
+	const TYPE_LEARN_MODULE="LEARN MODULE";
+	const TYPE_COURSE_CONTENT="COURSE_CONTENT";
+	const TYPE_FORUM="FORUM";	
+	
+	//CODE + DESCRIPTION		
+	const GLOSSARY_COUNT ="GLOSSARY_COUNT";
+	const GLOSSARY_ENTRIES_COUNT = "GLOSSARY_ENTRIES_COUNT";
+	const GLOSSARY_EMPTY_NOT_MIGRATED = "GLOSSARY_EMPTY_NOT_MIGRATED";
+		
+	const EVALUATION_COUNT = "EVALUATION_COUNT";
+	const EVALUATION_QUESTIONS_COUNT = "EVALUATION_QUESTIONS_COUNT";
+	const EVALUATION_NO_MAX_SCORE = "EVALUATION_NO_MAX_SCORE";
+		
+	const QUESTION_COUNT = "QUESTION_COUNT";
+	const QUESTION_NOT_MIGRATED = "QUESTION_NOT_MIGRATED";
+	const QUESTION_NAME_TO_LONG = "QUESTION_NAME_TO_LONG";
+	const QUESTION_TRANSFORM_TO_CLOZE = "QUESTION_TRANSFORM_TO_CLOZE";
+	const QUESTION_ANSWER_EVALUATE_BY_REGEX = "QUESTION_ANSWER_EVALUATE_BY_REGEX";
+	const QUESTION_ANSWER_VALIDITY = "QUESTION_ANSWER_VALIDITY";
+	const QUESTION_EMPTY_ANSWER = "QUESTION_EMPTY_ANSWER";
+	const QUESTION_GRADE_ERROR = "QUESTION_GRADE_ERROR";
+	const QUESTION_LIMIT_SIZE = "QUESTION_LIMIT_SIZE";	 
+	const QUESTION_COLUMN_PREVIEW = "QUESTION_COLUMN_PREVIEW";
+	const QUESTION_MISSING_ANSWER = "QUESTION_MISSING_ANSWER";
+	const QUESTION_LINE_NUMBER = "QUESTION_LINE_NUMBER";
+	const QUESTION_TOLERANCE = "QUESTION_TOLERANCE";
+	const QUESTION_PRECISION = "QUESTION_PRECISION";
+	const QUESTION_FORMULA = "QUESTION_FORMULA";
+	const QUESTION_ALTER_ANSWER_NOT_TAKEN = "QUESTION_ALTER_ANSWER_NOT_TAKEN";
+	const QUESTION_NO_MAX_SCORE_FOUND = "QUESTION_NO_MAX_SCORE_FOUND";
+	const QUESTION_WITHOUT_CONTENT = "QUESTION_WITHOUT_CONTENT";
+	const QUESTION_GRADING_SCHEME_CONVERTED = "QUESTION_GRADING_SCHEME_CONVERTED";
 	 
-	 const PROGRAMME_INCOHERENCE_BD = "Incohérence dans la base de donnée.";
-	 const PROGRAMME_SEULEMENT_FORMATEUR = "Seulement des formateurs donc pas de création du programme";
+	const ASSIGNMENT_COUNT = "ASSIGNMENT_COUNT";
+	const ASSIGNMENT_RETRIEVED = "ASSIGNMENT_RETRIEVED";
 	 
-	 const MODULE_APPRENT_TYPE_BOOK = "Module d'apprentissage récupéré sous forme de BOOK";
-	 const MODULE_APPRENT_TYPE_REPERTOIRE = "Module d'apprentissage récupéré sous forme de répertoire";
-	 const MODULE_APPRENT_TYPE_LIEN = "Le module d'apprentissage possède un lien d'action vers ";
+	const PROGRAM_MIGRATED = "PROGRAM_MIGRATED";
+	const PROGRAM_BD_INCONSISTENCY = "PROGRAM_BD_INCONSISTENCY";
+	const PROGRAM_ONLY_FORMATORS = "PROGRAM_ONLY_FORMATORS";
 	 
-	 const COURSE_CONTENT_NON_TROUVE = "Module non trouvé <br/>";
-	 const COURSE_CONTENT_NON_RECUPERE = "Cet élément n\'a pas pu être migré -->";
-	 const COURSE_CONTENT_REP_FICHIER = "a été migré comme réperoire de fichiers";
-	 const COURSE_CONTENT_REP_NON_RECUPERER = "Contenu du répertoire n\'a pas pu être migré.";
+	const LEARN_MODULE_COUNT = "LEARN_MODULE_COUNT";
+	const LEARN_MODULE_AS_BOOK = "LEARN_MODULE_AS_BOOK";
+	const LEARN_MODULE_AS_FOLDER = "LEARN_MODULE_AS_FOLDER";
+	const LEARN_MODULE_WITH_ACTION_LINK = "LEARN_MODULE_WITH_ACTION_LINK";
+	const LEARN_MODULE_RETRIEVED = "LEARN_MODULE_RETRIEVED";	 
 	 
-	 const FILE_NON_RECUPERE = "Le fichier avec l'id -->";
+	const COURSE_CONTENT_NOT_FOUND = "COURSE_CONTENT_NOT_FOUND";
+	const COURSE_CONTENT_NOT_MIGRATED = "COURSE_CONTENT_NOT_MIGRATED";
+	const COURSE_CONTENT_AS_FOLDER = "COURSE_CONTENT_AS_FOLDER";
+	const COURSE_CONTENT_SECTION_NAME_LIMITED = "COURSE_CONTENT_SECTION_NAME_LIMITED";
 	 
-	 const FORUM_NON_RECUPERE = "Le forum n'est pas récupéré parce qu'il est vide";
+	const FILE_MIGRATED = "FILE_MIGRATED";
+	const FILE_NOT_MIGRATED = "FILE_NOT_MIGRATED";
 	 
+	const WEB_LINK_COUNT="WEB_LINK_COUNT";
+	const WEB_LINK_CATEGORY_COUNT = "WEB_LINK_CATEGORY_COUNT";
+	 
+	const FORUM_NOT_MIGRATED = "FORUM_NOT_MIGRATED";
+	 
+	const CHAT_MIGRATED = "CHAT_MIGRATED";
+
+		
+	protected $xmlElements = array(
+			RapportMigration::GLOSSARY_ENTRIES_COUNT=>"Nombre d'entrées récupérées.",
+	 		RapportMigration::GLOSSARY_EMPTY_NOT_MIGRATED=>"Glossaire par défaut vide et donc non migré.",
+	 		
+	 		RapportMigration::QUESTION_NOT_MIGRATED=>"Question non migrée.",
+	 		RapportMigration::QUESTION_NAME_TO_LONG=>"Question trop longue donc limité à 255 caratéres",
+	 		RapportMigration::QUESTION_TRANSFORM_TO_CLOZE=>"La question courte a été transformée en question CLOZE.Attention du code javascript a été rajouté à la fin de la description de la question afin que les champs de textes ont la même taille.",
+	 		RapportMigration::QUESTION_ANSWER_EVALUATE_BY_REGEX=>"Une réponse est évaluée à l'aide d'une expression réguliére",
+	 		RapportMigration::QUESTION_EMPTY_ANSWER=>"Une réponse n'a pas été prise en compte parce qu'elle était vide.",
+	 		RapportMigration::QUESTION_ANSWER_VALIDITY=>"Validité de la réponse",
+	 		RapportMigration::QUESTION_GRADE_ERROR=>"Probléme de pondération rencontré.",
+	 		RapportMigration::QUESTION_LIMIT_SIZE=>"La taille maximale des champs de texte a été limité à 500 malgré le fait
+     						 						que certaines réponses prennent plus de place.",
+	 		RapportMigration::QUESTION_COLUMN_PREVIEW=>"L'aperçu des colonnes a été supprimé et réintégré directement dans les réponses.",
+	 		RapportMigration::QUESTION_MISSING_ANSWER=>"Réponce manquante alors le texte 'aucune correspondance' a été rajouté.",
+	 		RapportMigration::QUESTION_LINE_NUMBER=>"Seul le nombre de lignes a pu être pris en compte pour ce type de question.",
+	 		RapportMigration::QUESTION_TOLERANCE=> "La tolérance a été mise en %.",
+	 		RapportMigration::QUESTION_PRECISION=>"La précision a été mise en chiffres significatifs." ,
+	 		RapportMigration::QUESTION_FORMULA=> "Formule transformée.",
+	 		RapportMigration::QUESTION_ALTER_ANSWER_NOT_TAKEN=> "Les réponses alternatives n'ont pas pu être reprises.",
+	 		RapportMigration::QUESTION_NO_MAX_SCORE_FOUND=>"Pas de score maximum trouvé. Le grade a été mis à 0.",
+	 		RapportMigration::QUESTION_WITHOUT_CONTENT=>"Question sans contenu dans la base.",
+	 		RapportMigration::QUESTION_GRADING_SCHEME_CONVERTED=>"Barème de notation converti.",
+	 		
+	 		RapportMigration::EVALUATION_QUESTIONS_COUNT=>"Nombre de questions dans le quiz.",
+	 		RapportMigration::EVALUATION_NO_MAX_SCORE=>"Pas de score maximum trouvé.",
+
+	 			 		
+	 		RapportMigration::PROGRAM_BD_INCONSISTENCY=>"Incohérence dans la base de donnée.",
+	 		RapportMigration::PROGRAM_ONLY_FORMATORS=>"Seulement des formateurs donc pas de création du programme",
+
+	 		RapportMigration::LEARN_MODULE_AS_BOOK=>"Module d'apprentissage récupéré sous forme de BOOK",
+	 		RapportMigration::LEARN_MODULE_AS_FOLDER=>"Module d'apprentissage récupéré sous forme de répertoire",	 		
+	 		RapportMigration::LEARN_MODULE_WITH_ACTION_LINK=>"Le module d'apprentissage possède un lien d'action vers ",
+	 		
+	 		RapportMigration::COURSE_CONTENT_NOT_FOUND=>"Module non trouvé.",
+	 		RapportMigration::COURSE_CONTENT_NOT_MIGRATED=>"Cet élément n'a pas pu être migré.",
+	 		RapportMigration::COURSE_CONTENT_AS_FOLDER=>"La section de contenu a été migré comme réperoire de fichiers",
+	 		RapportMigration::COURSE_CONTENT_SECTION_NAME_LIMITED=>"Le nom de la section a été limité.",
+	 		
+			RapportMigration::FILE_NOT_MIGRATED=>"Le fichier n'a pas été migré",
+			
+	 		RapportMigration::FORUM_NOT_MIGRATED=> "Le forum n'est pas récupéré parce qu'il est vide",
+
+	 		RapportMigration::WEB_LINK_CATEGORY_COUNT=> "Nombre de catégorie liens web",
+			
+			//RapportMigration::CHAT_MIGRATED=> "Discussions migrées",
+	 );
+	 
+
+	//GLOBAL COUNTER
+	public $glossariesCount=0;
+	public $questionsCount=0;
+	public $evaluationsCount=0;
+	public $filesCount=0;
+	public $assignmentsCount=0;
+	public $webLinksCount=0;
+	public $learningModulesCount=0;
+	
+	
 	/**
 	 * @var Array d'InfoRapport
 	 */
@@ -107,7 +205,10 @@ class RapportMigration {
 	private $tabType;
 	
 	//Contient toute les message d'erreur avec le code erreur
-	private $tabErreur;
+	/**
+	 * @var Array|InfoRapport
+	 */
+	private $errorTables = array();
 	/**
 	 * Contiendra les différents code d'erreur qu'un élément.
 	 * @var Array 
@@ -127,12 +228,25 @@ class RapportMigration {
 		$this->learningModules = array();
 		$this->courseContent = array();
 		$this->forum = array();
-		$this->tabType = array("glossaire" ,"evaluation" , "tache","gestionnaireFichier","programme","lienWeb","discussion",
-		 "question","learningModules","courseContent","forum");
+		$this->tabType = array(RapportMigration::TYPE_GLOSSARY,
+				RapportMigration::TYPE_EVALUATION,
+				RapportMigration::TYPE_ASSIGNMENT,
+				RapportMigration::TYPE_FILES,
+				RapportMigration::TYPE_PROGRAM,
+				RapportMigration::TYPE_WEB_LINK,
+				RapportMigration::TYPE_CHAT,
+				RapportMigration::TYPE_QUESTION,
+				RapportMigration::TYPE_LEARN_MODULE,
+				RapportMigration::TYPE_COURSE_CONTENT,
+				RapportMigration::TYPE_FORUM);
+		
 		$this->tabErreur = array_change_key_case($this->getClassConstants());
 		
 		
 	}
+	
+	
+	
 	/**
 	 * MODE - glossaire
 	 * MODE - evaluation
@@ -143,19 +257,24 @@ class RapportMigration {
 	 * MODE - discussion
 	 * MODE - question
 	 */
-	public function add($mode,$id , $nomFichier , $rem , $nbElm ){
-		switch ($mode){
-			case "glossaire" : $this->glossaire[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "evaluation" : $this->evaluation[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "gestionnaireFichier" : $this->gestionnaireFichier[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "programme" : $this->programme[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "lienWeb" : $this->lienWeb[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "discussion" : $this->discussion[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "question" : $this->question[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "tache" : $this->tache[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "learningModules" : $this->learningModules[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "courseContent" : $this->courseContent[] = new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
-			case "forum" : $this->forum[]= new InfoRapport($id, $nomFichier, $rem, $nbElm); break;
+	public function add($elementType, $code , $elementId , $elementName , $note="" , $nbElm=0){
+		
+		$info = new InfoRapport($elementType, $code , $elementId , $elementName , $note, $nbElm);
+		
+		$this->errorTables[hash("md5", $elementType.$code.$elementId.$elementName.$note)] = $info; 
+		
+		switch ($elementType){
+			case RapportMigration::TYPE_GLOSSARY : $this->glossaire[hash("md5", $elementType.$code.$elementId.$elementName.$note)] = $info; break;
+			case RapportMigration::TYPE_EVALUATION : $this->evaluation[hash("md5", $elementType.$code.$elementId.$elementName.$note)] = $info; break;
+			case RapportMigration::TYPE_FILES : $this->gestionnaireFichier[hash("md5", $elementType.$code.$elementId.$elementName.$note)] = $info; break;
+			case RapportMigration::TYPE_PROGRAM : $this->programme[hash("md5", $elementType.$code.$elementId.$elementName.$note)] = $info; break;
+			case RapportMigration::TYPE_WEB_LINK : $this->lienWeb[hash("md5", $elementType.$code.$elementId.$elementName.$note)] = $info; break;
+			case RapportMigration::TYPE_CHAT : $this->discussion[hash("md5", $elementType.$code.$elementId.$elementName.$note)] = $info; break;
+			case RapportMigration::TYPE_QUESTION : $this->question[hash("md5", $elementType.$code.$elementId.$elementName.$note)] = $info; break;
+			case RapportMigration::TYPE_ASSIGNMENT : $this->tache[hash("md5", $elementType.$code.$elementId.$elementName.$note)] = $info; break;
+			case RapportMigration::TYPE_LEARN_MODULE : $this->learningModules[hash("md5", $elementType.$code.$elementId.$elementName.$note)] = $info; break;
+			case RapportMigration::TYPE_COURSE_CONTENT : $this->courseContent[hash("md5", $elementType.$code.$elementId.$elementName.$note)] = $info; break;
+			case RapportMigration::TYPE_FORUM : $this->forum[hash("md5", $elementType.$code.$elementId.$elementName.$note)]= $info; break;
 		}
 	}
 	
@@ -169,35 +288,37 @@ class RapportMigration {
 		$writer = new XMLWriter();
 		// Dans le cas où le nom de fichier est incorrecte , le shortName est remplacé par le learningContextId
 		if(!$writer->openURI($fichier)){
-			$this->nomFichier = 'rapportMigration_'. $learningContext .'.xml' ;
+			$this->nomFichier = 'ZZZ_Migration_Report_'.$this->shortName._.time().'.xml' ;
 			$writer->openURI($repository.'/'.$this->nomFichier);
 		}
 		$writer->startDocument('1.0','UTF-8');
 		$writer->setIndent(true);
-		$writer->startElement('cour');
-		$writer->writeAttribute('learningContextId','.'.(string)$learningContext);
-		$writer->writeAttribute('Categorie',$this->categorieCour);
-		$writer->writeAttribute('fullName',$this->fullName);
-		$writer->writeAttribute('shortName',$this->shortName);	
-		foreach ($this->tabType as $type){
-			if(property_exists($this , $type)){
-				foreach ($this->$type as $element){
-					$this->fillCodeErreur($element->rem);
-					foreach ($this->codeErreur as $erreur){
-						$writer->startElement('type');
-						$writer->writeAttribute('id','.'.(string)$element->id);
-						$writer->writeAttribute('nomType',$type);
-						$writer->writeElement('titre',$element->nomFichier);
-						$writer->writeElement('codeRemarque',$erreur);
-						$writer->writeElement('remarque',$element->rem);
-						$writer->writeElement('nombreElement',$element->nbElem);
-						$writer->endElement();
-					}
-					unset($this->codeErreur);
-					$this->codeErreur = array();
-				}
-			}else{
-				echo '</br> Probléme xmlFile Rapport : ' . $type . '</br>';
+		$writer->startElement('Course');
+		$writer->writeAttribute('Course_Category',utf8_encode($this->categorieCour));
+		$writer->writeAttribute('Course_Name',utf8_encode($this->fullName));
+		$writer->writeAttribute('Course_ShortName',$this->shortName);	
+		$writer->writeAttribute('Course_LCID'," ".$learningContext);
+
+		//Global counter
+		$writer->writeAttribute('Glossaries_Count',$this->glossariesCount);
+		$writer->writeAttribute('Questions_Count',$this->questionsCount);
+		$writer->writeAttribute('Evaluations_Count',$this->evaluationsCount);
+		$writer->writeAttribute('Files_Count',$this->filesCount);
+		$writer->writeAttribute('Assignments_Count',$this->assignmentsCount);
+		$writer->writeAttribute('WebLinks_Count',$this->webLinksCount);
+		$writer->writeAttribute('LM_Count',$this->learningModulesCount);
+		
+		foreach ($this->errorTables as $error){
+			
+			if(isset($this->xmlElements[$error->code])){
+				$writer->startElement('Error');
+					$writer->writeAttribute('Error_Type',$error->type);
+					$writer->writeAttribute('Error_Code',$error->code);
+					$writer->writeAttribute('Error_Element_Name',utf8_encode($error->nomFichier));
+					$writer->writeAttribute('Error_Note',utf8_encode($error->rem));
+					$writer->writeAttribute('Error_WebCT_Id'," ".$error->id);
+					$writer->writeAttribute('Error_Description',utf8_encode($this->xmlElements[$error->code]));
+				$writer->endElement();
 			}
 		}
 		$writer->endElement();
@@ -223,19 +344,19 @@ class RapportMigration {
 	public function toHtml(){
 		$html .=
 		$html = $this->style();
-		$html = $html . "<body><div class=\"panel-group\" id=\"accordion\">";
-		$html = $html . $this->createSection("Glossaire", $this->glossaire);
-		$html = $html . $this->createSection("Gestionnaire_de_fichier", $this->gestionnaireFichier);
-		$html = $html . $this->createSection("Programme", $this->programme);
-		$html = $html . $this->createSection("Liens_web", $this->lienWeb);
-		$html = $html . $this->createSection("Discussion", $this->discussion);
-		$html = $html . $this->createSection("Evaluation", $this->evaluation);
-		$html = $html . $this->createSection("Question", $this->question);
-		$html = $html . $this->createSection("Tache", $this->tache);
-		$html = $html . $this->createSection("Module_Apprentissage", $this->learningModules);		
-		$html = $html . $this->createSection("Forum", $this->forum);
+		$html .= "<body><div class=\"panel-group\" id=\"accordion\">";
+		$html .= $this->createSection(RapportMigration::TYPE_EVALUATION,"Évaluations", $this->evaluation);
+		$html .= $this->createSection(RapportMigration::TYPE_QUESTION,"Questions", $this->question);
+		$html .= $this->createSection(RapportMigration::TYPE_ASSIGNMENT,"Tâches", $this->tache);
+		$html .= $this->createSection(RapportMigration::TYPE_LEARN_MODULE,"Modules d'apprentissage", $this->learningModules);		
+		$html .= $this->createSection(RapportMigration::TYPE_GLOSSARY,"Glossaires", $this->glossaire);
+		$html .= $this->createSection(RapportMigration::TYPE_FILES,"Gestionnaire de fichiers", $this->gestionnaireFichier);
+		$html .= $this->createSection(RapportMigration::TYPE_WEB_LINK,"Liens web", $this->lienWeb);
+		$html .= $this->createSection(RapportMigration::TYPE_CHAT,"Discussions", $this->discussion);
+		$html .= $this->createSection(RapportMigration::TYPE_PROGRAM,"Programme", $this->programme);
+		$html .= $this->createSection(RapportMigration::TYPE_FORUM,"Forum", $this->forum);
 		
-		$html = $html . "
+		$html .= "
 				</div>
 				<div class=\"cacherImprimer\">
 				    <input type=\"button\" name=\"imprimer\" value=\"imprimer\" onclick=\"self.location.href='javascript:window.print()'\"> 
@@ -253,7 +374,7 @@ class RapportMigration {
 	 * @param String $mode Nom de la section
 	 * @param array $array Tableau qui contient les informations lié à la section.
 	 */
-	private function createSection($mode , $array){
+	private function createSection($mode,$name, $array){
 		$content = "<table class=\"table table-striped\"> 
 							<thead>
        						   <tr>
@@ -287,7 +408,7 @@ class RapportMigration {
 				    <div class="panel-heading">
 				      <h4 class="panel-title">
 				        <a data-toggle="collapse" data-parent="#accordion" href="#' . $mode  . '">
-				            ' . $mode  . '( ' .count($array) . utf8_encode(" éléments récupérés") . ' ) (
+				            ' . utf8_encode($name)  . '( ' .count($array) . utf8_encode(" éléments récupérés") . ' ) (
 				            		'. $nombreRem . utf8_encode(" remarques") . ' )
 				        </a>
 				      </h4>
@@ -395,17 +516,23 @@ body{
 }
 
 class InfoRapport {
+
+	public $type;
+	public $code;
+	
 	public $id;
 	public $nomFichier;
 	public $rem;
 	public $nbElem;
-
 	
-	function __construct($id , $nomFichier , $rem , $nbElm){
-		$this->id = $id;
-		$this->nomFichier = $nomFichier;
-		$this->rem = $rem;
+	function __construct($elementType, $code , $elementId , $elementName , $note="" , $nbElm=0){
+		$this->id = $elementId;
+		$this->nomFichier = $elementName;
+		$this->rem = $note;
 		$this->nbElem  = $nbElm;
+
+		$this->type=$elementType;
+		$this->code=$code;
 	}
 	
 	public function toString(){
