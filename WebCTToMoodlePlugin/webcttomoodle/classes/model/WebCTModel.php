@@ -24,12 +24,12 @@ class WebCTModel extends \GlobalModel {
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
 		$progression = 100/($nbElemRec*12);
 		
-   		$this->retrieveGlossaries();
+   		//$this->retrieveGlossaries();
 		echo " Glossaires " . utf8_encode("récupérés");
 		$indice += $progression;
 		$this->progression($indice);		
    		
-   		$this->retrieveQuestions();	
+   	//	$this->retrieveQuestions();	
    		echo " Questions " . utf8_encode("récupérées");
    		$indice += $progression;
    		$this->progression($indice);
@@ -38,28 +38,28 @@ class WebCTModel extends \GlobalModel {
 // 			error_log($key.'-->'.$value->name.'<br/>');
 // 		} 		
    		
-   		$this->retrieveQuizzes();
+   	//	$this->retrieveQuizzes();
    		echo " Evaluations " . utf8_encode("récupérées");
    		$indice += $progression;
    		$this->progression($indice);
 		
-     	$this->retrieveAssignments();
+     //	$this->retrieveAssignments();
      	echo " Taches " . utf8_encode("récupérées");
      	$indice += $progression;
      	$this->progression($indice);
 
-		$this->retrieveFolders();
+	//	$this->retrieveFolders();
      	echo " Folder " . utf8_encode("récupéré");
      	$indice += $progression;
      	$this->progression($indice);
 
 		
-    	$this->retrieveWebLinks();
+   // 	$this->retrieveWebLinks();
     	echo " WebLinks " . utf8_encode("récupérés");
     	$indice += $progression;
     	$this->progression($indice);
 
-     	$this->retrieveSyllabus();
+    // 	$this->retrieveSyllabus();
      	echo " Syllabus " . utf8_encode("récupéré");
      	$indice += $progression;
      	$this->progression($indice);
@@ -74,12 +74,12 @@ class WebCTModel extends \GlobalModel {
     	$indice += $progression;
     	$this->progression($indice);
 
-		$this->retrieveLearningModules();
+	//	$this->retrieveLearningModules();
 		echo "Learning Modules " . utf8_encode("récupérés");
 		$indice += $progression;
 		$this->progression($indice);
 		
- 		$this->retrieveCourseContent();
+ 	//	$this->retrieveCourseContent();
  		echo " Course Content " . utf8_encode("récupéré");
  		$indice += $progression;
  		$this->progression($indice);
@@ -5785,14 +5785,16 @@ private function createFichierAssocie($contextid, $path, &$filesIds , $fileGroup
 	
 
 	private function creationTableMatiere($nameTopic){
+		
 		$request = "Select cm2.NAME as NAME_CATEGORIE , cm1.NAME as NAME_TOPIC, msg.ROOT_MESSAGE_ID , msg.SUBJECT
 				from CMS_CONTENT_ENTRY cm1
 				JOIN CMS_CONTENT_ENTRY cm2 on cm2.ID = cm1.PARENT_ID
 				JOIN DIS_MESSAGE msg on msg.TOPIC_ID = cm1.ID
 				WHERE cm1.DELIVERY_CONTEXT_ID = '" . $this->deliveryContextId . "' and
-						cm1.NAME = '" .$nameTopic. "' and cm1.CE_TYPE_NAME = 'DISCUSSION_TOPIC_TYPE' 
+						cm1.NAME = :nameTopic and cm1.CE_TYPE_NAME = 'DISCUSSION_TOPIC_TYPE' 
 				order by NAME_CATEGORIE , NAME_TOPIC , msg.ROOT_MESSAGE_ID, msg.POSTDATE";
 		$stid = oci_parse ( $this->connection, $request );
+		oci_bind_by_name($stid, ":nameTopic", $nameTopic);
 		oci_execute ( $stid );
 		$rootMsgId = "";
 		$content = "<h2> Table des matières </h2> <ul>";
