@@ -4886,7 +4886,7 @@ class WebCTModel extends \GlobalModel {
 			 	
 				$nomFichier = $res["NAME_TOPIC"];
 				$content = $content . '<body> ';
-				$content = $content . '<h1 style="text-align:center">'. $nomFichier . '</h1>';
+				$content = $content . '<h1 style="text-align:center">'. utf8_decode($nomFichier) . '</h1>';
 				$content = $content . $this->creationTableMatiere($nomFichier);
 				$file = $this->createFichierInterne($nomFichier,$contextid ,$path );
 				$nbObject = 0;
@@ -4895,7 +4895,7 @@ class WebCTModel extends \GlobalModel {
 			if($rootId != $res["ROOT_MESSAGE_ID"]){
 				$nbObject++;
 				$rootId = $res["ROOT_MESSAGE_ID"];
-				$content = $content . '<h3 id ="' . $res["SUBJECT"] . '" > ' . $res["SUBJECT"] . ':</h3>';
+				$content = $content . '<h3 id ="' . utf8_decode($res["SUBJECT"]) . '" > ' . utf8_decode($res["SUBJECT"]) . ':</h3>';
 			}
 			
 			$message = $res["SHORT_MESSAGE"];
@@ -4918,10 +4918,10 @@ class WebCTModel extends \GlobalModel {
   							<table width="100%" cellspacing="0" summary="">
   								<tr>
   									<td width="50%"><strong>Objet :</strong>  ' .utf8_decode($res["SUBJECT"]) .'</td>
-  									<td width="50%" class="rightcolumn"><b>Thème :</b>  ' .$res["NAME_TOPIC"]. '</td>
+  									<td width="50%" class="rightcolumn"><b>Thème :</b>  ' . utf8_decode($res["NAME_TOPIC"]) . '</td>
   								</tr>
   								<tr>
-  									<td><b>Auteur :</b>  ' .$res["WEBCT_ID"] .'</td>
+  									<td><b>Auteur :</b>  ' .utf8_decode($res["WEBCT_ID"]) .'</td>
   									<td class="rightcolumn"><b>Date :</b>  ' .$date.' </td>
   								</tr>
  							 </table>
@@ -5801,7 +5801,7 @@ private function createFichierAssocie($contextid, $path, &$filesIds , $fileGroup
 		while($res = oci_fetch_array( $stid, OCI_ASSOC + OCI_RETURN_NULLS )){
 			if($rootMsgId != $res["ROOT_MESSAGE_ID"]){
 				$rootMsgId = $res["ROOT_MESSAGE_ID"];
-				$content = $content . "<li> <a href=\"#".$res["SUBJECT"] . "\"> " . $res["SUBJECT"] . "</a></li>";
+				$content = $content . "<li> <a href=\"#". utf8_decode($res["SUBJECT"]) . "\"> " . utf8_decode($res["SUBJECT"]) . "</a></li>";
 			}
 		}
 	
