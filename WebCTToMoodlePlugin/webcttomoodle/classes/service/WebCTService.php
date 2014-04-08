@@ -17,6 +17,9 @@ class WebCTService {
 	 */
 	public $settings;
 	
+	public $currentProgress = 0;
+	public $step = 1;
+	
 	
 	/**
 	 * @param string $learningContextId
@@ -92,6 +95,8 @@ class WebCTService {
 	public function restoreExistingCourse($shortName, $backupFile){
 		global $DB;
 		
+		$timestart=microtime(true);
+		
 		$course = $DB->get_record('course',array('shortname'=>$shortName));
 		if(!empty($course)){
 			echo 'Suppression du contenu du cours.... <br/>';			
@@ -115,10 +120,24 @@ class WebCTService {
 			ob_flush();
 			flush();
 		}
+		
+		$timeToRestore = floor(microtime(true) - $timestart);
+		$hour = floor($timeToRestore/3600);
+		$minute = floor(($timeToRestore - $hour*3600)/60);
+		$second = $timeToRestore - $hour*3600 - $minute*60;
+		
+		echo '<b>Temps de restauration = '.$hour.'h '.$minute.'min '.$second.'sec ('.$timeToRestore.'s) </b><br/><br/><br/>';
+		ob_flush();
+		flush();
+		error_log("COURS ".$shortName." restoré en ".$hour.'h '.$minute.'min '.$second.'sec ('.$timeToRestore.'s)');
+		
 	}
 
 	public function restoreNewCourse($shortName,$backupFile){
-	
+		error_log('Création d\'un nouveau cours....'.$shortName);
+		
+		$timestart=microtime(true);
+		
 		//New course in category "Miscellaneous"
 		echo utf8_encode('Création d\'un nouveau cours.... <br/>');
 		ob_flush();
@@ -137,6 +156,16 @@ class WebCTService {
 			ob_flush();
 			flush();
 		}
+		
+		$timeToRestore = floor(microtime(true) - $timestart);
+		$hour = floor($timeToRestore/3600);
+		$minute = floor(($timeToRestore - $hour*3600)/60);
+		$second = $timeToRestore - $hour*3600 - $minute*60;
+		
+		echo '<b>Temps de restauration = '.$hour.'h '.$minute.'min '.$second.'sec ('.$timeToRestore.'s) </b><br/><br/><br/>';
+		ob_flush();
+		flush();
+		error_log("COURS ".$shortName." restoré en ".$hour.'h '.$minute.'min '.$second.'sec ('.$timeToRestore.'s)');
 		
 	}
 	
@@ -191,11 +220,13 @@ class WebCTService {
 		$transaction = $DB->start_delegated_transaction();
 		
 		// Restore backup into course.
+		$logger = new WebCTServiceLogger($CFG->debugdeveloper ? backup::LOG_DEBUG : backup::LOG_INFO);
+		$progress = new WebCTServiceProgress($logger, $this->currentProgress, $this->step);
+		
 		$controller = new restore_controller($filepath, $courseId,
 				backup::INTERACTIVE_NO, backup::MODE_GENERAL, $USER->id,
-				$target);
+				$target,$progress);
 		
-		$logger = new WebCTServiceLogger($CFG->debugdeveloper ? backup::LOG_DEBUG : backup::LOG_INFO);
 		$controller->add_logger($logger);
 		
 		//$controller->get_logger()->set_next( new output_indented_logger(backup::LOG_INFO, true, true) );
@@ -234,13 +265,45 @@ class WebCTServiceLogger extends base_logger {
         $prefix = $this->get_prefix($level, $options);
         $depth = isset($options['depth']) ? $options['depth'] : 0;
         // Depending of running from browser/command line, format differently
-        if (defined('STDOUT')) {
-            echo $prefix . str_repeat('  ', $depth) . $message . PHP_EOL;
-        } else {
-            echo $prefix . str_repeat('&nbsp;&nbsp;', $depth) . htmlentities($message, ENT_QUOTES, 'UTF-8') . '<br/>' . PHP_EOL;
-        }
-        ob_flush();
-		flush();
+        error_log($prefix . str_repeat('  ', $depth) . $message);
+//      ob_flush();
+// 		flush();
         return true;
     }
+}
+
+class WebCTServiceProgress extends core_backup_progress {
+
+	/**
+	 * @var WebCTServiceLogger
+	 */
+	protected $logger;
+
+	protected $currentProgress;
+	protected $step;
+	
+	public function __construct($logger,$currentProgress=0, $step=1) {
+		$this->logger=$logger;
+
+		$this->currentProgress=$currentProgress;
+		$this->step = $step;
+	}
+	
+	public function update_progress() {
+		if($this->is_in_progress_section()){
+			$range = $this->get_progress_proportion_range();
+//			$this->logger->process($this->get_current_description().' ==> '.$range[0].'-'.$range[1], backup::LOG_DEBUG);
+			//$this->logger->process(var_dump(), backup::LOG_DEBUG);
+			
+			$progress = $this->currentProgress + $range[1]*100*$this->step;
+			
+			echo "<script>";
+			echo "document.getElementById('pourcentage').innerHTML='".$progress."%';";
+			echo "document.getElementById('barre').style.width='".$progress."%';";
+			echo "document.getElementById('progress_bar_description').innerHTML='".$this->get_current_description()."';";
+			echo "</script>";
+			//ob_flush();
+			flush();
+		}
+	}
 }

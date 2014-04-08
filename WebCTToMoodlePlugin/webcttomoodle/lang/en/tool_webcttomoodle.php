@@ -41,5 +41,6 @@ $string['no_directory'] = 'No repository';
 
 $string['restore_button'] = 'Restore';
 
+$string['userThreads'] = 'Use Threads';
 
 

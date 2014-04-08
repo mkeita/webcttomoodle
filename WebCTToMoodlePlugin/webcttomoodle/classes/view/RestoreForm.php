@@ -33,6 +33,8 @@ class RestoreForm extends moodleform {
 		
 		$mform->addElement('html', get_string("restore_instructions","tool_webcttomoodle"). '<br/>');
 		
+		$mform->addElement('checkbox', 'userThreads', get_string('userThreads', 'tool_webcttomoodle'));
+		$mform->setType('userThreads', PARAM_BOOL);
 		
 		if($this->migrationConnexion->protocol==0){
 			$sftp = new SFTPConnection($this->migrationConnexion->ip);

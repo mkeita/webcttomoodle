@@ -28,19 +28,65 @@ admin_externalpage_setup('toolwebcttomoodle');
 		//return "Fin aprï¿½s".$pParams->time ."secondes";
 	}
 }*/
-?>
-<div id="conteneur" style="display:none; background-color:transparent; position:absolute; top:100px; left:15%; z-index: 10 ;float:top ;clear:top ;clear:both; height:50px; width:70%; border:1px solid #000000;">
-	<div id="barre" style="display:block; background-color:rgba(132, 232, 104, 0.7); width:0%; height:100%;float:top;clear : top ;clear:both">
-		<div id="pourcentage" style="text-align:right; height:100%; font-size:1.8em;">
-			&nbsp;
-		</div>
-	</div>
-</div>
-<?php 
+
+// class RestoreNewThread extends Thread {
+
+// 	/**
+// 	 * @var WebCTService
+// 	 */
+// 	public $service;
+
+// 	public $value;
+// 	public $file;
+
+// 	public function __construct($service, $value, $file){
+// 		$this->service=$service;
+// 		$this->value=$value;
+// 		$this->file=$file;
+// 	}
+
+// 	public function run(){
+// 		$this->service->restoreNewCourse($this->value, $this->file);
+// 	}
+// }
+
+// class RestoreExistingThread extends Thread {
+
+// 	/**
+// 	 * @var WebCTService
+// 	 */
+// 	public $service;
+
+// 	public $value;
+// 	public $file;
+
+// 	public function __construct($service, $value, $file){
+// 		$this->service=$service;
+// 		$this->value=$value;
+// 		$this->file=$file;
+// 	}
+
+// 	public function run(){
+// 		$this->service->restoreExistingCourse($this->value, $this->file);
+// 	}
+// }
+
+$progressBar = 	'<div id="conteneur" style="display:none; background-color:transparent; width:80%; border:1px solid #000000;">
+					<div id="barre" style="display:block; background-color:rgba(132, 232, 104, 0.7); width:0%; height:100%;float:top;clear : top ;clear:both">
+						<div id="pourcentage" style="text-align:right; height:100%; font-size:1.8em;">
+							&nbsp;
+						</div>
+					</div>
+				</div>
+				<label id="progress_bar_description"></label>';
 
 $isBackup = optional_param('isBackup',false,PARAM_BOOL);
 $isRestore = optional_param('isRestore',false,PARAM_BOOL);
 $isConnexionSave = optional_param('isConnexionSave',false,PARAM_BOOL);
+
+$useThreads = optional_param('userThreads',false,PARAM_BOOL);
+
+//var_dump($useThreads);
 
 $learningContextIds = optional_param('learningContextIds', "", PARAM_TEXT);
 
@@ -111,6 +157,8 @@ if($isBackup){
 
 		echo $OUTPUT->header();
 		
+		echo $progressBar;
+		
 		$lcList = preg_split('/[\n]/', $learningContextIds);
 		//var_dump($lcList);
 		
@@ -152,43 +200,51 @@ if($isBackup){
 	//ON EFFECTUE LA RESTAURATION DES COURS...
 	echo $OUTPUT->header();
 	
+	echo $progressBar;
+	
 	$codes =json_decode(optional_param('codes', "", PARAM_TEXT),true);
 	
 	activerAffichage();
 	$nbElemRestore = count($codes);
 	
 	$indice =0;
+	
+	$webCTService->step = 1/$nbElemRestore;
 	foreach ($codes as $code=>$file){
+		
 		$value = optional_param($code, "", PARAM_TEXT);
 		progression($indice);
-		$indice += 100 /$nbElemRestore ;
 		if(empty($value)){
+			$indice += 100 /$nbElemRestore ;
 			continue;
 		}
+		$webCTService->currentProgress=$indice;
 		
-		$timestart=microtime(true);
 		if($value == "C"){
 			//CREE UN NOUVEAU COURS
 			echo utf8_encode('<b>Création du cours - '.$code.'</b><br/>');
 			ob_flush();
 			flush();
-			$webCTService->restoreNewCourse($value, $file);
+// 			if($useThreads==1){
+// 				$thread = new RestoreNewThread($webCTService, $value, $file);			
+// 				var_dump($thread->start());
+// 			}else {
+				$webCTService->restoreNewCourse($value, $file);
+//			}
 		}else{
 			//ON ECRASE LE COURS EXISTANT
 			echo '<b>Restauration du cours - '.$code.'</b><br/>';
 			ob_flush();
 			flush();
-			$webCTService->restoreExistingCourse($value, $file);
+// 			if($useThreads==1){
+// 				$thread = new RestoreExistingThread($webCTService, $value, $file);	
+// 				var_dump($thread->start());
+// 			}else {
+				$webCTService->restoreExistingCourse($value, $file);
+//			}
 		} 
-		$timeToRestore = floor(microtime(true) - $timestart);
-		$hour = floor($timeToRestore/3600);
-		$minute = floor(($timeToRestore - $hour*3600)/60);
-		$second = $timeToRestore - $hour*3600 - $minute*60;
 		
-		echo '<b>Temps de restauration = '.$hour.'h '.$minute.'min '.$second.'sec ('.$timeToRestore.'s) </b><br/><br/><br/>';
-		ob_flush();
-		flush();
-		error_log("COURS ".$code." restoré en ".$hour.'h '.$minute.'min '.$second.'sec ('.$timeToRestore.'s)');
+		$indice += 100 /$nbElemRestore ;		
 	}
 	progression($indice);
 	echo $OUTPUT->footer();
@@ -225,9 +281,11 @@ function activerAffichage(){
 	echo "<script>";
 	echo "document.getElementById('conteneur').style.display = \"block\";";
 	echo "</script>";
-	echo "</br> </br> </br>";
+	echo "<br/>";
 	ob_flush();
 	flush();
 }
+
+
 
 ?>
