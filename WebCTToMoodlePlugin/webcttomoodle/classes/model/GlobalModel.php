@@ -1191,11 +1191,36 @@ abstract class GlobalModel implements \IBackupModel {
 		$this->toXMLFile($this->repository);
 		
 		//zip the repertory to .mbz
-		$packer = get_file_packer('application/vnd.moodle.backup');
+//		$packer = get_file_packer('application/vnd.moodle.backup');
 		
+//		$archiveName = $directory."/".$this->moodle_backup->name;
+		
+//		$packer->archive_to_pathname(array(null=>$this->repository), $archiveName);
+
+		$basepath = $this->repository;
+		
+		// Get the list of files in directory
+		$filestemp = get_directory_list($basepath, '', false, true, true);
+		$files = array();
+		foreach ($filestemp as $file) { // Add zip paths and fs paths to all them
+			$files[$file] = $basepath . '/' . $file;
+		}
+		
+		// Add the log file if exists
+		$logfilepath = $basepath . '.log';
+		if (file_exists($logfilepath)) {
+			$files['moodle_backup.log'] = $logfilepath;
+		}
+		
+		// Calculate the zip fullpath (in OS temp area it's always backup.mbz)
+		//$zipfile = $directory."/".$this->moodle_backup->name;//$basepath . '/backup.mbz';
 		$archiveName = $directory."/".$this->moodle_backup->name;
 		
-		$packer->archive_to_pathname(array(null=>$this->repository), $archiveName);
+		// Get the zip packer
+		$zippacker = get_file_packer('application/vnd.moodle.backup');
+		
+		// Zip files
+		$result = $zippacker->archive_to_pathname($files, $archiveName, true);
 		
 		rrmdir($this->repository);
 		

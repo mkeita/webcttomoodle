@@ -22,6 +22,7 @@ class RapportMigration {
 	const EVALUATION_COUNT = "EVALUATION_COUNT";
 	const EVALUATION_QUESTIONS_COUNT = "EVALUATION_QUESTIONS_COUNT";
 	const EVALUATION_NO_MAX_SCORE = "EVALUATION_NO_MAX_SCORE";
+	const EVALUATION_NO_GRADING_METHOD = "EVALUATION_NO_GRADING_METHOD";
 		
 	const QUESTION_COUNT = "QUESTION_COUNT";
 	const QUESTION_NOT_MIGRATED = "QUESTION_NOT_MIGRATED";
@@ -53,12 +54,14 @@ class RapportMigration {
 	const LEARN_MODULE_COUNT = "LEARN_MODULE_COUNT";
 	const LEARN_MODULE_AS_BOOK = "LEARN_MODULE_AS_BOOK";
 	const LEARN_MODULE_AS_FOLDER = "LEARN_MODULE_AS_FOLDER";
-	const LEARN_MODULE_WITH_ACTION_LINK = "LEARN_MODULE_WITH_ACTION_LINK";
-	const LEARN_MODULE_RETRIEVED = "LEARN_MODULE_RETRIEVED";	 
+	const LEARN_MODULE_WITH_ACTION_LINK = "LEARN_MODULE_WITH_ACTION_LINK";	
+	const LEARN_MODULE_RETRIEVED = "LEARN_MODULE_RETRIEVED";
+	const LEARN_MODULE_INTRACTABLE_LINK = "LEARN_MODULE_INTRACTABLE_LINK";
 	 
 	const COURSE_CONTENT_NOT_FOUND = "COURSE_CONTENT_NOT_FOUND";
 	const COURSE_CONTENT_NOT_MIGRATED = "COURSE_CONTENT_NOT_MIGRATED";
 	const COURSE_CONTENT_AS_FOLDER = "COURSE_CONTENT_AS_FOLDER";
+	const COURSE_CONTENT_AS_SECTION = "COURSE_CONTENT_AS_SECTION";
 	const COURSE_CONTENT_SECTION_NAME_LIMITED = "COURSE_CONTENT_SECTION_NAME_LIMITED";
 	 
 	const FILE_MIGRATED = "FILE_MIGRATED";
@@ -98,14 +101,17 @@ class RapportMigration {
 	 		
 	 		RapportMigration::EVALUATION_QUESTIONS_COUNT=>"Nombre de questions dans le quiz.",
 	 		RapportMigration::EVALUATION_NO_MAX_SCORE=>"Pas de score maximum trouvé.",
-
+			RapportMigration::EVALUATION_NO_GRADING_METHOD=>"Pas de méthode de gradation trouvée.",
+			
 	 			 		
 	 		RapportMigration::PROGRAM_BD_INCONSISTENCY=>"Incohérence dans la base de donnée.",
 	 		RapportMigration::PROGRAM_ONLY_FORMATORS=>"Seulement des formateurs donc pas de création du programme",
 
 	 		RapportMigration::LEARN_MODULE_AS_BOOK=>"Module d'apprentissage récupéré sous forme de BOOK",
 	 		RapportMigration::LEARN_MODULE_AS_FOLDER=>"Module d'apprentissage récupéré sous forme de répertoire",	 		
-	 		RapportMigration::LEARN_MODULE_WITH_ACTION_LINK=>"Le module d'apprentissage possède un lien d'action vers ",
+	 		RapportMigration::LEARN_MODULE_WITH_ACTION_LINK=>"Le module d'apprentissage possède un lien d'action",
+			RapportMigration::LEARN_MODULE_INTRACTABLE_LINK=>"Le module d'apprentissage possède un lien intraitable dans un de ces chapitres",
+			
 	 		
 	 		RapportMigration::COURSE_CONTENT_NOT_FOUND=>"Module non trouvé.",
 	 		RapportMigration::COURSE_CONTENT_NOT_MIGRATED=>"Cet élément n'a pas pu être migré.",
@@ -352,6 +358,7 @@ class RapportMigration {
 		$html .= $this->createSection(RapportMigration::TYPE_GLOSSARY,"Glossaires", $this->glossaire);
 		$html .= $this->createSection(RapportMigration::TYPE_FILES,"Gestionnaire de fichiers", $this->gestionnaireFichier);
 		$html .= $this->createSection(RapportMigration::TYPE_WEB_LINK,"Liens web", $this->lienWeb);
+		$html .= $this->createSection(RapportMigration::TYPE_COURSE_CONTENT,"Contenu du cours", $this->courseContent);
 		$html .= $this->createSection(RapportMigration::TYPE_CHAT,"Discussions", $this->discussion);
 		$html .= $this->createSection(RapportMigration::TYPE_PROGRAM,"Programme", $this->programme);
 		$html .= $this->createSection(RapportMigration::TYPE_FORUM,"Forum", $this->forum);

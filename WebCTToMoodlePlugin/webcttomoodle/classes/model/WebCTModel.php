@@ -24,13 +24,13 @@ class WebCTModel extends \GlobalModel {
 		//TODO TEMPORARY DESACTIVATE DURING DEVELOPPEMENT
 		$progression = 100/($nbElemRec*12);
 		
-   		//$this->retrieveGlossaries();
-		echo " Glossaires " . utf8_encode("récupérés");
+   		$this->retrieveGlossaries();
+		echo " Glossaires " . utf8_encode("récupérés")."<br/>";
 		$indice += $progression;
 		$this->progression($indice);		
    		
-   	//	$this->retrieveQuestions();	
-   		echo " Questions " . utf8_encode("récupérées");
+  		$this->retrieveQuestions();	
+   		echo " Questions " . utf8_encode("récupérées")."<br/>";
    		$indice += $progression;
    		$this->progression($indice);
 
@@ -38,49 +38,49 @@ class WebCTModel extends \GlobalModel {
 // 			error_log($key.'-->'.$value->name.'<br/>');
 // 		} 		
    		
-   	//	$this->retrieveQuizzes();
-   		echo " Evaluations " . utf8_encode("récupérées");
+   		$this->retrieveQuizzes();
+   		echo " Evaluations " . utf8_encode("récupérées")."<br/>";
    		$indice += $progression;
    		$this->progression($indice);
 		
-     //	$this->retrieveAssignments();
-     	echo " Taches " . utf8_encode("récupérées");
+     	$this->retrieveAssignments();
+     	echo " Taches " . utf8_encode("récupérées")."<br/>";
      	$indice += $progression;
      	$this->progression($indice);
 
-	//	$this->retrieveFolders();
-     	echo " Folder " . utf8_encode("récupéré");
+		$this->retrieveFolders();
+     	echo " Folder " . utf8_encode("récupéré")."<br/>";
      	$indice += $progression;
      	$this->progression($indice);
 
 		
-   // 	$this->retrieveWebLinks();
-    	echo " WebLinks " . utf8_encode("récupérés");
+    	$this->retrieveWebLinks();
+    	echo " WebLinks " . utf8_encode("récupérés")."<br/>";
     	$indice += $progression;
     	$this->progression($indice);
 
-    // 	$this->retrieveSyllabus();
-     	echo " Syllabus " . utf8_encode("récupéré");
+     	$this->retrieveSyllabus();
+     	echo " Syllabus " . utf8_encode("récupéré")."<br/>";
      	$indice += $progression;
      	$this->progression($indice);
 	
     	$this->retrieveForum();
-    	echo " Forum " . utf8_encode("récupéré");
+    	echo " Forum " . utf8_encode("récupéré")."<br/>";
     	$indice += $progression;
     	$this->progression($indice);
 		
     	//$this->retrieveEmail();
-    	echo " Email " . utf8_encode("récupéré");
+    	echo " Email " . utf8_encode("récupéré")."<br/>";
     	$indice += $progression;
     	$this->progression($indice);
 
-	//	$this->retrieveLearningModules();
-		echo "Learning Modules " . utf8_encode("récupérés");
+		$this->retrieveLearningModules();
+		echo "Learning Modules " . utf8_encode("récupérés")."<br/>";
 		$indice += $progression;
 		$this->progression($indice);
 		
- 	//	$this->retrieveCourseContent();
- 		echo " Course Content " . utf8_encode("récupéré");
+ 		$this->retrieveCourseContent();
+ 		echo " Course Content " . utf8_encode("récupéré")."<br/>";
  		$indice += $progression;
  		$this->progression($indice);
  		
@@ -88,7 +88,7 @@ class WebCTModel extends \GlobalModel {
 //   		 * retrieveRapportMigration() doit toujour être en derniére position.
 //   		 */
    		$this->retrieveRapportMigration();
-   		echo " Rapport Migration " . utf8_encode("récupéré");
+   		echo " Rapport Migration " . utf8_encode("récupéré")."<br/>";
    		$indice += $progression;
    		$this->progression($indice);
 		
@@ -131,7 +131,6 @@ class WebCTModel extends \GlobalModel {
 		echo "document.getElementById('pourcentage').innerHTML='$indice%';";
 		echo "document.getElementById('barre').style.width='$indice%';";
 		echo "</script>";
-		echo "</br>";
 		ob_flush();
 		flush();
 	}
@@ -327,6 +326,10 @@ class WebCTModel extends \GlobalModel {
 			$entry->userid=$USER->id;// 		<userid>2</userid>
 			$entry->concept=$row1['NAME'];// 		<concept>Entry1</concept>
 			
+			//Default WebCT Entry, don't recover
+			if($entry->concept=='WebCT'){
+				continue;
+			}
 			
 			$description = $row1['DESCRIPTION'];
 			$completeDescription = $description->load();
@@ -343,7 +346,7 @@ class WebCTModel extends \GlobalModel {
 			$entry->timecreated=time();// 		<timecreated>1390818856</timecreated>
 			$entry->timemodified=time();// 		<timemodified>1390818883</timemodified>
 			$entry->teacherentry=1;// 		<teacherentry>1</teacherentry>
-			$entry->usedynalink=0;// 		<usedynalink>0</usedynalink>
+			$entry->usedynalink=1;// 		<usedynalink>0</usedynalink>
 			$entry->casesensitive=0;// 		<casesensitive>0</casesensitive>
 			$entry->fullmatch=1;// 		<fullmatch>0</fullmatch>
 			$entry->approved=1;// 		<approved>1</approved>
@@ -399,6 +402,9 @@ class WebCTModel extends \GlobalModel {
 	 * MODE 7 = Question file - Match subquestion
 	 * MODE 8 = Question file - Essay grader info
 	 * MODE 9 = Assignment file - Assignment description
+	 * MODE 10 = Ressource file
+	 * MODE 11 = Book file - Chapter
+	 * MODE 12 = Label file - Label intro
 	 * 
 	 * @return string
 	 */
@@ -415,6 +421,18 @@ class WebCTModel extends \GlobalModel {
 			$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
 			if(!empty($row)){
 				$this->addCMSFile($row["ORIGINAL_CONTENT_ID"], $mode, $item);
+			}
+		}
+		
+		if($mode == 11){
+			//check if there are errors
+			if (!empty($htmlContentClass->errors)){
+				foreach ($htmlContentClass->errors as $error){
+					$rem = "Le lien \"".$error."\" ne peut pas être traité automatiquement dans le chapitre \"".$item->title."\"";
+					$this->rapportMigration->add(RapportMigration::TYPE_LEARN_MODULE,RapportMigration::LEARN_MODULE_INTRACTABLE_LINK,
+						$item->book->id, $item->book->name,
+						$rem);
+				}
 			}
 		}
 		
@@ -563,6 +581,7 @@ class WebCTModel extends \GlobalModel {
 	 * MODE 9 = Assignment file - Assignment description
 	 * MODE 10 = Ressource file
 	 * MODE 11 = Book file - Chapter
+	 * MODE 12 = Label file - Label intro
 	 * @param unknown $item
 	 * @param unknown $parent
 	 * 
@@ -654,13 +673,21 @@ class WebCTModel extends \GlobalModel {
 				$typeRapport = "resource";
 				$contextId = $item->book->contextid;
 				break;
+			case 12:
+				$component = "mod_label";
+				$fileArea = "intro";
+				$itemId = 0;				
+				$contextId = $item->contextid;
+				break;
 								
 		}
 				
 		$repository = $this->addCMSRepository($contextId, $component, $fileArea, $itemId, "/");
 			
 		$file = $this->addCMSSimpleFile($fileOriginalContentId, $contextId, $component, $fileArea, $itemId, "/");
-									
+
+//		echo $file->filename.'<br/>';
+		
 		if($file==null){
 			$rem = "Fichier non migré.";
 			$this->rapportMigration->add(RapportMigration::TYPE_FILES,RapportMigration::FILE_NOT_MIGRATED,
@@ -687,6 +714,11 @@ class WebCTModel extends \GlobalModel {
 				$item->book->filesIds[] = $repository->id;
 				$item->book->filesIds[] = $file->id;
 				break;
+				
+			case 12:
+				$item->filesIds[] = $repository->id;
+				$item->filesIds[] = $file->id;
+				break;
 		}
 
 		return $file;
@@ -705,7 +737,7 @@ class WebCTModel extends \GlobalModel {
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
 		while ($row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS)){
-		
+			
 			$questionCategory = new QuestionCategory();
 			
 			$questionCategory->id = $row['ORIGINAL_CONTENT_ID'];
@@ -724,6 +756,30 @@ class WebCTModel extends \GlobalModel {
 			$stid1 = oci_parse($this->connection,$request1);
 			oci_execute($stid1);
 			while ($row1 = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)){
+				
+//  				if($row1['ID']!='174815484001' && $row1['ID']!='3548815001'){
+//  					continue;
+//  				}
+// 				if($row1['ID']!='243791592001' && $row1['ID']!='243791596001'
+// 					&& $row1['ID']!='243791604001' && $row1['ID']!='243791609001'
+// 					&& $row1['ID']!='243791613001' && $row1['ID']!='243791617001'
+// 					&& $row1['ID']!='243791621001' && $row1['ID']!='243791625001'
+// 					&& $row1['ID']!='243791629001' && $row1['ID']!='243791633001'
+// 					&& $row1['ID']!='243791637001' && $row1['ID']!='243791641001'
+// 					&& $row1['ID']!='243791645001' && $row1['ID']!='243791649001'
+// 					&& $row1['ID']!='243791657001' && $row1['ID']!='243791661001'
+// 					&& $row1['ID']!='243791751001' && $row1['ID']!='243791678001'
+// 					&& $row1['ID']!='243791682001' && $row1['ID']!='243791686001'
+// 					&& $row1['ID']!='243791747001' && $row1['ID']!='243791694001'
+// 					&& $row1['ID']!='243791699001' && $row1['ID']!='243791703001'
+// 					&& $row1['ID']!='243791707001' && $row1['ID']!='243791711001'
+// 					&& $row1['ID']!='243791715001' && $row1['ID']!='243791719001'			
+// 					&& $row1['ID']!='243791727001' && $row1['ID']!='243791731001'
+// 					&& $row1['ID']!='243791735001' && $row1['ID']!='243791739001'
+// 					&& $row1['ID']!='243791743001'){
+// 					continue;
+// 				}
+				
 				$question=null;
 	
 				if($row1['CE_SUBTYPE_NAME']=='MultipleChoice'){ //MULTICHOICE
@@ -841,11 +897,11 @@ class WebCTModel extends \GlobalModel {
 			$convertedDescription = $this->convertTextAndCreateAssociedFiles($questionText,3, $question);
 					
 			//Get the file attached if any and past it to the description
-			$imageName = $xmlContent->presentation->flow->material->matimage;
+			$imageName = (string)$xmlContent->presentation->flow->material->matimage;
 			$imageURI = $xmlContent->presentation->flow->material->matimage['uri'];
 			$findContentId   = '?contentID=';
 			$pos = strpos($imageURI, $findContentId);
-			if($pos>0){
+			if($pos>0 && !empty($imageName)){
 				$fileContentId = substr($imageURI, $pos+11);
 				$this->addCMSFile($fileContentId, 3, $question);
 		
@@ -1357,11 +1413,11 @@ class WebCTModel extends \GlobalModel {
 					$convertedDescription = $this->convertTextAndCreateAssociedFiles((string)$child->mattext,3, $question);
 					$questionFinalText.=$convertedDescription;
 				}else if(!empty($child->matimage)){
-					$imageName = $child->matimage;
+					$imageName = (string)$child->matimage;
 					$imageURI = $child->matimage['uri'];
 					$findContentId   = '?contentID=';
 					$pos = strpos($imageURI, $findContentId);
-					if($pos>0){
+					if($pos>0 && !empty($imageName)){
 						$fileContentId = substr($imageURI, $pos+11);
 						$this->addCMSFile($fileContentId, 3, $question);
 					
@@ -1809,12 +1865,11 @@ class WebCTModel extends \GlobalModel {
 		
 		$imageNames = $xmlContent->xpath('//ims:matimage');
 		if(!empty($imageNames)){
-			$imageName = $imageNames[0];
-			
+			$imageName = (string)$imageNames[0];			
 			$imageURI = $imageName['uri'];
 			$findContentId   = '?contentID=';
 			$pos = strpos($imageURI, $findContentId);
-			if($pos>0){
+			if($pos>0 && !empty($imageName)){
 				$fileContentId = substr($imageURI, $pos+11);
 				$this->addCMSFile($fileContentId, 3, $question);
 			
@@ -1947,8 +2002,6 @@ class WebCTModel extends \GlobalModel {
 		$calculatedOption->answernumbering="abc";
 		
 		$question->calculatedOptions[]=$calculatedOption;
-		
-		echo '<br/>';
 		
 	}
 	
@@ -2267,12 +2320,11 @@ class WebCTModel extends \GlobalModel {
 		//Get the file attached if any and past it to the description
 		$imageNames = $xmlContent->xpath('//ims:matimage');
 		if(!empty($imageNames)){
-			$imageName = $imageNames[0];
-			
+			$imageName = (string)$imageNames[0];			
 			$imageURI = $imageName['uri'];
 			$findContentId   = '?contentID=';
 			$pos = strpos($imageURI, $findContentId);
-			if($pos>0){
+			if($pos>0 && !empty($imageName)){
 				// 			echo 'IMAGE NAME = '.$imageName."\n";
 				// 			echo 'IMAGE URI = '.$imageURI."\n";
 				$fileContentId = substr($imageURI, $pos+11);
@@ -2303,7 +2355,6 @@ class WebCTModel extends \GlobalModel {
 	
 			$quizId = $row['ORIGINAL_CONTENT_ID'];
 			$this->addQuiz($quizId);
-				
 		}
 	}
 	
@@ -2488,13 +2539,10 @@ class WebCTModel extends \GlobalModel {
 		
 		$description = $row['DESCRIPTION'];
 		if(empty($description)){
-			$quiz->intro ="";
+			$description ="";
 		}else {
-			$quiz->intro =$description->load();
+			$description =$description->load() . '<br/>';
 		}
-		
-		$quiz->introformat =1;
-		
 		
 		
 		$request = "SELECT * FROM ASSMT_ASSESSMENT 
@@ -2506,6 +2554,9 @@ class WebCTModel extends \GlobalModel {
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
 		$row = oci_fetch_array($stid, OCI_ASSOC+OCI_RETURN_NULLS);
+				
+		$quiz->intro = $description.$row['INSTRUCTIONS'];
+		$quiz->introformat =1;		
 		
 		$timeopen = substr($row['STARTTIME'],0,-3);
 		if(empty($timeopen)){
@@ -2561,6 +2612,13 @@ class WebCTModel extends \GlobalModel {
 				break;
 			case 'Last':
 				$quiz->grademethod=4;			
+				break;
+			default:
+				$quiz->grademethod=1;
+				$rem = "Aucune méthode de gradation n'a été trouvée. La méthode de gradation par défaut (Meilleur résultat) a été appliquée.";
+				$this->rapportMigration->add(RapportMigration::TYPE_EVALUATION,RapportMigration::EVALUATION_NO_GRADING_METHOD,
+						$quiz->id, $quiz->name,
+						$rem);
 				break;
 		}
 		
@@ -3410,6 +3468,10 @@ class WebCTModel extends \GlobalModel {
 		
 		$bookModel->book = $this->createWebLinksActivityBook($bookId, $bookModel->module);
 		
+		//If no links, no book..
+		if(empty($bookModel->book->chapters)){
+			return;
+		}
 		
 		//reference dans moodle_backup
 		$activity = new MoodleBackupActivity();
@@ -3927,6 +3989,8 @@ class WebCTModel extends \GlobalModel {
 		$book->timecreated=time();
 		$book->timemodified=time();
 		
+		$chapterFileLinks = array();		
+		
 		$request = "SELECT CMS_CONTENT_ENTRY.ID,CMS_CONTENT_ENTRY.NAME AS CMS_NAME, CMS_LINK.NAME AS LINK_NAME,
 							CMS_CONTENT_ENTRY.CE_TYPE_NAME, CMS_CONTENT_ENTRY.DESCRIPTION,CO_TOC_LINK.INDENTLEVEL,
 							CMS_CONTENT_ENTRY.FILE_CONTENT_ID,CO_TOC_LINK.ID AS TOC_LINK_ID
@@ -4030,6 +4094,17 @@ class WebCTModel extends \GlobalModel {
 						$content = str_ireplace(array(''), ' ', $content);
 					}					
 					$chapter->content = $content;
+					
+					//Add the file link corresponding to this file
+					$request = "SELECT NAME FROM CMS_CONTENT_ENTRY
+									WHERE ID=(SELECT CMS_LINK.RIGHTOBJECT_ID FROM CMS_LINK WHERE CMS_LINK.LINK_TYPE_ID='30004' AND CMS_LINK.LEFTOBJECT_ID='".$row['ID']."')";
+
+					$stid1 = oci_parse($this->connection,$request);
+					oci_execute($stid1);
+					$row1 = oci_fetch_assoc($stid1);
+					
+					$chapterFileLinks[$row1['NAME']]='*'.$book->bookId.'*'.$chapter->id;
+					
 				}
 				$book->addChapter($chapter);
 				
@@ -4085,6 +4160,13 @@ class WebCTModel extends \GlobalModel {
 
 		}
 	
+		//Post treatment
+		//Find all the html link and convert it if necessary
+		$htmlContentClass = new HtmlContentClass();		
+		foreach ($book->chapters as $chapter){
+			$chapter->content = $htmlContentClass->updateBookChapterLinks($chapter->content, $chapterFileLinks);
+		}
+		
 		return $book;
 	}
 	
@@ -4146,24 +4228,37 @@ class WebCTModel extends \GlobalModel {
 	
 	public function createNewCourseContentSection($repositoryId,$repositoryPath,$repositoryDescription){
 
-		$section = NULL;
+		$rem = "La section de contenu a été migré comme une section dans Moodle.";
+		$this->rapportMigration->add(RapportMigration::TYPE_COURSE_CONTENT,RapportMigration::COURSE_CONTENT_AS_SECTION,
+				$repositoryId, $repositoryPath,
+				$rem);
+				
+		$sectionModel = $this->addSections($repositoryId, $repositoryPath, $repositoryDescription);
+		$section = $sectionModel->section;
+		$this->createCourseHeaderAndFooter($repositoryId, $section);
+		
 		//Add all the files of the repository.
-		$request = "SELECT * FROM CMS_CONTENT_ENTRY
-  						WHERE ID IN (SELECT RIGHTOBJECT_ID FROM CMS_LINK WHERE LEFTOBJECT_ID='".$repositoryId."')
+		$request = "SELECT CMS_CONTENT_ENTRY.ID, CMS_CONTENT_ENTRY.NAME, CMS_CONTENT_ENTRY.DESCRIPTION, CMS_CONTENT_ENTRY.CE_TYPE_NAME, CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID,
+       						CO_ORGANIZERLINK.LINKNAME,CO_ORGANIZERLINK.LONG_DESCRIPTION
+					FROM CMS_CONTENT_ENTRY
+						LEFT JOIN CMS_LINK ON CMS_LINK.RIGHTOBJECT_ID=CMS_CONTENT_ENTRY.ID
+  						LEFT JOIN CO_ORGANIZERLINK ON CO_ORGANIZERLINK.ID=CMS_LINK.ID
+  					WHERE CMS_CONTENT_ENTRY.ID IN (SELECT LINK2.RIGHTOBJECT_ID FROM CMS_LINK LINK2 WHERE LINK2.LEFTOBJECT_ID='".$repositoryId."')
   								AND CE_TYPE_NAME!='ORGANIZER_PAGE_TYPE'";
 		$stid = oci_parse($this->connection,$request);
 		oci_execute($stid);
 				
 		while ($row1 = oci_fetch_assoc($stid)){
-			if($section==NULL){
-				$sectionModel = $this->addSections($repositoryId, $repositoryPath, $repositoryDescription);
-				$section = $sectionModel->section;
-				
-				$this->createCourseHeaderAndFooter($repositoryId, $section);
+
+			$name = $row1['LINKNAME'];
+			if(empty($name)){
+				$name = $row1['NAME'];
 			}
 			
-			$name = $row1['NAME'];
-			$description = $row1['DESCRIPTION'];
+			$description = $row1['LONG_DESCRIPTION'];
+			if(empty($description)){
+				$description = $row1['DESCRIPTION'];
+			}
 			if(empty($description)){
 				$description ="";
 			}else {
@@ -4211,14 +4306,14 @@ class WebCTModel extends \GlobalModel {
 				}else {
 					$rem = "Module non trouvé.";
 					$this->rapportMigration->add(RapportMigration::TYPE_COURSE_CONTENT,RapportMigration::COURSE_CONTENT_NOT_FOUND,
-							$row1["ID"], $row["NAME"],
+							$row1["ID"], $name,
 							$rem);
 				}
 			}else {
 				
 				$rem = "Cet élément n'a pas pu être migré.(".$row1['CE_TYPE_NAME'].")";
 				$this->rapportMigration->add(RapportMigration::TYPE_COURSE_CONTENT,RapportMigration::COURSE_CONTENT_NOT_MIGRATED,
-						$row1["ID"], $row1["NAME"],
+						$row1["ID"], $name,
 						$rem);
 			}
 		}
@@ -4247,17 +4342,14 @@ class WebCTModel extends \GlobalModel {
 			$repositoryName = $row1['NAME'];
 			$repositoryId = $row1['ID'];
 			if($hasOnlyFiles){
-				if($section==NULL){
-					$sectionModel = $this->addSections($repositoryId, $repositoryPath, $repositoryDescription);
-					$section = $sectionModel->section;
 					
-					$this->createCourseHeaderAndFooter($repositoryId, $section);
-				}
+				$this->createCourseHeaderAndFooter($repositoryId, $section);
+				
 				$this->addCourseContentAsFolder($repositoryId, $repositoryName, $description,$section);
 				
 				$rem = "La section de contenu a été migré comme un réperoire de fichiers";
 				$this->rapportMigration->add(RapportMigration::TYPE_COURSE_CONTENT,RapportMigration::COURSE_CONTENT_AS_FOLDER,
-						$repositoryId, $repositoryName,
+						$repositoryId, $repositoryPath.' > '.$repositoryName,
 						$rem);
 				
 			}else {
@@ -4720,7 +4812,9 @@ class WebCTModel extends \GlobalModel {
 		
 		//Ici on choisit le nom de notre folder
 		$label->name =$name;
-		$label->intro=$description;
+		
+		$convertedDescription = $this->convertTextAndCreateAssociedFiles($description,12, $label);
+		$label->intro=$convertedDescription;
 		$label->introformat=1;
 		$label->timemodified=time();
 		
