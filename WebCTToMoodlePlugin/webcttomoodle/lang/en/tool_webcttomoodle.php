@@ -33,7 +33,7 @@ $string['no_ftp_connexion'] = 'NO FTP CONNEXION !';
 
 $string['restore_form_header'] = 'Restore courses';
 
-$string['restore_instructions'] = 'If you want to create a new course enter "NEW".<br/>
+$string['restore_instructions'] = 'If you want to create a new course enter "C".<br/>
 		 						  If nothing is enter, no restore would be done.<br/>';
 $string['no_files'] = 'No files in repository';
 $string['no_directory'] = 'No repository';

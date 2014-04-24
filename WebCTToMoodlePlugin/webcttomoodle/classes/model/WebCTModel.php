@@ -125,6 +125,96 @@ class WebCTModel extends \GlobalModel {
 		
 	}
 	
+	public function postInitialization(){
+		$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
+		
+		//Add the news forum
+		$this->addActivityForum("Forum d'annonces", "Forum d'annonces",$sectionId);
+		//Add the student forum
+		$this->addActivityForum(utf8_encode("Forum étudiants"), utf8_encode("Forum étudiants"),$sectionId,'general',0);		
+	}
+	
+	
+	/**
+	 * Add a Folder and all its content
+	 */
+	public function addActivityForum($name,$description,$sectionId,$type='news',$visible=1){
+	
+		global $USER;
+	
+		//Glossary
+		$forumModel = new ForumModel();
+		
+		$forumModel->roles = new RolesBackup(); //EMPTY CURRENTLY NOT NEEDED
+		$forumModel->comments = new Comments(); //EMPTY CURRENTLY NOT NEEDED
+		$forumModel->completion = new ActivityCompletion(); //EMPTY CURRENTLY NOT NEEDED
+		$forumModel->filters = new Filters(); //EMPTY CURRENTLY NOT NEEDED
+		$forumModel->grades = new ActivityGradeBook();
+		$forumModel->calendar = new Events();
+		$forumModel->inforef = new InfoRef();
+	
+	
+		$id = $this->getNextId();
+		$forumModel->module = $this->createModule($id,"forum","2013110500",$sectionId,$visible);
+	
+		$forum = new ActivityForum();
+		$forum->id = $id;
+		$forum->moduleid =$forumModel->module->id;
+		$forum->modulename =$forumModel->module->modulename;
+		$forum->contextid=$this->getNextId();
+		$forum->forumId = $id;
+	
+		$forum->type=$type;
+		$forum->name =$name;
+		//$convertedDescription = $this->convertTextAndCreateAssociedFiles($description,12, $forum);
+		$forum->intro=$description;
+		$forum->introformat=1;
+		
+		$forum->assessed=0;
+		$forum->assesstimestart=0;
+		$forum->assesstimefinish=0;
+		$forum->scale=0;
+		$forum->maxbytes=0;
+		$forum->maxattachments=1;
+		$forum->forcesubscribe=1;
+		$forum->trackingtype=1;
+		$forum->rsstype=0;
+		$forum->rssarticles=0;
+		$forum->timemodified=time();
+		$forum->warnafter=0;
+		$forum->blockafter=0;
+		$forum->blockperiod=0;
+		$forum->completiondiscussions=0;
+		$forum->completionreplies=0;
+		$forum->completionposts=0;
+		$forum->displaywordcount=0;
+	
+		$forumModel->forum = $forum;
+		
+		//reference dans moodle_backup
+		$activity = new MoodleBackupActivity();
+		$activity->moduleid=$forumModel->module->id;
+		$activity->sectionid=$this->sections[$sectionId]->section->id;
+		$activity->modulename=$forumModel->module->modulename;
+		$activity->title=$forumModel->forum->name;
+		$activity->directory="activities/forum_".$forumModel->forum->forumId;
+	
+		$this->moodle_backup->contents->activities[] = $activity;
+	
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","forum_".$forumModel->forum->forumId,"forum_".$forumModel->forum->forumId."_included",1);
+		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","forum_".$forumModel->forum->forumId,"forum_".$forumModel->forum->forumId."_userinfo",1);
+	
+		//$inforRef = new InfoRef();
+		//$inforRef->userids[]=$USER->id;
+		//$inforRef->fileids=$forumModel->forum->filesIds;	
+		//$forumModel->inforef = $inforRef;
+	
+		$this->activities[] = $forumModel;
+	
+		$this->sections[$sectionId]->section->sequence[]= $forumModel->forum->forumId;
+	}
+	
+	
 	public function progression($indice)
 	{
 		echo "<script>";
@@ -3579,17 +3669,7 @@ class WebCTModel extends \GlobalModel {
 						WHERE CE_TYPE_NAME='URL_TYPE' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$this->deliveryContextId."' AND PARENT_ID='".$row['ID']."' AND CO_URL.LINK!='/importexport/alertObject.jsp?type=0'";
 			$stid1 = oci_parse($this->connection,$request1);
 			oci_execute($stid1);
-			$style =" <style type=\"text/css\">
-							.tab{
-								background-color:#099;
-							}
-							.tab td{
-								width:50% auto;
-								border:1px dashed #000;
-							}
-							</style>";
-			$content .= $style ;
-			$content .="<table width=\"100%\" border=\"0\" class=\"tab\" cellspacing=\"0\" cellpadding=\"0\"><tbody>";
+			$content .='<table border="0" cellspacing="0" cellpadding="0" style="width: 100%;table-layout: fixed;word-wrap:break-word;"><tbody>';
 			
 			//Retrieve All the links..
 			$hasLink = false;
@@ -3607,12 +3687,11 @@ class WebCTModel extends \GlobalModel {
 				}
 				
 				$urlRow = "<tr>"
-					."<td>"."</td>"
-					."<td >"
+					."<td style=\"width:50%; border:1px solid #CCC\" >"
 						."<label><b><a target='".$target."' href='".$row1['LINK']."'>".$row1['NAME']."</a></b></label><br/>"
 						."<div>".$urlDescription."</div>"
 					."</td>"
-					."<td >".$row1['LINK']."</td>"
+					."<td style=\"width:50%; border:1px solid #CCC\" >".$row1['LINK']."</td>"
 				."</tr>";
 				$content .= $urlRow;
 				
@@ -4203,7 +4282,7 @@ class WebCTModel extends \GlobalModel {
 		
 	}
 
-	public function createCourseHeaderAndFooter($repositoryId,$section){
+	public function createCourseHeaderAndFooter($repositoryId,$section,$firstPosition=false){
 
 		$request = "SELECT * FROM CO_HEADERFOOTER WHERE CO_ORGANIZERPAGE_ID='".$repositoryId."' AND ISDEFAULT='0' AND TYPE='H' ORDER BY CO_HEADERFOOTER.TYPE DESC";
 		$stid = oci_parse($this->connection,$request);
@@ -4219,7 +4298,7 @@ class WebCTModel extends \GlobalModel {
 			}
 			
 			if(!empty($description)){
-				$this->addLabel("Header", $description, $section->id);
+				$this->addLabel("Header", $description, $section->id,$firstPosition);
 			}
 		}
 		
@@ -4233,10 +4312,17 @@ class WebCTModel extends \GlobalModel {
 				$repositoryId, $repositoryPath,
 				$rem);
 				
-		$sectionModel = $this->addSections($repositoryId, $repositoryPath, $repositoryDescription);
+		$sectionModel = $this->addSections($repositoryId, $repositoryPath, $repositoryDescription,false,1);
 		$section = $sectionModel->section;
-		$this->createCourseHeaderAndFooter($repositoryId, $section);
 		
+		//The header of the main section should be put in the default general section.
+		if($repositoryPath==utf8_encode("Section d'accueil")){
+			$sectionId = $this->fixedSections[GlobalModel::SECTION_GENERAL];
+			$sectionGeneral = $this->sections[$sectionId]->section;
+			$this->createCourseHeaderAndFooter($repositoryId, $sectionGeneral,true);
+		}else {
+			$this->createCourseHeaderAndFooter($repositoryId, $section);
+		}	
 		//Add all the files of the repository.
 		$request = "SELECT CMS_CONTENT_ENTRY.ID, CMS_CONTENT_ENTRY.NAME, CMS_CONTENT_ENTRY.DESCRIPTION, CMS_CONTENT_ENTRY.CE_TYPE_NAME, CMS_CONTENT_ENTRY.ORIGINAL_CONTENT_ID,
        						CO_ORGANIZERLINK.LINKNAME,CO_ORGANIZERLINK.LONG_DESCRIPTION
@@ -4524,7 +4610,7 @@ class WebCTModel extends \GlobalModel {
 	 * @param string $includeChildrenRepository
 	 * @return SectionModel
 	 */
-	public function addSections($id,$name,$description,$includeChildrenRepository=false){
+	public function addSections($id,$name,$description,$includeChildrenRepository=false, $visible=0){
 	
 		$sectionModels = array();	
 	
@@ -4547,7 +4633,7 @@ class WebCTModel extends \GlobalModel {
 		}
 		
 		$section->summaryformat=1;
-		$section->visible=0;
+		$section->visible=$visible;
 		$section->availablefrom=0;
 		$section->availableuntil=0;
 		$section->showavailability=0;
@@ -4786,7 +4872,7 @@ class WebCTModel extends \GlobalModel {
 	/**
 	 * Add a Folder and all its content
 	 */
-	public function addLabel($name,$description,$sectionId){
+	public function addLabel($name,$description,$sectionId,$firstPosition=false){
 	
 		global $USER;
 	
@@ -4829,7 +4915,11 @@ class WebCTModel extends \GlobalModel {
 		$activity->title=$labelModel->label->name;
 		$activity->directory="activities/label_".$labelModel->label->labelId;
 	
-		$this->moodle_backup->contents->activities[] = $activity;
+		if($firstPosition){
+			array_unshift($this->moodle_backup->contents->activities,$activity);
+		}else {
+			$this->moodle_backup->contents->activities[] = $activity;
+		}
 	
 		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","label_".$labelModel->label->labelId,"label_".$labelModel->label->labelId."_included",1);
 		$this->moodle_backup->settings[] = new MoodleBackupActivitySetting("activity","label_".$labelModel->label->labelId,"label_".$labelModel->label->labelId."_userinfo",1);
@@ -4841,8 +4931,11 @@ class WebCTModel extends \GlobalModel {
 		$labelModel->inforef = $inforRef;
 	
 		$this->activities[] = $labelModel;
-	
-		$this->sections[$sectionId]->section->sequence[]= $labelModel->label->labelId;
+		if($firstPosition){
+			array_unshift($this->sections[$sectionId]->section->sequence, $labelModel->label->labelId);
+		}else {
+			$this->sections[$sectionId]->section->sequence[]= $labelModel->label->labelId;
+		}
 	}
 	
 	
@@ -5088,7 +5181,12 @@ class WebCTModel extends \GlobalModel {
 		$resourceModel->module = $this->createModule($originalContentId,"resource","2013110500",$section);
 		$resourceModel->ressource = $this->createResource($originalContentId,$name,$description,$resourceModel->module);
 
-		$this->addCMSFile($originalContentId, "10", $resourceModel->ressource);
+		
+		$file = $this->addCMSFile($originalContentId, "10", $resourceModel->ressource);
+		if($file->mimetype=="application/pdf"){
+			$resourceModel->ressource->display=3;
+		}
+		
 		$resourceModel->inforef->fileids = $resourceModel->ressource->filesIds ;	
 		
 		$activity = new MoodleBackupActivity();
@@ -5108,7 +5206,7 @@ class WebCTModel extends \GlobalModel {
 		$this->sections[$section]->section->sequence[]= $resourceModel->ressource->ressourceId;			
 	}
 	
-	public function createResource($resourceId ,$name,$description, $module){
+	public function createResource($resourceId ,$name,$description, $module, $display=0){
 		
 		$resourceActivity = new ActivityRessource();
 		$resourceActivity->id = $resourceId ;
@@ -5122,7 +5220,7 @@ class WebCTModel extends \GlobalModel {
 		$resourceActivity->tobemigrated = "0";
 		$resourceActivity->legacyfiles = "0";
 		$resourceActivity->legacyfileslast = "$@NULL@$";
-		$resourceActivity->display = "0";
+		$resourceActivity->display = $display;
 		$resourceActivity->displayoptions = 'a:1:{s:10:"printintro";i:1;}';
 		$resourceActivity->filterFiles = '0';
 		$resourceActivity->revision = '1';
@@ -5407,7 +5505,7 @@ WHERE LEARNING_CONTEXT.ID = '".$this->learningContextId ."' and LEARNING_CONTEXT
 		$resourceModel->roles = new RolesBackup(); //Vide
 		
 		$resourceModel->module = $this->createModule($fileId,"resource","2013110500",$sectionId);
-		$resourceModel->ressource = $this->createResource($fileId, "Rapport de la migration","rapport" , $resourceModel->module);
+		$resourceModel->ressource = $this->createResource($fileId, "Rapport de la migration","rapport" , $resourceModel->module,3);
 		$resourceModel->ressource->contextid = $contextId;
 		
 		$component = "mod_resource";

@@ -40,6 +40,7 @@ require_once 'classes/model/activities/Folder.php';
 require_once 'classes/model/activities/Book.php';
 require_once 'classes/model/activities/ActivityPage.php';
 require_once 'classes/model/activities/ActivityRessource.php';
+require_once 'classes/model/activities/ActivityForum.php';
 
 
 require_once 'classes/model/resources/ResourceUrl.php';
@@ -61,7 +62,7 @@ abstract class GlobalModel implements \IBackupModel {
 	protected $connection;
 	
 	
-	
+	const SECTION_DEFAULT = 0;
 	const SECTION_GENERAL = 1;
 	const SECTION_ASSESSMENTS = 2;
 	const SECTION_ASSIGNMENTS = 3;
@@ -191,6 +192,8 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		$this->initializeRapportMigration();
 		
+		$this->postInitialization();
+		
 		$dir = $CFG->tempdir."/".mb_substr($this->moodle_backup->name, 0, -4);
 		
 		if(is_dir($dir)){
@@ -211,6 +214,8 @@ abstract class GlobalModel implements \IBackupModel {
 	}
 	
 	public abstract function preInitialization();
+	
+	public abstract function postInitialization();
 	
 	/**
 	 *
@@ -538,7 +543,7 @@ abstract class GlobalModel implements \IBackupModel {
 		$course->requested = 0;
 		$course->enablecompletion = 0;
 		$course->completionnotify = 0;
-		$course->numsections = count($this->sections);
+		$course->numsections = count($this->sections)-1;
 		$course->hiddensections = 1;
 		$course->coursedisplay = 0;
 	
@@ -706,37 +711,38 @@ abstract class GlobalModel implements \IBackupModel {
 		$sectionModels = array();
 	
 		//DEFAULT SECTION (EMPTY)
-		$sectionModel = new SectionModel();
+// 		$sectionModel = new SectionModel();
 	
-		$section = new Section();
-		$section->id=$this->getNextSectionId();
-		$section->number=$section->id;
-		$section->name="$@NULL@$";
-		$section->summary="";
-		$section->summaryformat=1;
-		$section->visible=1;
-		$section->availablefrom=0;
-		$section->availableuntil=0;
-		$section->showavailability=0;
-		$section->groupingid=0;
+// 		$section = new Section();
+// 		$section->id=$this->getNextSectionId();
+// 		$section->number=$section->id;
+// 		$section->name="$@NULL@$";
+// 		$section->summary="";
+// 		$section->summaryformat=1;
+// 		$section->visible=1;
+// 		$section->availablefrom=0;
+// 		$section->availableuntil=0;
+// 		$section->showavailability=0;
+// 		$section->groupingid=0;
 	
-		$sectionModel->section = $section;
+// 		$sectionModel->section = $section;
 	
-		$infoRef = new InfoRef();		
-		$sectionModel->inforef = $infoRef;
+// 		$infoRef = new InfoRef();		
+// 		$sectionModel->inforef = $infoRef;
 		
-		$sectionModels[$section->id]=$sectionModel;
+// 		$sectionModels[$section->id]=$sectionModel;
 		
 		
-		//Reference dans moodle_backup
-		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
+// 		//Reference dans moodle_backup
+// 		$moodleBackupSection = new MoodleBackupSectionsSection($section->id,$section->number,"sections/section_".$section->id);
 	
-		//moodle_backup settings
-		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
-		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
+// 		//moodle_backup settings
+// 		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_included",1);
+// 		$this->moodle_backup->settings[] = new MoodleBackupSectionSetting("section","section_".$section->id,"section_".$section->id."_userinfo",1);
 	
-		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
-	
+// 		$this->moodle_backup->contents->sections[]=$moodleBackupSection;
+		
+// 		$this->fixedSections[GlobalModel::SECTION_DEFAULT]=$section->id;
 		
 		//SECTION GENERAL
 		//Default section used to put all the activities
@@ -746,8 +752,8 @@ abstract class GlobalModel implements \IBackupModel {
 		$section = new Section();
 		$section->id=$this->getNextSectionId();
 		$section->number=$section->id;
-		$section->name=utf8_encode("Section générale");
-		$section->summary=utf8_encode("Section contenant plusieurs éléments récupérés de WebCT");
+		$section->name=utf8_encode("Information générale");
+		$section->summary="";
 		$section->summaryformat=1;
 		$section->visible=0;
 		$section->availablefrom=0;
@@ -901,7 +907,7 @@ abstract class GlobalModel implements \IBackupModel {
 	/**
 	 * @return Module
 	 */
-	public function createModule($id, $name, $version, $section=-1){
+	public function createModule($id, $name, $version, $section=-1, $visible=-1){
 		if($section==-1){
 			$section = $this->fixedSections[GlobalModel::SECTION_GENERAL];
 		}
@@ -914,8 +920,12 @@ abstract class GlobalModel implements \IBackupModel {
 		
 		$module->sectionid=$this->sections[$section]->section->id;// 		<sectionid>36</sectionid>
 		$module->sectionnumber=$this->sections[$section]->section->number;// 		<sectionnumber>0</sectionnumber>
-		$module->visible=$this->sections[$section]->section->visible;// 		<visible>1</visible>
-
+		if($visible>-1){
+			$module->visible=$visible;
+		}else {
+			$module->visible=$this->sections[$section]->section->visible;// 		<visible>1</visible>
+		}
+		
 		$module->idnumber="";// 		<idnumber></idnumber>
 		
 		$module->added=time();// 		<added>1390818670</added>
@@ -1168,6 +1178,16 @@ abstract class GlobalModel implements \IBackupModel {
 				mkdir($activityDir);
 				
 				$activityModel->label->toXMLFile($activityDir);
+				
+			}else if ($activityModel instanceof ForumModel){
+				$activityDir = $dir.'/forum_'.$activityModel->module->id;
+
+				if(is_dir($activityDir)){
+					rrmdir($activityDir);
+				}
+				mkdir($activityDir);
+				
+				$activityModel->forum->toXMLFile($activityDir);
 			}
 			
 			$activityModel->calendar->toXMLFile($activityDir);
@@ -1182,8 +1202,9 @@ abstract class GlobalModel implements \IBackupModel {
 		}
 			
 			
-		}
-		
+	}
+
+	
 	public function toMBZArchive($directory){
 		
 		echo '<br/>REPOSITORY = '.$this->repository."<br/>";
@@ -1367,7 +1388,7 @@ class QuizModel extends ActivityModel {
 
 class ForumModel extends ActivityModel {
 	/**
-	 * @var
+	 * @var ActivityForum
 	 */
 	public $forum;
 

@@ -244,9 +244,53 @@ class WebCTService {
 		// Commit.
 		$transaction->allow_commit();
 		
+		//post restauration..
+		$this->postRestoration($courseId);
+		
 		return true;
 	}
 	
+	
+	protected function postRestoration($courseId){
+		echo 'POST RESTORATION <br/>';
+		
+		//Upgrade the course format and number of sections
+//		$courseFormat = course_get_format($courseId);		
+//		$options = $courseFormat->get_format_options();
+		$modinfo = get_fast_modinfo($courseId);
+		$sections = $modinfo->get_section_info_all();
+		$sectionsCount = count($sections)-1;
+
+		$cw = new stdClass();
+		$cw->id   = $courseId;
+		$cw->format  = 'topics';
+		$cw->numsections  = $sectionsCount;
+		update_course($cw);
+		
+		//Move choose sections to the end
+		//$this->moveSectionToEnd($courseId, utf8_encode('Section générale'));
+		$this->moveSectionToEnd($courseId, utf8_encode('Évaluations'));
+		$this->moveSectionToEnd($courseId, utf8_encode('Tâches'));
+		$this->moveSectionToEnd($courseId, utf8_encode('Modules d\'apprentissage'));
+				
+	}
+	
+	protected function moveSectionToEnd($courseId,$sectioName){
+		global $DB;
+		
+		$modinfo = get_fast_modinfo($courseId);
+		$sections = $modinfo->get_section_info_all();
+		$sectionsCount = count($sections)-1;
+		
+		$course = $DB->get_record('course', array('id' => $courseId), '*', MUST_EXIST);
+		foreach ($sections as $key=>$section){
+			if($section->name==$sectioName){
+				move_section_to($course,$section->section,$sectionsCount);
+				break;
+			}
+		}
+	}
+		
 }
 
 class WebCTServiceSettings {

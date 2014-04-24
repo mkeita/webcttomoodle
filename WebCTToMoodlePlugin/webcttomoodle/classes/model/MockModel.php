@@ -19,6 +19,10 @@ class MockModel extends \GlobalModel {
 		
 	}
 	
+	public function postInitialization(){
+	
+	}
+	
 	/**
 	 *
 	 */
