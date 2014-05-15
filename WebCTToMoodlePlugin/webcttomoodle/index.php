@@ -203,7 +203,6 @@ if($isBackup){
 	echo $progressBar;
 	
 	$codes =json_decode(optional_param('codes', "", PARAM_TEXT),true);
-	
 	activerAffichage();
 	$nbElemRestore = count($codes);
 	
@@ -211,8 +210,7 @@ if($isBackup){
 	
 	$webCTService->step = 1/$nbElemRestore;
 	foreach ($codes as $code=>$file){
-		
-		$value = optional_param($code, "", PARAM_TEXT);
+		$value = optional_param(str_replace(' ', '', $code), "", PARAM_TEXT);
 		progression($indice);
 		if(empty($value)){
 			$indice += 100 /$nbElemRestore ;

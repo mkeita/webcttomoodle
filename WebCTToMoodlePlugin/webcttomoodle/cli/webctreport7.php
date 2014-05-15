@@ -103,6 +103,14 @@ while ($row = oci_fetch_array($stid1, OCI_ASSOC+OCI_RETURN_NULLS)) {
 	            $writer->writeAttribute('nb_cms_elements',$row4['COUNT(*)']);
 	            $writer->writeAttribute('all_files_size',$row4['FILESIZE']);
 	            $writer->writeAttribute('file_max_size',$row4['MAXFILESIZE']);
+	            
+	            
+            	//Get only non deleted assessment
+            	$request = "SELECT COUNT(*) FROM CMS_CONTENT_ENTRY WHERE CE_TYPE_NAME='Question' AND DELETED_FLAG=0 AND DELIVERY_CONTEXT_ID='".$deliveryContextId. "'";
+            	$stid4 = oci_parse($conn,$request);
+            	oci_execute($stid4);
+            	$countDB = oci_fetch_array($stid4, OCI_ASSOC+OCI_RETURN_NULLS);
+	          	$writer->writeAttribute('nb_questions', $countDB["COUNT(*)"]);
 	             
             $writer->endElement();
             

@@ -121,7 +121,7 @@ class RestoreForm extends moodleform {
 					if(count($courses)>0){
 						foreach($courses as $course){
 							$moodleShortName =$course->shortname;						
-							$table.="<tr><td><input type='text' name='$moodleShortName' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";
+							$table.="<tr><td><input type='text' name='".str_replace(' ', '', $moodleShortName)."' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";
 							$codes[$moodleShortName]=$file;
 						}
 					}else{
@@ -130,12 +130,12 @@ class RestoreForm extends moodleform {
 						if(count($courses)>0){
 							foreach($courses as $course){
 								$moodleShortName =$course->shortname;
-								$table.="<tr><td><input type='text' name='$moodleShortName' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";
+								$table.="<tr><td><input type='text' name='".str_replace(' ', '', $moodleShortName)."' value='$moodleShortName'/></td><td>$code</td><td>$file</td></tr>";
 								$codes[$moodleShortName]=$file;
 							}
 						}else {						
 							$moodleShortName = $code;
-							$table.="<tr><td><input type='text' name='$moodleShortName' value='C'/></td><td>$code</td><td>$file</td></tr>";
+							$table.="<tr><td><input type='text' name='".str_replace(' ', '', $moodleShortName)."' value='C'/></td><td>$code</td><td>$file</td></tr>";
 							$codes[$moodleShortName]=$file;
 						}
 					}
